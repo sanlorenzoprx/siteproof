@@ -21,7 +21,7 @@ export function CloudUpsellCard() {
           <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">{settings.cloudSyncStatus}</div>
         </div>
         <button onClick={() => void updateSettings({ cloudEnabled: !settings.cloudEnabled, cloudSyncStatus: settings.cloudEnabled ? 'off' : 'pending' })} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest">
-          {settings.cloudEnabled ? 'Disable' : 'Enable'}
+          {settings.cloudEnabled ? t('cloud.disable') : t('cloud.enable')}
         </button>
       </div>
     </section>

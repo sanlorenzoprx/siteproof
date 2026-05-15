@@ -1,5 +1,6 @@
 import { SITEPROOF_BRAND } from "../config/brand";
 import { SITEPROOF_OFFER, getInAppOfferHeader, type SiteProofPlanId } from "../config/offer";
+import { useSettings } from '../contexts/SettingsContext';
 
 type LicenseValueCardProps = {
   planId?: SiteProofPlanId;
@@ -7,13 +8,14 @@ type LicenseValueCardProps = {
 };
 
 export function LicenseValueCard({ planId = "core", status = "active" }: LicenseValueCardProps) {
+  const { t } = useSettings();
   const offer = getInAppOfferHeader(planId);
   const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
 
   return (
     <section className="rounded-2xl border p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide opacity-60">
-        {offer.appName} License
+        {offer.appName} {t('license.licenseLabel')}
       </p>
 
       <div className="mt-2 flex flex-col gap-1">
