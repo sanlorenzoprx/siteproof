@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { Job } from '../../types';
 import { ReportMode } from '../../services/pdfService';
 import type { SiteProofLanguage } from '../../types/settings';
+import { translate } from '../../config/i18n';
 
 function safePart(value?: string | null): string {
   return (value || 'Job')
@@ -28,20 +29,20 @@ export function packetLabel(mode: ReportMode): string {
   }
 }
 
-export function packetTitle(mode: ReportMode): string {
+export function packetTitle(mode: ReportMode, language: SiteProofLanguage = 'en'): string {
   switch (mode) {
     case ReportMode.CUSTOMER:
-      return 'Customer Completion Packet';
+      return translate(language, 'jobDetail.customerPacket');
     case ReportMode.INSPECTOR:
-      return 'Inspector Proof Packet';
+      return translate(language, 'jobDetail.inspectorPacket');
     case ReportMode.WARRANTY:
       return 'Warranty Documentation Packet';
     case ReportMode.DISPUTE:
-      return 'Dispute / Change Order Packet';
+      return translate(language, 'jobDetail.disputePack');
     case ReportMode.HANDOFF:
       return 'Crew Handoff Packet';
     default:
-      return 'Internal Job Record';
+      return translate(language, 'jobDetail.internalRecord');
   }
 }
 

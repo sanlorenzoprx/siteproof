@@ -63,7 +63,7 @@ export function CreateJob() {
             <div className="relative">
               <input type="text" required value={form.customerName} 
                 onChange={e => setForm({...form, customerName: e.target.value})}
-                placeholder="e.g. John Doe / ACME Corp"
+                placeholder={t('jobs.customerPlaceholder')}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all pr-14" />
               <VoiceDictation 
                 onResult={(text) => setForm({...form, customerName: text})}
@@ -77,7 +77,7 @@ export function CreateJob() {
             <div className="relative">
               <input type="text" required value={form.address}
                 onChange={e => setForm({...form, address: e.target.value})}
-                placeholder="Full street address, city, state"
+                placeholder={t('jobs.addressPlaceholder')}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all pr-14" />
               <VoiceDictation 
                 onResult={(text) => setForm({...form, address: text})}
@@ -113,14 +113,14 @@ export function CreateJob() {
               <input type="text" value={form.technicianName}
                 onChange={e => setForm({...form, technicianName: e.target.value})}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all" 
-                placeholder="Name of Lead" />
+                placeholder={t('jobs.technicianNamePlaceholder')} />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.technicianRole')}</label>
               <input type="text" value={form.technicianRole}
                 onChange={e => setForm({...form, technicianRole: e.target.value})}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all" 
-                placeholder="Lead Electrician, etc." />
+                placeholder={t('jobs.technicianRolePlaceholder')} />
             </div>
           </div>
 
@@ -129,7 +129,7 @@ export function CreateJob() {
             <div className="relative">
               <textarea
                 rows={3}
-                placeholder="Any quick reminders or setup info..."
+                placeholder={t('jobs.notesPlaceholder')}
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all pr-14"

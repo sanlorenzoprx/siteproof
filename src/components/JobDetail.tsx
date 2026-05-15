@@ -226,7 +226,7 @@ export function JobDetail() {
             <button
               onClick={() => navigate('/')}
               className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-500 transition-all"
-              aria-label="{t('jobDetail.backJobs')}"
+              aria-label={t('jobDetail.backJobs')}
             >
               <ArrowLeft size={22} />
             </button>
@@ -282,7 +282,7 @@ export function JobDetail() {
                 }
               }}
               className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-red-500 transition-all"
-              aria-label="{t('jobDetail.deleteJob')}"
+              aria-label={t('jobDetail.deleteJob')}
             >
               <Trash2 size={20} />
             </button>
@@ -365,7 +365,7 @@ export function JobDetail() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                   {photos.map((photo) => (
-                    <PhotoGalleryCard key={photo.id} photo={photo} />
+                    <PhotoGalleryCard key={photo.id} photo={photo} t={t} />
                   ))}
                 </div>
               </section>
@@ -391,13 +391,13 @@ export function JobDetail() {
                       )}
                       <p className="text-slate-900 font-bold leading-relaxed">“{note.transcribedText}”</p>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <VoiceChip icon={<Languages size={13} />} label={note.language === 'es' ? 'Spanish' : note.language === 'en' ? 'English' : 'Language Auto'} />
+                        <VoiceChip icon={<Languages size={13} />} label={note.language === 'es' ? t('jobDetail.spanish') : note.language === 'en' ? t('jobDetail.english') : t('jobDetail.languageAuto')} />
                         {note.materialMentions?.slice(0, 3).map((item) => (
                           <span key={item}><VoiceChip icon={<Wrench size={13} />} label={item} /></span>
                         ))}
-                        {note.issueMentions?.length ? <VoiceChip tone="warning" icon={<AlertTriangle size={13} />} label={`${note.issueMentions.length} issue${note.issueMentions.length === 1 ? '' : 's'}`} /> : null}
-                        {note.changeOrderCandidates?.length ? <VoiceChip tone="warning" icon={<Zap size={13} />} label="Change Order Candidate" /> : null}
-                        {note.customerRequests?.length ? <VoiceChip icon={<Mic size={13} />} label="Customer Request" /> : null}
+                        {note.issueMentions?.length ? <VoiceChip tone="warning" icon={<AlertTriangle size={13} />} label={`${note.issueMentions.length} ${note.issueMentions.length === 1 ? t('jobDetail.issue') : t('jobDetail.issues')}`} /> : null}
+                        {note.changeOrderCandidates?.length ? <VoiceChip tone="warning" icon={<Zap size={13} />} label={t('jobDetail.changeOrderCandidate')} /> : null}
+                        {note.customerRequests?.length ? <VoiceChip icon={<Mic size={13} />} label={t('jobDetail.customerRequest')} /> : null}
                       </div>
                     </div>
                   </div>
@@ -436,7 +436,7 @@ export function JobDetail() {
                     <div className="mt-8 bg-white/5 border border-white/10 rounded-[28px] p-5">
                       <div className="flex items-center justify-between gap-4 mb-4">
                         <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">{t('jobDetail.history')}</h3>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exportPackets.length} saved locally</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exportPackets.length} {t('jobDetail.savedLocallyCount')}</span>
                       </div>
                       {exportPackets.length === 0 ? (
                         <p className="text-xs font-bold text-slate-500">{t('jobDetail.noPackets')}</p>
@@ -446,9 +446,9 @@ export function JobDetail() {
                             <div key={packet.export_id} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
                               <div>
                                 <div className="text-sm font-black text-white">{packet.title}</div>
-                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{format(new Date(packet.generated_at), 'MMM d, h:mm a')} • {packet.included_proof_ids.length} proof items</div>
+                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{format(new Date(packet.generated_at), 'MMM d, h:mm a')} • {packet.included_proof_ids.length} {t('jobDetail.proofItems')}</div>
                               </div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-green-300">Saved</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-green-300">{t('jobDetail.saved')}</span>
                             </div>
                           ))}
                         </div>
@@ -497,7 +497,7 @@ export function JobDetail() {
                   <Zap size={18} /> {t('jobDetail.flagChangeOrder')}
                 </button>
                 <button onClick={() => navigate(`/job/${job.id}/voice?category=General`)} className="w-full bg-slate-100 text-slate-700 p-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 transition-all">
-                  <Mic size={18} /> Record Note
+                  <Mic size={18} /> {t('jobDetail.recordNote')}
                 </button>
               </div>
             </section>
@@ -662,7 +662,7 @@ function WorkflowStageCard({
 }
 
 
-function PhotoGalleryCard({ photo }: { photo: JobPhoto; key?: React.Key }) {
+function PhotoGalleryCard({ photo, t }: { photo: JobPhoto; t: (key: string) => string; key?: React.Key }) {
   const hasGps = typeof photo.latitude === 'number' && typeof photo.longitude === 'number';
   const compressed = photo.compressionState === 'compressed' || photo.compressionState === 'not_needed';
   const quality = photo.qualityScore ? Math.round(photo.qualityScore * 100) : null;
@@ -673,15 +673,15 @@ function PhotoGalleryCard({ photo }: { photo: JobPhoto; key?: React.Key }) {
         <PhotoThumbnail photo={photo} className="w-full h-full object-cover" />
         <div className="absolute top-3 left-3 flex flex-wrap gap-2">
           <span className={cn('px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white', hasGps ? 'bg-green-600' : 'bg-red-500')}>
-            {hasGps ? 'GPS' : 'No GPS'}
+            {hasGps ? 'GPS' : t('jobDetail.noGps')}
           </span>
           <span className={cn('px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white', compressed ? 'bg-blue-600' : 'bg-slate-600')}>
-            {compressed ? 'Media Ready' : 'Processing'}
+            {compressed ? t('jobDetail.mediaReady') : t('jobDetail.processing')}
           </span>
         </div>
         {photo.isIssue && (
           <div className="absolute top-3 right-3 bg-orange-500 text-white px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-            {photo.issueType?.replace('_', ' ') || 'Issue'}
+            {photo.issueType?.replace('_', ' ') || t('jobDetail.issue')}
           </div>
         )}
       </div>
@@ -692,15 +692,15 @@ function PhotoGalleryCard({ photo }: { photo: JobPhoto; key?: React.Key }) {
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">Size</div>
+            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.size')}</div>
             <div className="text-[11px] font-black text-slate-900">{MediaPipelineService.humanFileSize(photo.compressedSize ?? photo.originalSize)}</div>
           </div>
           <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">Quality</div>
+            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.quality')}</div>
             <div className="text-[11px] font-black text-slate-900">{quality ? `${quality}%` : '—'}</div>
           </div>
           <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">Pixels</div>
+            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.pixels')}</div>
             <div className="text-[11px] font-black text-slate-900">{photo.width && photo.height ? `${photo.width}×${photo.height}` : '—'}</div>
           </div>
         </div>
