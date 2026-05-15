@@ -1,0 +1,6 @@
+{
+  "name": "SiteProof",
+  "description": "SiteProof is an offline-first proof-of-work app for contractors. Document the job. Protect the company. Get paid faster.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": []
+}

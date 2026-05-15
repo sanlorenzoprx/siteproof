@@ -1,0 +1,23 @@
+name = "siteproof-api"
+main = "workers/siteproof-api/src/index.ts"
+compatibility_date = "2026-05-14"
+
+[vars]
+AI_TEXT_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+AI_TRANSCRIBE_MODEL = "@cf/openai/whisper"
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "SITEPROOF_DB"
+database_name = "siteproof-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[[r2_buckets]]
+binding = "SITEPROOF_MEDIA"
+bucket_name = "siteproof-media"
+
+[[r2_buckets]]
+binding = "SITEPROOF_EXPORTS"
+bucket_name = "siteproof-exports"

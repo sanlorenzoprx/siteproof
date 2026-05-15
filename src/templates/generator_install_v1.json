@@ -1,0 +1,942 @@
+{
+  "template_id": "generator_install_v1",
+  "template_version": "1.0.0",
+  "template_status": "active",
+  "trade": "electrical",
+  "vertical": "generator_emergency_power",
+  "job_type": "generator_install",
+  "display_name": "Generator Install",
+  "description": "Workflow for documenting standby generator installation from site arrival through final export.",
+  "supported_property_types": ["residential", "commercial"],
+  "supported_regions": ["US", "PR"],
+  "default_language": "en",
+  "supported_languages": ["en", "es"],
+  "estimated_duration_minutes": 480,
+  "risk_level": "high",
+  "requires_permit_review": true,
+  "requires_inspection_review": true,
+  "created_at": "2026-05-13T00:00:00Z",
+  "updated_at": "2026-05-13T00:00:00Z",
+  "schema_version": "1.0.0",
+  "stages": [
+    {
+      "stage_id": "intake",
+      "stage_key": "intake",
+      "display_name": "Intake",
+      "description": "Collect job, customer, site, and scope context before field work begins.",
+      "sort_order": 5,
+      "required": true,
+      "can_skip": false,
+      "skip_requires_reason": true,
+      "visible_in_field_mode": true,
+      "proof_requirements": [
+        {
+          "requirement_id": "job_scope_note",
+          "proof_type": "text_note",
+          "priority": "recommended",
+          "display_name": "Job scope note",
+          "field_instruction": "Add a short summary of generator size, fuel type, transfer switch scope, and any known constraints.",
+          "capture_hint": "Example: Install 24kW standby generator with ATS, natural gas connection by others.",
+          "minimum_count": 1,
+          "maximum_count": 1,
+          "allow_multiple": false,
+          "requires_gps": false,
+          "requires_timestamp": true,
+          "requires_user_note": true,
+          "requires_ai_quality_check": false,
+          "quality_rules": [],
+          "ai_label_hints": ["scope", "generator_size", "fuel_type", "ats"],
+          "inspection_tags": [],
+          "permit_tags": ["scope"],
+          "export_tags": ["customer_packet", "inspector_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "local_only_allowed"
+        }
+      ],
+      "checklist_items": [
+        {
+          "checklist_id": "jobsite_zip_confirmed",
+          "display_name": "Jobsite ZIP confirmed",
+          "description": "Confirm the jobsite ZIP because permit, inspection, utility, and AHJ rules should follow the jobsite location, not only the business ZIP.",
+          "priority": "required",
+          "requires_note": false,
+          "requires_signature": false,
+          "blocks_stage_completion": true,
+          "export_tags": ["inspector_packet", "internal_record"]
+        },
+        {
+          "checklist_id": "permit_status_checked",
+          "display_name": "Permit status checked",
+          "description": "Confirm whether permit has been pulled, is pending, not required, or needs office review.",
+          "priority": "required",
+          "requires_note": true,
+          "requires_signature": false,
+          "blocks_stage_completion": false,
+          "export_tags": ["inspector_packet", "internal_record"]
+        }
+      ],
+      "stage_validation_rules": [],
+      "ai_stage_prompts": [],
+      "export_section_mappings": []
+    },
+    {
+      "stage_id": "site_arrival",
+      "stage_key": "site_arrival",
+      "display_name": "Site Arrival",
+      "description": "Confirm jobsite location and capture initial site context.",
+      "sort_order": 10,
+      "required": true,
+      "can_skip": false,
+      "skip_requires_reason": true,
+      "visible_in_field_mode": true,
+      "proof_requirements": [
+        {
+          "requirement_id": "gps_check_in",
+          "proof_type": "gps_event",
+          "priority": "required",
+          "display_name": "GPS check-in",
+          "field_instruction": "Capture GPS check-in when arriving at the jobsite.",
+          "capture_hint": "Use last known location if signal is weak, then mark as offline location lock.",
+          "minimum_count": 1,
+          "maximum_count": 1,
+          "allow_multiple": false,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": false,
+          "quality_rules": [],
+          "ai_label_hints": ["arrival", "gps_check_in"],
+          "inspection_tags": [],
+          "permit_tags": [],
+          "export_tags": ["internal_record", "litigation_packet"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "local_only_allowed"
+        },
+        {
+          "requirement_id": "site_overview_arrival",
+          "proof_type": "photo",
+          "priority": "required",
+          "display_name": "Site overview at arrival",
+          "field_instruction": "Take a wide photo showing the work area before starting.",
+          "capture_hint": "Include driveway, proposed generator area, and access path if possible.",
+          "minimum_count": 1,
+          "maximum_count": 5,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["site_overview", "arrival", "work_area"],
+          "inspection_tags": [],
+          "permit_tags": [],
+          "export_tags": ["customer_packet", "internal_record", "insurance_packet"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        }
+      ],
+      "checklist_items": [],
+      "stage_validation_rules": [],
+      "ai_stage_prompts": [],
+      "export_section_mappings": []
+    },
+    {
+      "stage_id": "existing_conditions",
+      "stage_key": "existing_conditions",
+      "display_name": "Existing Conditions",
+      "description": "Capture before-work evidence for service equipment and installation area.",
+      "sort_order": 20,
+      "required": true,
+      "can_skip": false,
+      "skip_requires_reason": true,
+      "visible_in_field_mode": true,
+      "proof_requirements": [
+        {
+          "requirement_id": "meter_before",
+          "proof_type": "photo",
+          "priority": "required",
+          "display_name": "Meter before work",
+          "field_instruction": "Take a clear photo of the electric meter before work begins.",
+          "capture_hint": "Include meter face and surrounding service equipment.",
+          "minimum_count": 1,
+          "maximum_count": 5,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["meter", "electric_meter"],
+          "inspection_tags": ["service_equipment"],
+          "permit_tags": ["electrical_permit"],
+          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "main_panel_before",
+          "proof_type": "photo",
+          "priority": "required",
+          "display_name": "Main panel before work",
+          "field_instruction": "Take a clear photo of the main panel before work begins.",
+          "capture_hint": "Open panel only if safe and allowed. Capture labels if visible.",
+          "minimum_count": 1,
+          "maximum_count": 5,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["main_panel", "breaker_panel"],
+          "inspection_tags": ["panel"],
+          "permit_tags": ["electrical_permit"],
+          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "proposed_generator_location_before",
+          "proof_type": "photo",
+          "priority": "required",
+          "display_name": "Proposed generator location before work",
+          "field_instruction": "Capture the proposed generator location before installation.",
+          "capture_hint": "Show nearby walls, openings, grade, pad area, and access path.",
+          "minimum_count": 1,
+          "maximum_count": 8,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["generator_location", "pad_location", "site_conditions"],
+          "inspection_tags": ["clearance", "location"],
+          "permit_tags": ["site_plan"],
+          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "compliance_notes": [
+            "Clearance requirements vary by manufacturer, fuel type, and jurisdiction. Verify with AHJ and manufacturer documentation."
+          ],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "existing_obstructions",
+          "proof_type": "photo",
+          "priority": "recommended",
+          "display_name": "Existing obstructions or site constraints",
+          "field_instruction": "Capture fences, landscaping, windows, vents, slopes, drainage, or access constraints that may affect installation.",
+          "capture_hint": "Take multiple angles if the site is tight or clearance may be questioned.",
+          "minimum_count": 1,
+          "maximum_count": 10,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["obstruction", "clearance", "window", "vent", "fence", "landscaping"],
+          "inspection_tags": ["clearance", "site_conditions"],
+          "permit_tags": ["site_plan"],
+          "export_tags": ["inspector_packet", "internal_record", "insurance_packet"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        }
+      ],
+      "checklist_items": [],
+      "stage_validation_rules": [],
+      "ai_stage_prompts": [],
+      "export_section_mappings": []
+    },
+    {
+      "stage_id": "active_work",
+      "stage_key": "active_work",
+      "display_name": "Active Work",
+      "description": "Document installation progress, hidden work, and important field conditions.",
+      "sort_order": 30,
+      "required": true,
+      "can_skip": false,
+      "skip_requires_reason": true,
+      "visible_in_field_mode": true,
+      "proof_requirements": [
+        {
+          "requirement_id": "generator_pad_or_base",
+          "proof_type": "photo",
+          "priority": "required",
+          "display_name": "Generator pad or base",
+          "field_instruction": "Capture the generator pad/base before generator placement when possible.",
+          "capture_hint": "Show pad position, grade, and surrounding clearance.",
+          "minimum_count": 1,
+          "maximum_count": 6,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["generator_pad", "concrete_pad", "base"],
+          "inspection_tags": ["pad", "location"],
+          "permit_tags": ["site_plan"],
+          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "transfer_switch_install",
+          "proof_type": "photo",
+          "priority": "required",
+          "display_name": "Transfer switch installation",
+          "field_instruction": "Capture installed transfer switch and surrounding equipment.",
+          "capture_hint": "Include labels, conduit entries, and work area context.",
+          "minimum_count": 1,
+          "maximum_count": 8,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["transfer_switch", "ats"],
+          "inspection_tags": ["transfer_switch", "service_equipment"],
+          "permit_tags": ["electrical_permit"],
+          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "conduit_routing",
+          "proof_type": "photo",
+          "priority": "recommended",
+          "display_name": "Conduit routing",
+          "field_instruction": "Capture conduit routing before it becomes hidden or hard to inspect.",
+          "capture_hint": "Show path, transitions, penetrations, and protection.",
+          "minimum_count": 1,
+          "maximum_count": 12,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["conduit", "routing", "penetration"],
+          "inspection_tags": ["raceway", "routing"],
+          "permit_tags": ["electrical_permit"],
+          "export_tags": ["inspector_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "fuel_connection",
+          "proof_type": "photo",
+          "priority": "conditional",
+          "display_name": "Fuel connection",
+          "field_instruction": "Capture fuel connection if included in scope.",
+          "capture_hint": "Show connection area, shutoff location, and any relevant labels.",
+          "minimum_count": 1,
+          "maximum_count": 8,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["fuel_line", "gas_connection", "propane", "natural_gas"],
+          "inspection_tags": ["fuel", "gas"],
+          "permit_tags": ["fuel_permit", "mechanical_permit"],
+          "export_tags": ["inspector_packet", "internal_record"],
+          "compliance_notes": [
+            "Fuel requirements vary by fuel type and jurisdiction. Verify with qualified gas/fuel contractor and AHJ."
+          ],
+          "conditional_logic": {
+            "if": {
+              "field": "scope.includes_fuel_connection",
+              "operator": "equals",
+              "value": true
+            },
+            "then": {
+              "priority": "required",
+              "minimum_count": 1
+            },
+            "else": {
+              "priority": "optional",
+              "minimum_count": 0
+            }
+          },
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "grounding_or_bonding_detail",
+          "proof_type": "photo",
+          "priority": "recommended",
+          "display_name": "Grounding/bonding detail",
+          "field_instruction": "Capture grounding or bonding detail when visible and safe to document.",
+          "capture_hint": "Show connection points, labels, and surrounding equipment context.",
+          "minimum_count": 1,
+          "maximum_count": 8,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["grounding", "bonding", "ground_wire", "electrode"],
+          "inspection_tags": ["grounding", "bonding"],
+          "permit_tags": ["electrical_permit"],
+          "export_tags": ["inspector_packet", "internal_record"],
+          "compliance_notes": [
+            "Grounding and bonding requirements depend on system design, code adoption, and AHJ interpretation. Verify locally."
+          ],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        }
+      ],
+      "checklist_items": [
+        {
+          "checklist_id": "change_order_review",
+          "display_name": "Review unexpected work/change-order items",
+          "description": "Confirm whether extra trenching, relocation, repair, or customer-requested changes occurred.",
+          "priority": "recommended",
+          "requires_note": false,
+          "requires_signature": false,
+          "blocks_stage_completion": false,
+          "export_tags": ["internal_record"]
+        }
+      ],
+      "stage_validation_rules": [],
+      "ai_stage_prompts": [],
+      "export_section_mappings": []
+    },
+    {
+      "stage_id": "inspection_readiness",
+      "stage_key": "inspection_readiness",
+      "display_name": "Inspection Readiness",
+      "description": "Capture closeout proof needed for inspection and permit records.",
+      "sort_order": 40,
+      "required": true,
+      "can_skip": false,
+      "skip_requires_reason": true,
+      "visible_in_field_mode": true,
+      "proof_requirements": [
+        {
+          "requirement_id": "final_generator_install",
+          "proof_type": "photo",
+          "priority": "required",
+          "display_name": "Final generator installation",
+          "field_instruction": "Capture final installed generator from multiple angles.",
+          "capture_hint": "Show finished install, clearance context, and surroundings.",
+          "minimum_count": 2,
+          "maximum_count": 10,
+          "allow_multiple": true,
+          "requires_gps": true,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["not_blurry", "not_dark"],
+          "ai_label_hints": ["generator", "final_install", "completed"],
+          "inspection_tags": ["final", "clearance", "equipment"],
+          "permit_tags": ["final_inspection"],
+          "export_tags": ["inspector_packet", "customer_packet", "warranty_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "generator_serial_number",
+          "proof_type": "serial_number",
+          "priority": "required",
+          "display_name": "Generator serial/model number",
+          "field_instruction": "Capture or enter generator model and serial number.",
+          "capture_hint": "Take a clear photo of manufacturer nameplate if available.",
+          "minimum_count": 1,
+          "maximum_count": 3,
+          "allow_multiple": true,
+          "requires_gps": false,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["readable_text"],
+          "ai_label_hints": ["serial_number", "nameplate", "model_number"],
+          "inspection_tags": ["equipment_identification"],
+          "permit_tags": ["equipment"],
+          "export_tags": ["inspector_packet", "warranty_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "startup_or_test_result",
+          "proof_type": "test_result",
+          "priority": "recommended",
+          "display_name": "Startup/test result",
+          "field_instruction": "Document startup or test result if performed.",
+          "capture_hint": "Add photo, note, or measurement showing test/startup outcome.",
+          "minimum_count": 1,
+          "maximum_count": 5,
+          "allow_multiple": true,
+          "requires_gps": false,
+          "requires_timestamp": true,
+          "requires_user_note": true,
+          "requires_ai_quality_check": false,
+          "quality_rules": [],
+          "ai_label_hints": ["startup", "test", "voltage", "load_test"],
+          "inspection_tags": ["test_result"],
+          "permit_tags": ["final_inspection"],
+          "export_tags": ["inspector_packet", "customer_packet", "warranty_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "permit_or_inspection_document",
+          "proof_type": "document",
+          "priority": "recommended",
+          "display_name": "Permit or inspection document",
+          "field_instruction": "Attach or photograph permit card, inspection tag, or related jobsite document if available.",
+          "capture_hint": "Make sure text is readable.",
+          "minimum_count": 1,
+          "maximum_count": 5,
+          "allow_multiple": true,
+          "requires_gps": false,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": true,
+          "quality_rules": ["readable_text"],
+          "ai_label_hints": ["permit", "inspection", "document"],
+          "inspection_tags": ["permit", "inspection"],
+          "permit_tags": ["permit_document"],
+          "export_tags": ["inspector_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        }
+      ],
+      "checklist_items": [
+        {
+          "checklist_id": "required_photos_reviewed",
+          "display_name": "Required photos reviewed",
+          "description": "Confirm all required photos are captured before generating inspector packet.",
+          "priority": "required",
+          "requires_note": false,
+          "requires_signature": false,
+          "blocks_stage_completion": true,
+          "export_tags": ["inspector_packet", "internal_record"]
+        }
+      ],
+      "stage_validation_rules": [],
+      "ai_stage_prompts": [],
+      "export_section_mappings": []
+    },
+    {
+      "stage_id": "completion",
+      "stage_key": "completion",
+      "display_name": "Completion",
+      "description": "Capture customer-facing completion proof and signoff.",
+      "sort_order": 50,
+      "required": true,
+      "can_skip": true,
+      "skip_requires_reason": true,
+      "visible_in_field_mode": true,
+      "proof_requirements": [
+        {
+          "requirement_id": "customer_walkthrough_note",
+          "proof_type": "voice_note",
+          "priority": "recommended",
+          "display_name": "Customer walkthrough note",
+          "field_instruction": "Record a short note summarizing customer walkthrough or closeout status.",
+          "capture_hint": "Mention any customer instructions, warranty explanation, or remaining items.",
+          "minimum_count": 1,
+          "maximum_count": 3,
+          "allow_multiple": true,
+          "requires_gps": false,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": false,
+          "quality_rules": [],
+          "ai_label_hints": ["customer_walkthrough", "closeout", "warranty"],
+          "inspection_tags": [],
+          "permit_tags": [],
+          "export_tags": ["customer_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        },
+        {
+          "requirement_id": "customer_signature",
+          "proof_type": "signature",
+          "priority": "optional",
+          "display_name": "Customer signature",
+          "field_instruction": "Capture customer signoff if required by company workflow.",
+          "capture_hint": "Use when work is complete or when customer acknowledges documentation.",
+          "minimum_count": 0,
+          "maximum_count": 1,
+          "allow_multiple": false,
+          "requires_gps": false,
+          "requires_timestamp": true,
+          "requires_user_note": false,
+          "requires_ai_quality_check": false,
+          "quality_rules": [],
+          "ai_label_hints": ["signature", "signoff"],
+          "inspection_tags": [],
+          "permit_tags": [],
+          "export_tags": ["customer_packet", "internal_record"],
+          "compliance_notes": [],
+          "conditional_logic": null,
+          "sync_policy": "sync_recommended"
+        }
+      ],
+      "checklist_items": [],
+      "stage_validation_rules": [],
+      "ai_stage_prompts": [],
+      "export_section_mappings": []
+    },
+    {
+      "stage_id": "export_archive",
+      "stage_key": "export_archive",
+      "display_name": "Export / Archive",
+      "description": "Generate documentation packets and confirm local/offline archive status.",
+      "sort_order": 60,
+      "required": true,
+      "can_skip": true,
+      "skip_requires_reason": true,
+      "visible_in_field_mode": true,
+      "proof_requirements": [],
+      "checklist_items": [
+        {
+          "checklist_id": "customer_packet_generated",
+          "display_name": "Customer packet generated",
+          "description": "Generate customer-facing completion documentation when appropriate.",
+          "priority": "recommended",
+          "requires_note": false,
+          "requires_signature": false,
+          "blocks_stage_completion": false,
+          "export_tags": ["customer_packet", "internal_record"]
+        },
+        {
+          "checklist_id": "sync_status_reviewed",
+          "display_name": "Sync status reviewed",
+          "description": "Confirm whether job is saved locally, waiting for internet, uploading, backed up, or needs attention.",
+          "priority": "required",
+          "requires_note": false,
+          "requires_signature": false,
+          "blocks_stage_completion": false,
+          "export_tags": ["internal_record"]
+        }
+      ],
+      "stage_validation_rules": [],
+      "ai_stage_prompts": [],
+      "export_section_mappings": []
+    }
+  ],
+  "export_profiles": [
+    {
+      "export_profile_id": "customer_packet_v1",
+      "packet_type": "customer_packet",
+      "display_name": "Customer Packet",
+      "description": "Clean customer-facing completion packet.",
+      "default_enabled": true,
+      "sections": [
+        {
+          "section_id": "job_summary",
+          "display_name": "Job Summary",
+          "sort_order": 10,
+          "content_sources": ["job", "customer", "ai_summary"]
+        },
+        {
+          "section_id": "before_after_photos",
+          "display_name": "Before and After Photos",
+          "sort_order": 20,
+          "content_sources": ["proof_objects"],
+          "filter": {
+            "field": "export_tags",
+            "operator": "contains",
+            "value": "customer_packet"
+          }
+        },
+        {
+          "section_id": "completion_notes",
+          "display_name": "Completion Notes",
+          "sort_order": 30,
+          "content_sources": ["voice_notes", "text_notes", "signature"]
+        }
+      ],
+      "requires_validation_pass": false,
+      "include_timeline": true,
+      "include_gps": false,
+      "include_timestamps": true,
+      "include_ai_summary": true,
+      "include_signature": true
+    },
+    {
+      "export_profile_id": "inspector_packet_v1",
+      "packet_type": "inspector_packet",
+      "display_name": "Inspector Packet",
+      "description": "Permit and inspection-ready documentation packet.",
+      "default_enabled": true,
+      "sections": [
+        {
+          "section_id": "job_and_jurisdiction_summary",
+          "display_name": "Job and Jurisdiction Summary",
+          "sort_order": 10,
+          "content_sources": ["job", "jurisdiction", "permit"]
+        },
+        {
+          "section_id": "required_inspection_proof",
+          "display_name": "Required Inspection Proof",
+          "sort_order": 20,
+          "content_sources": ["proof_objects"],
+          "filter": {
+            "field": "export_tags",
+            "operator": "contains",
+            "value": "inspector_packet"
+          }
+        },
+        {
+          "section_id": "inspection_checklist",
+          "display_name": "Inspection Checklist",
+          "sort_order": 30,
+          "content_sources": ["checklist_items", "validation_results"]
+        }
+      ],
+      "requires_validation_pass": true,
+      "include_timeline": true,
+      "include_gps": true,
+      "include_timestamps": true,
+      "include_ai_summary": true,
+      "include_signature": false
+    },
+    {
+      "export_profile_id": "warranty_packet_v1",
+      "packet_type": "warranty_packet",
+      "display_name": "Warranty Packet",
+      "description": "Equipment, serial number, and install documentation for warranty records.",
+      "default_enabled": true,
+      "sections": [
+        {
+          "section_id": "equipment_summary",
+          "display_name": "Equipment Summary",
+          "sort_order": 10,
+          "content_sources": ["proof_objects", "job"]
+        },
+        {
+          "section_id": "install_proof",
+          "display_name": "Installation Proof",
+          "sort_order": 20,
+          "content_sources": ["proof_objects"],
+          "filter": {
+            "field": "export_tags",
+            "operator": "contains",
+            "value": "warranty_packet"
+          }
+        }
+      ],
+      "requires_validation_pass": false,
+      "include_timeline": false,
+      "include_gps": false,
+      "include_timestamps": true,
+      "include_ai_summary": true,
+      "include_signature": false
+    },
+    {
+      "export_profile_id": "internal_record_v1",
+      "packet_type": "internal_record",
+      "display_name": "Internal Record",
+      "description": "Complete internal job record with all proof, notes, timeline, and warnings.",
+      "default_enabled": true,
+      "sections": [
+        {
+          "section_id": "full_job_timeline",
+          "display_name": "Full Job Timeline",
+          "sort_order": 10,
+          "content_sources": ["timeline_events", "proof_objects", "sync_state"]
+        },
+        {
+          "section_id": "all_proof",
+          "display_name": "All Proof Objects",
+          "sort_order": 20,
+          "content_sources": ["proof_objects"]
+        },
+        {
+          "section_id": "change_order_candidates",
+          "display_name": "Change Order Candidates",
+          "sort_order": 30,
+          "content_sources": ["change_order_candidates", "voice_notes"]
+        }
+      ],
+      "requires_validation_pass": false,
+      "include_timeline": true,
+      "include_gps": true,
+      "include_timestamps": true,
+      "include_ai_summary": true,
+      "include_signature": true
+    }
+  ],
+  "ai_prompt_set": {
+    "photo_labeling": {
+      "enabled": true,
+      "label_hints": [
+        "meter",
+        "main_panel",
+        "transfer_switch",
+        "generator_pad",
+        "fuel_line",
+        "grounding",
+        "serial_number",
+        "permit",
+        "site_overview",
+        "clearance"
+      ],
+      "output_schema": "photo_label_result_v1"
+    },
+    "voice_note_structuring": {
+      "enabled": true,
+      "detect_materials": true,
+      "detect_issues": true,
+      "detect_change_orders": true,
+      "supported_languages": ["en", "es"],
+      "output_schema": "voice_note_result_v1"
+    },
+    "report_narrative": {
+      "enabled": true,
+      "tone": "professional_contractor",
+      "max_words": 250,
+      "output_schema": "report_narrative_result_v1"
+    },
+    "missing_proof_detection": {
+      "enabled": true,
+      "output_schema": "missing_proof_result_v1"
+    }
+  },
+  "jurisdiction_modifiers": [
+    {
+      "modifier_id": "cross_jurisdiction_warning",
+      "display_name": "Business and jobsite jurisdiction mismatch",
+      "applies_when": {
+        "field": "jobsite_zip",
+        "operator": "not_equals",
+        "value": "business_zip"
+      },
+      "actions": [
+        {
+          "action_type": "add_validation_rule",
+          "validation_rule": {
+            "rule_id": "verify_jobsite_ahj",
+            "rule_type": "jurisdiction_warning",
+            "severity": "warning",
+            "display_message": "Jobsite ZIP may fall under a different AHJ than business ZIP. Verify permit and inspection requirements for the jobsite location.",
+            "applies_to": ["inspector_packet", "internal_record"],
+            "conditions": [],
+            "recommended_action": "Review jobsite AHJ, permit office, utility provider, and inspection scheduling requirements."
+          }
+        }
+      ],
+      "source_requirement": "job_context",
+      "confidence_level": "high"
+    },
+    {
+      "modifier_id": "coastal_wind_zone_anchoring_proof",
+      "display_name": "Coastal wind-zone anchoring proof",
+      "applies_when": {
+        "field": "jurisdiction.wind_zone_notes",
+        "operator": "exists"
+      },
+      "actions": [
+        {
+          "action_type": "add_proof_requirement",
+          "stage_id": "active_work",
+          "proof_requirement": {
+            "requirement_id": "anchoring_detail_photo",
+            "proof_type": "photo",
+            "priority": "required",
+            "display_name": "Generator anchoring detail",
+            "field_instruction": "Capture clear photo of generator anchoring detail before final closeout.",
+            "capture_hint": "Show fastening/anchoring detail and surrounding base context.",
+            "minimum_count": 1,
+            "maximum_count": 6,
+            "allow_multiple": true,
+            "requires_gps": true,
+            "requires_timestamp": true,
+            "requires_user_note": false,
+            "requires_ai_quality_check": true,
+            "quality_rules": ["not_blurry", "not_dark"],
+            "ai_label_hints": ["anchoring", "fastener", "base", "wind_zone"],
+            "inspection_tags": ["anchoring", "wind_zone"],
+            "permit_tags": ["site_plan", "final_inspection"],
+            "export_tags": ["inspector_packet", "internal_record"],
+            "compliance_notes": [
+              "Wind-zone anchoring requirements vary by jurisdiction, manufacturer, and site condition. Verify with AHJ."
+            ],
+            "conditional_logic": null,
+            "sync_policy": "sync_recommended"
+          }
+        }
+      ],
+      "source_requirement": "jurisdiction_profile",
+      "confidence_level": "medium"
+    }
+  ],
+  "validation_rules": [
+    {
+      "rule_id": "required_proof_before_inspector_export",
+      "rule_type": "missing_proof",
+      "severity": "blocking",
+      "display_message": "Inspector packet requires all required inspector proof items before export.",
+      "applies_to": ["inspector_packet"],
+      "conditions": [
+        {
+          "field": "proof_requirement.priority",
+          "operator": "equals",
+          "value": "required"
+        },
+        {
+          "field": "proof_requirement.export_tags",
+          "operator": "contains",
+          "value": "inspector_packet"
+        }
+      ],
+      "recommended_action": "Capture missing required proof or document why it was skipped if allowed."
+    },
+    {
+      "rule_id": "warn_low_quality_required_photos",
+      "rule_type": "low_quality_proof",
+      "severity": "warning",
+      "display_message": "One or more required photos may be blurry, dark, or hard to verify.",
+      "applies_to": ["customer_packet", "inspector_packet", "internal_record"],
+      "conditions": [
+        {
+          "field": "proof_object.quality_score",
+          "operator": "less_than",
+          "value": 0.65
+        }
+      ],
+      "recommended_action": "Retake the photo before leaving the jobsite."
+    },
+    {
+      "rule_id": "warn_missing_gps_on_required_photos",
+      "rule_type": "missing_gps",
+      "severity": "warning",
+      "display_message": "One or more required photos is missing GPS data.",
+      "applies_to": ["inspector_packet", "internal_record", "litigation_packet"],
+      "conditions": [
+        {
+          "field": "proof_requirement.requires_gps",
+          "operator": "equals",
+          "value": true
+        },
+        {
+          "field": "proof_object.gps_latitude",
+          "operator": "not_exists"
+        }
+      ],
+      "recommended_action": "Retake proof with location enabled or add an offline location note."
+    }
+  ]
+}

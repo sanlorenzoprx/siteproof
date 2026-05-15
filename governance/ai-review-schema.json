@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siteproof.local/schemas/ai-review.schema.json",
+  "title": "SiteProof AI Feature Review",
+  "type": "object",
+  "required": [
+    "featureName",
+    "reviewDate",
+    "decision",
+    "summary",
+    "scores",
+    "topRisks",
+    "requiredChanges",
+    "simplificationOpportunities",
+    "missingTests",
+    "affectedPrimitives",
+    "implementationSequence",
+    "legacyCleanupAssessment"
+  ],
+  "properties": {
+    "featureName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewDate": {
+      "type": "string",
+      "description": "ISO date string"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "approve",
+        "revise",
+        "reject"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "scores": {
+      "type": "object",
+      "required": [
+        "architectureFit",
+        "workflowSimplicity",
+        "proofIntegrity",
+        "offlineSurvivability",
+        "syncSafety",
+        "reuseQuality",
+        "trustImpact"
+      ],
+      "properties": {
+        "architectureFit": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "workflowSimplicity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "proofIntegrity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "offlineSurvivability": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "syncSafety": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "mediaPipelineImpact": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "exportValue": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "reuseQuality": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "trustImpact": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflowMetrics": {
+      "type": "object",
+      "properties": {
+        "tapCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requiredDecisions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "keyboardOpens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contextSwitches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modalCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "estimatedComplexityScore": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "topRisks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredChanges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "simplificationOpportunities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missingTests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "affectedPrimitives": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Job",
+          "WorkflowStageInstance",
+          "ProofObject",
+          "MediaAsset",
+          "VoiceNote",
+          "TimelineEvent",
+          "ExportPacket",
+          "SyncOperation",
+          "ChangeOrderCandidate"
+        ]
+      }
+    },
+    "implementationSequence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "governanceUpdatesRecommended": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "humanReviewRequired": {
+      "type": "boolean",
+      "default": true
+    },
+    "legacyCleanupAssessment": {
+      "type": "object",
+      "required": [
+        "touchedLegacyPaths",
+        "cleanupAction",
+        "legacySurfaceAreaImpact"
+      ],
+      "properties": {
+        "touchedLegacyPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cleanupAction": {
+          "type": "string",
+          "enum": [
+            "none",
+            "removed",
+            "migrated",
+            "contained",
+            "deferred-with-reason"
+          ]
+        },
+        "cleanupPerformed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cleanupDeferred": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "guardrailsAdded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "legacySurfaceAreaImpact": {
+          "type": "string",
+          "enum": [
+            "reduced",
+            "unchanged-contained",
+            "increased"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

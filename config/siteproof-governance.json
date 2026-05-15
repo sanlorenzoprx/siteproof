@@ -1,0 +1,46 @@
+{
+  "version": "siteproof-governance-v1-aiis-v1-legacy-cleanup-v3",
+  "canonicalPrimitives": [
+    "Job",
+    "WorkflowStageInstance",
+    "ProofObject",
+    "MediaAsset",
+    "VoiceNote",
+    "TimelineEvent",
+    "ExportPacket",
+    "SyncOperation",
+    "ChangeOrderCandidate"
+  ],
+  "requiredDocs": [
+    "docs/architecture/ARCHITECTURE_GOVERNANCE_V1.md",
+    "docs/architecture/PRIMITIVES_V1.md",
+    "docs/architecture/BUILD_SEQUENCE_V1.md",
+    "docs/architecture/GOVERNANCE_CHECKS_V1.md",
+    "docs/adr/ADR-001-canonical-proof-object.md",
+    "docs/adr/ADR-002-repository-layer-source-of-truth.md",
+    "docs/adr/ADR-003-build-sequence-governance.md",
+    "docs/adr/ADR-004-export-manifest-required.md",
+    "docs/ai/README.md",
+    "governance/ai-improvement-system.md",
+    "governance/ai-review-schema.json",
+    "governance/ai-feature-review-checklist.md",
+    "docs/architecture/LEGACY_CLEANUP_AUTOMATION_V1.md",
+    "governance/legacy-cleanup-workflow.md"
+  ],
+  "allowedLegacyStorageFiles": [],
+  "allowedLegacyStorageDirectories": [
+    "src/db/repositories/"
+  ],
+  "forbiddenNewModelNamePatterns": [
+    "TrustedPhoto",
+    "EvidenceItem",
+    "PhotoProof",
+    "MediaProof",
+    "ReportRecord",
+    "PlaybackEvent"
+  ],
+  "allowedStorageBoundaryFiles": [
+    "src/db/indexedDb.ts",
+    "src/services/sync/syncRuntime.ts"
+  ]
+}

@@ -1,0 +1,283 @@
+You are at the point where most founders make a huge mistake:
+
+they start coding the platform before locking the operational model.
+
+Right now, your highest leverage move is NOT “build everything.”
+
+It is:
+define the system architecture + workflow ontology + data model so coding becomes straightforward instead of chaotic.
+
+You already have the product direction.
+
+Now you need:
+1. canonical workflow structure
+2. universal job data schema
+3. proof/evidence schema
+4. template engine design
+5. offline sync architecture
+6. export architecture
+7. AI orchestration layer
+8. vertical template spec
+9. MVP scope boundaries
+
+THEN implementation guide.
+
+Otherwise you’ll end up rebuilding core assumptions repeatedly.
+
+# What I Would Do Next (In Order)
+
+## Phase 1 — Define the Universal Field Workflow Model
+This is the most important document in the company.
+
+You need to define:
+
+# Universal Workflow Stages
+
+Example:
+
+1. Intake
+2. Site Arrival
+3. Existing Conditions
+4. Active Work
+5. Inspection Readiness
+6. Completion
+7. Customer Signoff
+8. Export/Archive
+
+Every vertical maps into this.
+
+This becomes your:
+- database model
+- UI navigation
+- AI structure
+- export engine
+- offline sync model
+
+Without this, the app becomes spaghetti.
+
+---
+
+## Phase 2 — Define the Core Data Schema
+Before coding.
+
+This is CRITICAL.
+
+You need canonical schemas for:
+
+### Job
+### Customer
+### WorkflowStep
+### MediaAsset
+### VoiceNote
+### InspectionRequirement
+### PermitRequirement
+### ExportPacket
+### ChangeOrder
+### SyncState
+### GPSLog
+### TimelineEvent
+
+You want:
+stable primitives.
+
+Not:
+trade-specific hacks.
+
+---
+
+## Phase 3 — Define the Proof Engine
+This is your moat.
+
+Create a specification for:
+
+# Proof Object
+
+Each proof item should support:
+- timestamp
+- GPS
+- media type
+- AI labels
+- workflow stage
+- compliance tags
+- inspector relevance
+- immutable hash later
+- offline sync state
+
+This is bigger than “photos.”
+
+This becomes:
+structured field evidence.
+
+Very valuable.
+
+---
+
+## Phase 4 — Build Vertical Template Standard
+This should happen BEFORE coding UI.
+
+You need a template format like:
+
+```json id="dicyly"
+{
+  "trade": "generator",
+  "workflow": [
+    {
+      "stage": "existing_conditions",
+      "required_photos": [
+        "main_panel",
+        "meter",
+        "site_overview"
+      ],
+      "required_notes": [
+        "load_requirements"
+      ],
+      "inspection_tags": [
+        "NEC_702"
+      ]
+    }
+  ]
+}
+```
+
+This is huge.
+
+Because:
+once templates work,
+new verticals become data expansion —
+not new software.
+
+That is scalable.
+
+---
+
+## Phase 5 — Define Offline-First Architecture
+This matters enormously.
+
+You already identified this correctly in the docs. fileciteturn0file1L413-L427
+
+You need to formally define:
+
+- local DB model
+- sync queue
+- retry behavior
+- conflict resolution
+- media compression
+- background uploads
+- device recovery
+- encryption
+- cache strategy
+
+This should be architected before UI polish.
+
+Offline failures kill trust instantly.
+
+---
+
+## Phase 6 — Define Export System
+Do this EARLY.
+
+Most field software exports are terrible.
+
+Your exports are actually:
+the product.
+
+Define:
+- customer packet
+- permit packet
+- inspector packet
+- insurance packet
+- litigation packet
+
+as first-class systems.
+
+Not “PDF afterthoughts.”
+
+---
+
+## Phase 7 — THEN Create Step-by-Step Implementation Guide
+At that point:
+yes.
+
+Then you create:
+- backend roadmap
+- Android roadmap
+- local storage roadmap
+- sync roadmap
+- AI roadmap
+- export roadmap
+
+And coding becomes dramatically cleaner.
+
+# What NOT To Do Yet
+
+Do NOT:
+- build dashboards
+- build CRM
+- build team chat
+- build SaaS billing
+- build office features
+- build customer portals
+- overbuild AI agents
+- overbuild cloud backend
+
+Those are distractions right now.
+
+# Your Actual MVP
+
+Your MVP is probably:
+
+# SiteProof Core MVP
+
+## Core
+- jobs
+- workflow templates
+- photo capture
+- GPS/timestamp
+- voice notes
+- offline storage
+- export engine
+
+## Smart Layer
+- AI organization
+- missing-proof detection
+- report generation
+- auto categorization
+
+## Vertical
+- generator/electrical first
+
+THAT is enough.
+
+# My Strong Recommendation
+
+Your immediate next move should be:
+
+# Create:
+“SiteProof Universal Workflow & Data Architecture Spec”
+
+This becomes:
+the master build document.
+
+Inside it:
+
+1. Workflow ontology
+2. Entity schema
+3. Template schema
+4. Proof schema
+5. Offline architecture
+6. Sync model
+7. Export architecture
+8. AI orchestration
+9. Vertical extension system
+10. Jurisdiction intelligence model
+
+THEN:
+derive coding implementation guides from it.
+
+That sequence prevents massive rework later.
+
+Right now you are still in:
+systems architecture phase —
+not implementation phase.
+
+That is actually a very good place to be.
