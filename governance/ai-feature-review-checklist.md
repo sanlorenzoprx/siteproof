@@ -69,6 +69,20 @@ Review the feature under:
 - Does it avoid adding clutter?
 - Does it improve proof ordering or narrative?
 
+## Bilingual Acceptance Checklist
+
+Before completion, verify:
+
+- [ ] No new avoidable hardcoded English UI strings were added.
+- [ ] New UI copy has English and Spanish translations.
+- [ ] New settings/buttons/alerts/empty states follow `uiLanguage`.
+- [ ] Any voice/capture behavior follows `captureLanguage`.
+- [ ] Any report/export/PDF behavior follows `exportLanguage`.
+- [ ] Template-authored content uses localized template data where applicable.
+- [ ] English fallback exists for missing Spanish template text.
+- [ ] Tests or static guards were added where practical.
+- [ ] Any exemptions are documented with exact file/path/reason.
+
 ## Test Requirements
 
 Require tests or manual scripts for:
@@ -93,6 +107,16 @@ Required changes before build/merge:
 1.
 2.
 3.
+
+## Bilingual Confirmation
+
+- UI language behavior reviewed: yes/no
+- Capture language behavior reviewed: yes/no/not applicable
+- Export language behavior reviewed: yes/no/not applicable
+- New user-facing strings added in English and Spanish: yes/no/not applicable
+- Hardcoded English exemptions documented: yes/no/not applicable
+- Template-authored localization reviewed: yes/no/not applicable
+- Tests or static guards added/updated: yes/no/not applicable
 
 
 ## Legacy Cleanup

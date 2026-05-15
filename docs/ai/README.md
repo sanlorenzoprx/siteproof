@@ -13,10 +13,30 @@ It is **not** a field-facing chatbot. It is a development operating system that 
 - template quality
 - test coverage
 - implementation sequencing
+- bilingual English/Spanish completeness
 
 ## Operating Rule
 
 Every meaningful SiteProof feature must pass through AI-assisted review for simplicity, trust, offline survivability, architecture fit, export value, and field reality before implementation.
+
+## SiteProof Bilingual-First Development Rule
+
+All future SiteProof product work must be implemented bilingual-first.
+
+English and Spanish support are not follow-up tasks. They are part of the definition of done.
+
+Every new or modified user-facing feature must:
+
+1. Use the existing i18n system for app UI copy.
+2. Support `uiLanguage` for interface labels, buttons, alerts, empty states, settings, and instructions.
+3. Preserve `captureLanguage` for dictation, voice notes, field text analysis, and capture metadata.
+4. Preserve `exportLanguage` for reports, PDFs, filenames, export packets, and customer/inspector-facing output.
+5. Avoid hardcoded user-facing English strings unless explicitly documented as exempt.
+6. Add Spanish copy at the same time English copy is added.
+7. Add tests or static guards where practical.
+8. Document any remaining English-only text as an intentional exemption, not silent technical debt.
+
+Passing tests is necessary but not sufficient. A feature is not complete unless bilingual behavior is reviewed.
 
 ## Core Loop
 

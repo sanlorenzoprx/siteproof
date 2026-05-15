@@ -51,7 +51,30 @@ const requiredTerms = [
   'export',
   'field',
   'test',
+  'bilingual',
 ];
+
+const bilingualRequiredSnippets = {
+  'CODEX.md': [
+    'SiteProof Bilingual-First Development Rule',
+    'Passing tests is necessary but not sufficient.',
+  ],
+  'docs/ai/README.md': ['SiteProof Bilingual-First Development Rule'],
+  'docs/ai/codex-operating-prompt.md': [
+    'Bilingual Requirement',
+    'Bilingual Confirmation',
+    'Completion Standard',
+  ],
+  'docs/ai/feature-review-prompt.md': ['Bilingual Acceptance Checklist'],
+  'governance/ai-improvement-system.md': [
+    'SiteProof Bilingual-First Development Rule',
+    'Completion Standard',
+  ],
+  'governance/ai-feature-review-checklist.md': [
+    'Bilingual Acceptance Checklist',
+    'Bilingual Confirmation',
+  ],
+};
 
 const errors = [];
 
@@ -70,6 +93,13 @@ for (const rel of requiredFiles) {
         errors.push(`${rel} is missing key review terms: ${missingTerms.join(', ')}`);
       }
     }
+  }
+}
+
+for (const [rel, snippets] of Object.entries(bilingualRequiredSnippets)) {
+  const content = fs.readFileSync(path.join(root, rel), 'utf8');
+  for (const snippet of snippets) {
+    if (!content.includes(snippet)) errors.push(`${rel} is missing bilingual governance snippet: ${snippet}`);
   }
 }
 
