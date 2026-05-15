@@ -47,6 +47,16 @@ test('high-priority translated components do not reintroduce known hardcoded Eng
   }
 });
 
+test('job detail and settings avoid known hardcoded English labels', () => {
+  const source = [
+    'src/components/JobDetail.tsx',
+    'src/components/Settings.tsx',
+  ].map((file) => fs.readFileSync(file, 'utf8')).join('\n');
+  for (const forbidden of ['Generate Packet', 'Job Summary', 'Fast Actions', 'Brand & User Identity', 'Speech Intelligence']) {
+    assert.equal(source.includes(forbidden), false, `Found untranslated copy: ${forbidden}`);
+  }
+});
+
 test('voice extraction supports English and Spanish', () => {
   const english = VoiceAIService.analyzeTranscript('Customer requested additional wire because the breaker is damaged.', 'en');
   assert.ok(english.materialMentions.includes('wire'));
