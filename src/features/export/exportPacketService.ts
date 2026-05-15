@@ -33,7 +33,7 @@ export class ExportPacketService {
     const exportPacket = await exportRepository.createExport({
       job_id: assembly.runtimeJob.job_id,
       packet_type: assembly.packetType,
-      title: packetTitle(mode),
+      title: packetTitle(mode, exportLanguage),
       local_file_uri: `siteproof://exports/${assembly.runtimeJob.job_id}/${fileName}`,
       cloud_file_uri: null,
       included_proof_ids: assembly.selectedProofIds,
@@ -51,7 +51,7 @@ export class ExportPacketService {
     await timelineRepository.createEvent({
       job_id: assembly.runtimeJob.job_id,
       event_type: 'export_generated',
-      event_title: `${packetTitle(mode)} generated`,
+      event_title: `${packetTitle(mode, exportLanguage)} generated`,
       event_description: `${assembly.selectedProofIds.length} proof items included from canonical ProofObjects.`,
       related_proof_ids: assembly.selectedProofIds,
     }).catch((error) => console.warn('Export timeline event failed:', error));
@@ -64,14 +64,14 @@ export class ExportPacketService {
    */
   static async recordGeneratedPacket(job: Job, mode: ReportMode, photos: JobPhoto[], notes: VoiceNote[], exportLanguage: SiteProofLanguage = 'en') {
     const { ExportAssembler } = await import('./exportAssembler');
-    const assembly = await ExportAssembler.assemble(job.id, mode).catch(() => null);
-    if (assembly) return this.recordGeneratedPacketFromAssembly(assembly, mode);
+    const assembly = await ExportAssembler.assemble(job.id, mode, exportLanguage).catch(() => null);
+    if (assembly) return this.recordGeneratedPacketFromAssembly(assembly, mode, undefined, exportLanguage);
 
     const fileName = buildExportFileName(job, mode, exportLanguage);
     return exportRepository.createExport({
       job_id: job.id,
       packet_type: modeToPacketType(mode),
-      title: packetTitle(mode),
+      title: packetTitle(mode, exportLanguage),
       local_file_uri: `siteproof://exports/${job.id}/${fileName}`,
       cloud_file_uri: null,
       included_proof_ids: [

@@ -5,10 +5,11 @@ import { translate } from './config/i18n';
 import { VoiceAIService } from './services/voiceAIService';
 import { CloudSyncService } from './services/cloudSyncService';
 import { SettingsService } from './services/settingsService';
-import { buildExportFileName } from './features/export/exportFileNaming';
+import { buildExportFileName, packetTitle } from './features/export/exportFileNaming';
 import { ReportMode } from './services/pdfService';
 import fs from 'node:fs';
 import { TemplateCatalogService } from './services/templateCatalogService';
+import { AIService } from './services/aiService';
 
 test('settings defaults keep UI/capture/export independently configurable', () => {
   const settings = createDefaultSettings('es');
@@ -127,4 +128,70 @@ test('template capture categories and requirement context honor UI language', ()
   assert.equal(categories[0], 'Nota del alcance del trabajo');
   assert.equal(context?.stage.display_name, 'Inicio');
   assert.equal(context?.requirement.display_name, 'Nota del alcance del trabajo');
+});
+
+test('export titles and filenames honor export language independently', () => {
+  const job = {
+    id: 'job-2',
+    customerName: 'Grace Hopper',
+    address: '456 Main',
+    jobType: 'Generator',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    status: 'ACTIVE' as const,
+    notes: '',
+  };
+  assert.equal(packetTitle(ReportMode.CUSTOMER, 'es'), 'Paquete del cliente');
+  assert.match(buildExportFileName(job, ReportMode.CUSTOMER, 'es'), /^siteproof-grace_hopper-es-\d{8}-\d{6}\.pdf$/);
+});
+
+test('field-critical capture surfaces avoid known hardcoded English UI labels', () => {
+  const source = [
+    'src/components/JobDetail.tsx',
+    'src/components/CreateJob.tsx',
+    'src/components/VoiceNoteCapture.tsx',
+  ].map((file) => fs.readFileSync(file, 'utf8')).join('\n');
+  for (const forbidden of [
+    'Record Note',
+    'No GPS',
+    'Media Ready',
+    'Transcribed Result',
+    'Assign Category',
+    'Attach Note',
+  ]) {
+    assert.equal(source.includes(`>${forbidden}<`) || source.includes(`\"${forbidden}\"`), false, `Found untranslated copy: ${forbidden}`);
+  }
+});
+
+test('offline local report summary respects export language independently of UI language', () => {
+  const job = {
+    id: 'job-3',
+    customerName: 'Ada',
+    address: '123 Main',
+    jobType: 'Generator',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    status: 'COMPLETED' as const,
+    notes: '',
+  };
+  const english = AIService.generateLocalSummary(job, [], [], 'en');
+  const spanish = AIService.generateLocalSummary(job, [], [], 'es');
+  assert.match(english, /^This Generator for Ada was completed\./);
+  assert.match(spanish, /^Este trabajo de Generator para Ada fue completado\./);
+});
+
+test('main PDF export path avoids selected hardcoded English labels', () => {
+  const source = fs.readFileSync('src/services/pdfService.ts', 'utf8');
+  for (const forbidden of [
+    'AI SITE INTELLIGENCE',
+    'GPS Verified',
+    'Photo unavailable',
+    'JOB TIMELINE',
+    'PROOF INTEGRITY MANIFEST',
+    'ACCEPTANCE & SIGNATURE',
+    'Customer / Inspector Signature',
+    'Scan to verify digital original',
+  ]) {
+    assert.equal(source.includes(`'${forbidden}'`) || source.includes(`\"${forbidden}\"`), false, `Found untranslated PDF copy: ${forbidden}`);
+  }
 });

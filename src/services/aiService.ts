@@ -1,6 +1,8 @@
 import { Job, JobPhoto, VoiceNote } from '../types';
 import { AiTaskQueueService } from './aiTaskQueueService';
 import { SiteProofAiClient } from './siteProofAiClient';
+import { translate } from '../config/i18n';
+import type { SiteProofLanguage } from '../types/settings';
 
 export class AIService {
   /**
@@ -50,24 +52,29 @@ export class AIService {
   /**
    * Generates a deterministic local summary based on job data.
    */
-  static generateLocalSummary(job: Job, photos: JobPhoto[], voiceNotes: VoiceNote[]): string {
+  static generateLocalSummary(job: Job, photos: JobPhoto[], voiceNotes: VoiceNote[], language: SiteProofLanguage = 'en'): string {
     const photoCount = photos.length;
     const voiceCount = voiceNotes.length;
     const categories = Array.from(new Set(photos.map((photo) => photo.category)));
-    const categoryList = categories.length > 0 ? categories.slice(0, 3).join(', ') + (categories.length > 3 ? '...' : '') : 'general';
+    const categoryList = categories.length > 0 ? categories.slice(0, 3).join(', ') + (categories.length > 3 ? '...' : '') : translate(language, 'reports.localSummaryGeneral');
     const issues = photos.filter((photo) => photo.isIssue).length;
-    const statusText = job.status === 'COMPLETED' ? 'was completed' : 'is currently in progress';
+    const statusText = job.status === 'COMPLETED' ? translate(language, 'reports.localSummaryComplete') : translate(language, 'reports.localSummaryProgress');
 
-    let summary = `This ${job.jobType} for ${job.customerName} ${statusText}. Documentation includes ${photoCount} verified photos capturing ${categoryList}. `;
+    let summary = `${translate(language, 'reports.localSummaryStart')
+      .replace('{jobType}', job.jobType)
+      .replace('{customerName}', job.customerName)
+      .replace('{statusText}', statusText)
+      .replace('{photoCount}', String(photoCount))
+      .replace('{categoryList}', categoryList)} `;
 
     if (voiceCount > 0) {
-      summary += `Technical team logged ${voiceCount} voice observations during the site visit. `;
+      summary += `${translate(language, 'reports.localSummaryVoice').replace('{voiceCount}', String(voiceCount))} `;
     }
 
     if (issues > 0) {
-      summary += `${issues} item(s) flagged as potential issues or change orders requiring review. `;
+      summary += `${translate(language, 'reports.localSummaryIssues').replace('{issues}', String(issues))} `;
     } else {
-      summary += 'All inspected components meet established quality standards. ';
+      summary += `${translate(language, 'reports.localSummaryClear')} `;
     }
 
     return summary;
@@ -76,8 +83,8 @@ export class AIService {
   /**
    * Summarizes a job's progress for reports.
    */
-  static async summarizeJob(job: Job, photos: JobPhoto[], voiceNotes: VoiceNote[]): Promise<string> {
-    const localSummary = this.generateLocalSummary(job, photos, voiceNotes);
+  static async summarizeJob(job: Job, photos: JobPhoto[], voiceNotes: VoiceNote[], language: SiteProofLanguage = 'en'): Promise<string> {
+    const localSummary = this.generateLocalSummary(job, photos, voiceNotes, language);
 
     try {
       return await SiteProofAiClient.summarizeJob({

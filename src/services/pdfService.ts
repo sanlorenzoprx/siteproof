@@ -13,6 +13,7 @@ import { SITEPROOF_BRAND } from '../config/brand';
 import { getLicenseReportFooter, getCustomerProofPacketIntro } from './export/offerBranding';
 import type { SiteProofLanguage } from '../types/settings';
 import { translate } from '../config/i18n';
+import { enUS, es } from 'date-fns/locale';
 
 export enum ReportMode {
   STANDARD = 'STANDARD',
@@ -36,7 +37,7 @@ export class PdfService {
     let integrityManifest: ExportIntegrityManifest | null = null;
     try {
       const { ExportAssembler } = await import('../features/export/exportAssembler');
-      canonicalAssembly = await ExportAssembler.assemble(job.id, mode);
+      canonicalAssembly = await ExportAssembler.assemble(job.id, mode, exportLanguage);
       if (canonicalAssembly) {
         job = canonicalAssembly.legacyJob;
         photos = canonicalAssembly.photos;
@@ -65,6 +66,8 @@ export class PdfService {
     const isHandoff = mode === ReportMode.HANDOFF;
     const isInspector = mode === ReportMode.INSPECTOR;
     const tr = (key: string) => translate(exportLanguage, key);
+    const dateLocale = exportLanguage === 'es' ? es : enUS;
+    const fmt = (value: number | Date, pattern: string) => format(value, pattern, { locale: dateLocale });
     const primaryColor: [number, number, number] = isDispute ? [220, 38, 38] : isCustomer ? [37, 99, 235] : [15, 23, 42];
 
     // Filter content based on mode
@@ -115,10 +118,10 @@ export class PdfService {
 
       // Right side
       doc.setFontSize(10);
-      doc.text(format(job.createdAt || Date.now(), 'PP'), pageWidth - margin, 20, { align: 'right' });
-      doc.text(`Tech: ${job.technicianName || user?.fullName || 'Field Team'}`, pageWidth - margin, 30, { align: 'right' });
+      doc.text(fmt(job.createdAt || Date.now(), 'PP'), pageWidth - margin, 20, { align: 'right' });
+      doc.text(`${tr('reports.technician')}: ${job.technicianName || user?.fullName || tr('reports.fieldTeam')}`, pageWidth - margin, 30, { align: 'right' });
       if (business?.licenseNumber) {
-        doc.text(`Lic #${business.licenseNumber}`, pageWidth - margin, 40, { align: 'right' });
+        doc.text(`${tr('reports.licenseAbbrev')}${business.licenseNumber}`, pageWidth - margin, 40, { align: 'right' });
       }
     };
 
@@ -127,12 +130,12 @@ export class PdfService {
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
       doc.text(
-        getLicenseReportFooter(),
+        getLicenseReportFooter(exportLanguage),
         pageWidth / 2,
         288,
         { align: 'center' }
       );
-      doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, 288, { align: 'right' });
+      doc.text(`${tr('reports.page')} ${pageNum} ${tr('reports.of')} ${totalPages}`, pageWidth - margin, 288, { align: 'right' });
     };
 
     addHeader();
@@ -150,7 +153,7 @@ export class PdfService {
     y += 8;
     doc.text(`${job.address}`, margin, y);
     y += 8;
-    doc.text(`${job.jobType} • ${format(job.createdAt, 'PP')}`, margin, y);
+    doc.text(`${job.jobType} • ${fmt(job.createdAt, 'PP')}`, margin, y);
     y += 16;
 
     doc.setFillColor(isInspector ? 239 : 240, isInspector ? 246 : 253, isInspector ? 255 : 244);
@@ -158,21 +161,21 @@ export class PdfService {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(isInspector ? 29 : 22, isInspector ? 78 : 101, isInspector ? 216 : 52);
-    doc.text(isInspector ? 'INSPECTION PACKET: REQUIRED PROOF, TIMESTAMPS, GPS, CHECKLIST' : isCustomer ? getCustomerProofPacketIntro().summary : 'INTERNAL RECORD: FULL JOB DOCUMENTATION', margin + 7, y + 11);
+      doc.text(isInspector ? tr('reports.inspectionPacket').toUpperCase() : isCustomer ? getCustomerProofPacketIntro(exportLanguage).summary : tr('reports.internalRecord').toUpperCase(), margin + 7, y + 11);
     doc.setTextColor(15, 23, 42);
     y += 28;
 
     if (canonicalAssembly) {
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Export v2 source: ${canonicalAssembly.proofs.length} ProofObjects • ${canonicalAssembly.mediaAssets.length} MediaAssets • ${canonicalAssembly.timelineEvents.length} TimelineEvents`, margin, y);
+      doc.text(`${tr('reports.exportSource')}: ${canonicalAssembly.proofs.length} ${tr('reports.proofObjects')} • ${canonicalAssembly.mediaAssets.length} ${tr('reports.mediaAssets')} • ${canonicalAssembly.timelineEvents.length} ${tr('reports.timelineEvents')}`, margin, y);
       y += 10;
       doc.setTextColor(15, 23, 42);
     }
 
     // ====================== SUMMARY SECTION ======================
     // Deterministic Local Summary
-    const localSummary = AIService.generateLocalSummary(job, filteredPhotos, filteredVoiceNotes);
+    const localSummary = AIService.generateLocalSummary(job, filteredPhotos, filteredVoiceNotes, exportLanguage);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text(tr('reports.subtitle').toUpperCase(), margin, y);
@@ -186,7 +189,7 @@ export class PdfService {
 
     // AI Enhanced Intelligence (Async/Wait)
     try {
-      const aiSummary = await AIService.summarizeJob(job, filteredPhotos, filteredVoiceNotes);
+      const aiSummary = await AIService.summarizeJob(job, filteredPhotos, filteredVoiceNotes, exportLanguage);
       // Only show AI summary if it adds value (different from local)
       if (aiSummary && aiSummary !== localSummary) {
         doc.setFillColor(248, 250, 252);
@@ -198,7 +201,7 @@ export class PdfService {
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(37, 99, 235);
-        doc.text('AI SITE INTELLIGENCE', margin + 8, y + 8);
+        doc.text(tr('reports.aiSiteIntelligence').toUpperCase(), margin + 8, y + 8);
         
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(10);
@@ -220,8 +223,8 @@ export class PdfService {
     const stats = [
       [tr('reports.photoEvidence'), filteredPhotos.length.toString()],
       [tr('reports.voiceNotes'), filteredVoiceNotes.length.toString()],
-      [`Export`, isInspector ? 'Inspector' : isCustomer ? 'Customer' : 'Internal'],
-      [`Status`, job.status]
+      [tr('reports.export'), isInspector ? tr('reports.inspector') : isCustomer ? tr('reports.customerMode') : tr('reports.internal')],
+      [tr('reports.status'), job.status]
     ];
 
     const statWidth = (pageWidth - margin * 2) / stats.length;
@@ -238,13 +241,13 @@ export class PdfService {
     // ====================== INTERNAL SECTIONS ======================
     // Checklist (for templated jobs)
     if (job.templateId) {
-      const template = TemplateCatalogService.getTemplate(job.templateId);
+      const template = TemplateCatalogService.getTemplate(job.templateId, exportLanguage);
       doc.addPage();
       addHeader();
       y = 65;
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${template.display_name.toUpperCase()} CHECKLIST`, margin, y);
+      doc.text(`${template.display_name.toUpperCase()} ${tr('reports.checklist').toUpperCase()}`, margin, y);
       y += 20;
 
       template.stages
@@ -264,11 +267,11 @@ export class PdfService {
             if (isInspector && !hasProof && required) {
               doc.setTextColor(220, 38, 38);
               doc.setFont('helvetica', 'bold');
-              doc.text(`MISSING: ${requirement.display_name}`, margin + 6, y);
+              doc.text(`${tr('reports.missing').toUpperCase()}: ${requirement.display_name}`, margin + 6, y);
             } else {
               doc.setTextColor(isCustomer ? 37 : 15, isCustomer ? 99 : 23, isCustomer ? 235 : 42);
               doc.setFont('helvetica', hasProof ? 'bold' : 'normal');
-              doc.text(`${hasProof ? 'DONE' : 'OPEN'}: ${requirement.display_name}`, margin + 6, y);
+              doc.text(`${hasProof ? tr('reports.done').toUpperCase() : tr('reports.open').toUpperCase()}: ${requirement.display_name}`, margin + 6, y);
             }
             y += 8;
             if (y > 270) { doc.addPage(); addHeader(); y = 65; }
@@ -295,13 +298,13 @@ export class PdfService {
         }
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${note.category} — ${format(note.timestamp || Date.now(), 'p')}`, margin, y);
+        doc.text(`${note.category} — ${fmt(note.timestamp || Date.now(), 'p')}`, margin, y);
         y += 7;
         doc.setFont('helvetica', 'normal');
-        const summary = note.summary ? `Summary: ${note.summary}` : '';
-        const transcript = `Transcript: ${note.transcribedText}`;
+        const summary = note.summary ? `${tr('reports.summary')}: ${note.summary}` : '';
+        const transcript = `${tr('reports.transcript')}: ${note.transcribedText}`;
         const insights = [
-          note.language ? `Language: ${note.language.toUpperCase()}` : '',
+          note.language ? `${tr('reports.language')}: ${note.language.toUpperCase()}` : '',
           note.materialMentions?.length ? `${tr('reports.materials')}: ${note.materialMentions.join(', ')}` : '',
           note.issueMentions?.length ? `${tr('reports.issues')}: ${note.issueMentions.join(', ')}` : '',
           note.customerRequests?.length ? `${tr('reports.customerRequests')}: ${note.customerRequests.join('; ')}` : '',
@@ -344,7 +347,7 @@ export class PdfService {
           doc.rect(x, y + 48, colWidth, 14, 'F');
           doc.setTextColor(255, 255, 255);
           doc.setFontSize(8);
-          doc.text(`${SITEPROOF_BRAND.appName} • GPS Verified • ` + format(photo.timestamp, 'p'), x + 8, y + 57);
+          doc.text(`${SITEPROOF_BRAND.appName} • ${tr('reports.gpsVerified')} • ` + fmt(photo.timestamp, 'p'), x + 8, y + 57);
 
           doc.setFillColor(248, 250, 252);
           doc.rect(x, y + 62, colWidth, 22, 'F');
@@ -352,7 +355,7 @@ export class PdfService {
           doc.setFontSize(8);
           doc.setTextColor(15, 23, 42);
           doc.text(photo.category.toUpperCase(), x + 6, y + 70);
-          doc.text(format(photo.timestamp, 'MMM d, p'), x + 6, y + 78);
+          doc.text(fmt(photo.timestamp, 'MMM d, p'), x + 6, y + 78);
 
           if (photo.latitude) {
             doc.text(
@@ -363,7 +366,7 @@ export class PdfService {
             );
           }
         } catch (e) {
-          doc.text('Photo unavailable', x + 10, y + 30);
+          doc.text(tr('reports.photoUnavailable'), x + 10, y + 30);
         }
       });
     }
@@ -375,13 +378,13 @@ export class PdfService {
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text('JOB TIMELINE', margin, y);
+    doc.text(tr('reports.jobTimeline').toUpperCase(), margin, y);
     y += 14;
 
     const timelineRows = [
-      { time: job.createdAt, label: 'Job created', detail: job.jobType },
-      ...filteredPhotos.map((photo) => ({ time: photo.timestamp, label: `Photo captured`, detail: photo.category })),
-      ...filteredVoiceNotes.map((note) => ({ time: note.timestamp, label: `Voice note captured`, detail: note.category })),
+      { time: job.createdAt, label: tr('reports.jobCreated'), detail: job.jobType },
+      ...filteredPhotos.map((photo) => ({ time: photo.timestamp, label: tr('reports.photoCaptured'), detail: photo.category })),
+      ...filteredVoiceNotes.map((note) => ({ time: note.timestamp, label: tr('reports.voiceNoteCaptured'), detail: note.category })),
     ].sort((a, b) => a.time - b.time);
 
     timelineRows.slice(0, 48).forEach((row) => {
@@ -391,7 +394,7 @@ export class PdfService {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text(format(row.time || Date.now(), 'MMM d, h:mm a'), margin + 12, y);
+      doc.text(fmt(row.time || Date.now(), 'MMM d, h:mm a'), margin + 12, y);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(71, 85, 105);
       doc.text(`${row.label} — ${row.detail}`, margin + 58, y);
@@ -406,25 +409,25 @@ export class PdfService {
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text('PROOF INTEGRITY MANIFEST', margin, y);
+      doc.text(tr('reports.proofIntegrityManifest').toUpperCase(), margin, y);
       y += 12;
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Manifest ID: ${integrityManifest.manifestId}`, margin, y); y += 6;
-      doc.text(`Algorithm: ${integrityManifest.algorithm}`, margin, y); y += 6;
-      doc.text(`Manifest Hash: ${integrityManifest.manifestHash}`, margin, y); y += 6;
-      doc.text(`Signed Manifest Hash: ${integrityManifest.signedManifestHash}`, margin, y); y += 10;
-      doc.text(`Proof Objects: ${integrityManifest.proofCount} • Media Assets: ${integrityManifest.mediaCount} • Timeline Events: ${integrityManifest.timelineEventCount}`, margin, y);
+      doc.text(`${tr('reports.manifestId')}: ${integrityManifest.manifestId}`, margin, y); y += 6;
+      doc.text(`${tr('reports.algorithm')}: ${integrityManifest.algorithm}`, margin, y); y += 6;
+      doc.text(`${tr('reports.manifestHash')}: ${integrityManifest.manifestHash}`, margin, y); y += 6;
+      doc.text(`${tr('reports.signedManifestHash')}: ${integrityManifest.signedManifestHash}`, margin, y); y += 10;
+      doc.text(`${tr('reports.proofObjects')}: ${integrityManifest.proofCount} • ${tr('reports.mediaAssets')}: ${integrityManifest.mediaCount} • ${tr('reports.timelineEvents')}: ${integrityManifest.timelineEventCount}`, margin, y);
       y += 12;
 
       doc.setFillColor(241, 245, 249);
       doc.rect(margin, y, pageWidth - margin * 2, 10, 'F');
       doc.setFont('helvetica', 'bold');
-      doc.text('Proof ID', margin + 3, y + 7);
-      doc.text('Status', margin + 58, y + 7);
-      doc.text('Hash Prefix', margin + 86, y + 7);
-      doc.text('Title', margin + 128, y + 7);
+      doc.text(tr('reports.proofId'), margin + 3, y + 7);
+      doc.text(tr('reports.status'), margin + 58, y + 7);
+      doc.text(tr('reports.hashPrefix'), margin + 86, y + 7);
+      doc.text(tr('reports.title'), margin + 128, y + 7);
       y += 16;
 
       doc.setFont('helvetica', 'normal');
@@ -443,7 +446,7 @@ export class PdfService {
       y += 8;
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
-      const manifestNote = 'This manifest lets SiteProof detect changed, missing, or unsigned proof records after capture. Full legal-grade signatures should later use a server-held private key or third-party timestamp authority.';
+      const manifestNote = tr('reports.manifestNote');
       doc.text(doc.splitTextToSize(manifestNote, pageWidth - margin * 2), margin, y);
     }
 
@@ -454,11 +457,11 @@ export class PdfService {
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('ACCEPTANCE & SIGNATURE', margin, y);
+    doc.text(tr('reports.acceptanceSignature').toUpperCase(), margin, y);
     y += 30;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text("I certify that the work documented above was completed to the best of my knowledge and in accordance with applicable standards.", margin, y);
+    doc.text(tr('reports.certification'), margin, y);
     y += 40;
 
     if (signatureDataUrl) {
@@ -469,12 +472,12 @@ export class PdfService {
       doc.rect(margin, y, 160, 45);
     }
     
-    doc.text("Customer / Inspector Signature", margin + 5, y + 55);
-    doc.text(`Date: ${format(Date.now(), 'PP')}`, margin + 110, y + 55, { align: 'right' });
+    doc.text(tr('reports.customerInspectorSignature'), margin + 5, y + 55);
+    doc.text(`${tr('reports.date')}: ${fmt(Date.now(), 'PP')}`, margin + 110, y + 55, { align: 'right' });
 
     // QR Code
     doc.setFontSize(10);
-    doc.text("Scan to verify digital original", pageWidth - margin - 70, y + 25);
+    doc.text(tr('reports.scanVerify'), pageWidth - margin - 70, y + 25);
     await this.addRealQRCode(doc, pageWidth - 80, y - 10, job.id);
 
     // Apply headers + footers to all pages
