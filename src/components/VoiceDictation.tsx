@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface VoiceDictationProps {
   onResult: (text: string) => void;
@@ -9,6 +10,7 @@ interface VoiceDictationProps {
 }
 
 export function VoiceDictation({ onResult, className, isTextArea }: VoiceDictationProps) {
+  const { settings } = useSettings();
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
 
@@ -31,7 +33,7 @@ export function VoiceDictation({ onResult, className, isTextArea }: VoiceDictati
     if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
+    recognition.lang = settings.captureLanguage === 'es' ? 'es-PR' : 'en-US';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 

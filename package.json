@@ -25,7 +25,8 @@
     "legacy:check": "node scripts/legacy-architecture-check.mjs",
     "build:check": "node scripts/build-check.mjs",
     "release:check": "npm run quality:check && npm run build:check",
-    "ai:task-graph:test": "tsx --test src/ai-improvement/taskGraphReview.test.ts"
+    "ai:task-graph:test": "tsx --test src/ai-improvement/taskGraphReview.test.ts",
+    "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",

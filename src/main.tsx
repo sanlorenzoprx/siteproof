@@ -5,6 +5,7 @@ import App from './App.tsx';
 import './index.css';
 import { registerSW } from 'virtual:pwa-register';
 import { OfflineStatusService } from './services/offlineService';
+import { SettingsProvider } from './contexts/SettingsContext';
 
 OfflineStatusService.initialize();
 registerSW({ immediate: true });
@@ -12,7 +13,9 @@ registerSW({ immediate: true });
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <SettingsProvider>
+        <App />
+      </SettingsProvider>
     </BrowserRouter>
   </StrictMode>,
 );

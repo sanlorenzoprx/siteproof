@@ -27,6 +27,8 @@ import { RuntimeSnapshot } from '../services/runtimeOrchestrator';
 import { ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
 import { TemplateCatalogService } from '../services/templateCatalogService';
 import { cn } from '../lib/utils';
+import { ReportLanguageToggle } from './reports/ReportLanguageToggle';
+import { useSettings } from '../contexts/SettingsContext';
 import { useInspectionReadiness } from '../hooks/useInspectionReadiness';
 import { InspectionReadyCard } from './inspection/InspectionReadyCard';
 import { MissingProofList } from './inspection/MissingProofList';
@@ -87,6 +89,7 @@ function priorityBadge(requirement: ProofRequirement) {
 }
 
 export function JobDetail() {
+  const { settings } = useSettings();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -193,7 +196,7 @@ export function JobDetail() {
   async function handleExportReport(mode: ReportMode) {
     setGeneratingReport(true);
     try {
-      await PdfService.generateReport(job!, photos, voiceNotes, mode);
+      await PdfService.generateReport(job!, photos, voiceNotes, mode, undefined, settings.exportLanguage);
       const nextExports = await ExportPacketService.getPacketHistory(job!.id);
       setExportPackets(nextExports.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
     } catch (error) {
@@ -427,6 +430,7 @@ export function JobDetail() {
                       <ExportButton title="Internal Record" description="Full job timeline for office backup and closeout." icon={<FileText size={26} />} onClick={() => handleExportReport(ReportMode.STANDARD)} disabled={generatingReport} />
                       <ExportButton title="Dispute Pack" description="Focused report for issues, deficiencies, and change-order proof." icon={<AlertTriangle size={26} />} onClick={() => handleExportReport(ReportMode.DISPUTE)} disabled={generatingReport} />
                     </div>
+                    <div className="mt-6"><ReportLanguageToggle /></div>
 
                     <div className="mt-8 bg-white/5 border border-white/10 rounded-[28px] p-5">
                       <div className="flex items-center justify-between gap-4 mb-4">

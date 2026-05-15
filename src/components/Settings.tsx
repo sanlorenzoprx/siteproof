@@ -9,8 +9,12 @@ import { cn } from '../lib/utils';
 import { VoiceDictation } from './VoiceDictation';
 import { BusinessOverviewField } from './BusinessOverviewField';
 import { TaglineGeneratorField } from './TaglineGeneratorField';
+import { LanguageSettingsPanel } from './settings/LanguageSettingsPanel';
+import { CloudUpsellCard } from './cloud/CloudUpsellCard';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function Settings() {
+  const { t } = useSettings();
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
@@ -77,10 +81,11 @@ export function Settings() {
         <button onClick={() => navigate(-1)} className="p-2 hover:bg-white rounded-xl text-slate-500 transition-colors">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">System Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t('settings.title')}</h1>
       </header>
 
       <div className="space-y-6">
+        <LanguageSettingsPanel />
         {/* Business & Identity Section */}
         <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6">
            <div className="flex items-center gap-3 mb-2">
@@ -303,6 +308,8 @@ export function Settings() {
             />
           </div>
         </section>
+
+        <CloudUpsellCard />
 
         <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6">
           <div className="flex items-center gap-3 mb-2">

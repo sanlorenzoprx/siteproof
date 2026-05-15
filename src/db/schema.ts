@@ -225,6 +225,9 @@ export interface Job extends TimestampFields, SyncFields {
   utility_provider?: string | null;
   started_at?: string | null;
   completed_at?: string | null;
+  ui_language_at_creation?: 'en' | 'es';
+  default_capture_language?: 'en' | 'es';
+  default_export_language?: 'en' | 'es';
 }
 
 export interface WorkflowTemplateCache {
@@ -316,6 +319,8 @@ export interface MediaAsset extends TimestampFields, SyncFields {
   compression_state: CompressionState;
   upload_state: UploadState;
   checksum?: string | null;
+  language?: 'en' | 'es';
+  cloud_object_key?: string | null;
 }
 
 export interface VoiceNote extends TimestampFields, SyncFields {
@@ -330,6 +335,7 @@ export interface VoiceNote extends TimestampFields, SyncFields {
   change_order_candidates: string[];
   material_mentions: string[];
   issue_mentions: string[];
+  customer_requests?: string[];
 }
 
 export interface TimelineEvent extends TimestampFields, SyncFields {
@@ -365,6 +371,7 @@ export interface ExportPacket extends TimestampFields, SyncFields {
   share_status: ShareStatus;
   sent_to: string[];
   delivery_status?: DeliveryStatus;
+  export_language?: 'en' | 'es';
 }
 
 export interface ChangeOrderCandidate extends TimestampFields, SyncFields {

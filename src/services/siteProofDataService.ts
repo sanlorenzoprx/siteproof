@@ -43,6 +43,9 @@ async function runtimeJobToUiJob(job: RuntimeJob): Promise<Job> {
     status: runtimeStatusToLegacy(job.status),
     syncStatus: job.sync_state === 'synced' ? 'SYNCED' : job.sync_state === 'failed' ? 'ERROR' : 'PENDING',
     notes: job.scope_summary || '',
+    uiLanguageAtCreation: job.ui_language_at_creation,
+    defaultCaptureLanguage: job.default_capture_language,
+    defaultExportLanguage: job.default_export_language,
   };
 }
 

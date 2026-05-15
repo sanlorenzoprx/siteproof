@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { Job } from '../../types';
 import { ReportMode } from '../../services/pdfService';
+import type { SiteProofLanguage } from '../../types/settings';
 
 function safePart(value?: string | null): string {
   return (value || 'Job')
@@ -44,10 +45,7 @@ export function packetTitle(mode: ReportMode): string {
   }
 }
 
-export function buildExportFileName(job: Job, mode: ReportMode): string {
-  const date = format(Date.now(), 'yyyy-MM-dd');
-  const customer = safePart(job.customerName);
-  const zip = job.address.match(/\b\d{5}(?:-\d{4})?\b/)?.[0];
-  const zipPart = mode === ReportMode.INSPECTOR && zip ? `_${zip}` : '';
-  return `${packetLabel(mode)}_${customer}${zipPart}_${date}.pdf`;
+export function buildExportFileName(job: Job, mode: ReportMode, exportLanguage: SiteProofLanguage = 'en'): string {
+  const timestamp = format(Date.now(), 'yyyyMMdd-HHmmss');
+  return `siteproof-${safePart(job.customerName || job.id).toLowerCase()}-${exportLanguage}-${timestamp}.pdf`;
 }

@@ -10,8 +10,10 @@ import { VoiceAIAnalysis, VoiceAIService } from '../services/voiceAIService';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { AppSettingsService } from '../services/appSettingsService';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function VoiceNoteCapture() {
+  const { settings, updateSettings, t } = useSettings();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -101,7 +103,7 @@ export function VoiceNoteCapture() {
             
             const transcript = (!text || text === '(Unintelligible)') ? (text || "No speech detected.") : text;
             setTranscribedText(transcript);
-            setAnalysis(VoiceAIService.analyzeTranscript(transcript));
+            setAnalysis(VoiceAIService.analyzeTranscript(transcript, settings.captureLanguage));
             setStatus('done');
           };
         } catch (e) {
@@ -132,7 +134,7 @@ export function VoiceNoteCapture() {
   async function handleSave() {
     if (!id || !transcribedText) return;
     
-    const finalAnalysis = analysis ?? VoiceAIService.analyzeTranscript(transcribedText);
+    const finalAnalysis = analysis ?? VoiceAIService.analyzeTranscript(transcribedText, settings.captureLanguage);
     await ProofCaptureService.saveVoiceNote({
       jobId: id,
       transcribedText,
@@ -149,7 +151,7 @@ export function VoiceNoteCapture() {
 
   function updateTranscript(value: string) {
     setTranscribedText(value);
-    setAnalysis(VoiceAIService.analyzeTranscript(value));
+    setAnalysis(VoiceAIService.analyzeTranscript(value, settings.captureLanguage));
   }
 
   const formatTimer = (s: number) => {
@@ -168,7 +170,7 @@ export function VoiceNoteCapture() {
         >
           <X size={24} />
         </button>
-        <span className="text-white/30 text-xs font-bold uppercase tracking-[0.2em]">Voice Documentation</span>
+        <span className="text-white/30 text-xs font-bold uppercase tracking-[0.2em]">{t('voice.title')}</span>
         <div className="w-10" />
       </div>
 
@@ -186,10 +188,14 @@ export function VoiceNoteCapture() {
                 <Mic className="text-blue-600" size={48} />
               </div>
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-white tracking-tight">Speak your notes</h2>
+                <h2 className="text-2xl font-bold text-white tracking-tight">{t('voice.speakNotes')}</h2>
                 <p className="text-slate-400 max-w-xs mx-auto text-sm leading-relaxed">
                   SiteProof will automatically transcribe your voice memos and add them to the job report.
                 </p>
+                <div className="flex justify-center gap-2">
+                  <button onClick={() => void updateSettings({ captureLanguage: 'en' })} className={`px-3 py-2 rounded-xl text-xs font-black ${settings.captureLanguage === 'en' ? 'bg-white text-slate-950' : 'bg-white/10 text-white'}`}>English</button>
+                  <button onClick={() => void updateSettings({ captureLanguage: 'es' })} className={`px-3 py-2 rounded-xl text-xs font-black ${settings.captureLanguage === 'es' ? 'bg-white text-slate-950' : 'bg-white/10 text-white'}`}>Español</button>
+                </div>
                 
                 {speechCalibrated ? (
                   <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-xl mx-auto w-fit">
@@ -263,6 +269,7 @@ export function VoiceNoteCapture() {
                   onChange={(event) => updateTranscript(event.target.value)}
                   className="w-full min-h-28 bg-slate-950/70 border border-white/10 rounded-2xl p-4 text-white text-base font-medium leading-relaxed outline-none focus:border-blue-500"
                 />
+                <p className="text-[11px] font-bold text-slate-500 mt-2">{t('capture.manualFallback')}</p>
               </div>
 
               {analysis && (

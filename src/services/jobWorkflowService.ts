@@ -1,6 +1,7 @@
 import { Job, JobStatus } from '../types';
 import { SiteProofDataService } from './siteProofDataService';
 import { TemplateCatalogService } from './templateCatalogService';
+import { SettingsService } from './settingsService';
 
 export interface CreateFieldJobInput {
   customerName: string;
@@ -33,6 +34,7 @@ export class JobWorkflowService {
   static async createJob(input: CreateFieldJobInput): Promise<Job> {
     const templateId = TemplateCatalogService.normalizeTemplateId(input.templateId);
     const template = TemplateCatalogService.getTemplate(templateId);
+    const settings = await SettingsService.getSettings();
     const job: Job = {
       id: crypto.randomUUID(),
       customerName: input.customerName.trim(),
@@ -48,6 +50,9 @@ export class JobWorkflowService {
       updatedAt: Date.now(),
       status: input.status || 'ACTIVE',
       syncStatus: 'PENDING',
+      uiLanguageAtCreation: settings.uiLanguage,
+      defaultCaptureLanguage: settings.captureLanguage,
+      defaultExportLanguage: settings.exportLanguage,
     };
 
     await SiteProofDataService.saveJob(job);

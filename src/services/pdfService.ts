@@ -11,6 +11,8 @@ import { buildExportFileName, packetTitle } from '../features/export/exportFileN
 import { ProofIntegrityService, ExportIntegrityManifest } from './proofIntegrityService';
 import { SITEPROOF_BRAND } from '../config/brand';
 import { getLicenseReportFooter, getCustomerProofPacketIntro } from './export/offerBranding';
+import type { SiteProofLanguage } from '../types/settings';
+import { translate } from '../config/i18n';
 
 export enum ReportMode {
   STANDARD = 'STANDARD',
@@ -27,7 +29,8 @@ export class PdfService {
     photos: JobPhoto[],
     voiceNotes: VoiceNote[],
     mode: ReportMode = ReportMode.STANDARD,
-    signatureDataUrl?: string
+    signatureDataUrl?: string,
+    exportLanguage: SiteProofLanguage = 'en',
   ): Promise<void> {
     let canonicalAssembly: ExportAssembly | null = null;
     let integrityManifest: ExportIntegrityManifest | null = null;
@@ -61,6 +64,7 @@ export class PdfService {
     const isDispute = mode === ReportMode.DISPUTE;
     const isHandoff = mode === ReportMode.HANDOFF;
     const isInspector = mode === ReportMode.INSPECTOR;
+    const tr = (key: string) => translate(exportLanguage, key);
     const primaryColor: [number, number, number] = isDispute ? [220, 38, 38] : isCustomer ? [37, 99, 235] : [15, 23, 42];
 
     // Filter content based on mode
@@ -138,7 +142,7 @@ export class PdfService {
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text(packetTitle(mode).toUpperCase(), margin, y);
+    doc.text(tr('reports.reportTitle').toUpperCase(), margin, y);
     y += 18;
 
     doc.setFontSize(13);
@@ -171,7 +175,7 @@ export class PdfService {
     const localSummary = AIService.generateLocalSummary(job, filteredPhotos, filteredVoiceNotes);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('JOB SUMMARY', margin, y);
+    doc.text(tr('reports.subtitle').toUpperCase(), margin, y);
     y += 8;
     
     doc.setFontSize(10);
@@ -214,8 +218,8 @@ export class PdfService {
     y += 18;
 
     const stats = [
-      [`Photos`, filteredPhotos.length.toString()],
-      [`Voice Notes`, filteredVoiceNotes.length.toString()],
+      [tr('reports.photoEvidence'), filteredPhotos.length.toString()],
+      [tr('reports.voiceNotes'), filteredVoiceNotes.length.toString()],
       [`Export`, isInspector ? 'Inspector' : isCustomer ? 'Customer' : 'Internal'],
       [`Status`, job.status]
     ];
@@ -281,7 +285,7 @@ export class PdfService {
       y = 65;
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('VOICE DOCUMENTATION', margin, y);
+      doc.text(tr('reports.voiceNotes').toUpperCase(), margin, y);
       y += 15;
       filteredVoiceNotes.forEach(note => {
         if (y > 240) {
@@ -298,10 +302,10 @@ export class PdfService {
         const transcript = `Transcript: ${note.transcribedText}`;
         const insights = [
           note.language ? `Language: ${note.language.toUpperCase()}` : '',
-          note.materialMentions?.length ? `Materials: ${note.materialMentions.join(', ')}` : '',
-          note.issueMentions?.length ? `Issues: ${note.issueMentions.join(', ')}` : '',
-          note.customerRequests?.length ? `Customer Requests: ${note.customerRequests.join('; ')}` : '',
-          note.changeOrderCandidates?.length ? `Change Order Candidates: ${note.changeOrderCandidates.join('; ')}` : '',
+          note.materialMentions?.length ? `${tr('reports.materials')}: ${note.materialMentions.join(', ')}` : '',
+          note.issueMentions?.length ? `${tr('reports.issues')}: ${note.issueMentions.join(', ')}` : '',
+          note.customerRequests?.length ? `${tr('reports.customerRequests')}: ${note.customerRequests.join('; ')}` : '',
+          note.changeOrderCandidates?.length ? `${tr('reports.changeOrders')}: ${note.changeOrderCandidates.join('; ')}` : '',
         ].filter(Boolean).join('\n');
         const lines = doc.splitTextToSize([summary, transcript, insights].filter(Boolean).join('\n'), pageWidth - margin * 2);
         doc.text(lines, margin, y);
@@ -316,7 +320,7 @@ export class PdfService {
       y = 65;
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(isDispute ? 'DISPUTE EVIDENCE LEDGER' : isCustomer ? 'VISUAL RESULTS' : 'PHOTO EVIDENCE', margin, y);
+      doc.text(tr('reports.photoEvidence').toUpperCase(), margin, y);
       y += 18;
 
       const colWidth = (pageWidth - margin * 3) / 2;
@@ -481,18 +485,18 @@ export class PdfService {
       addFooter(i, totalPages);
     }
 
-    const fileName = buildExportFileName(job, mode);
+    const fileName = buildExportFileName(job, mode, exportLanguage);
     if (canonicalAssembly) {
       if (integrityManifest) {
         await ProofIntegrityService.recordExportCustody(canonicalAssembly.runtimeJob.job_id, canonicalAssembly.selectedProofIds, integrityManifest.manifestHash).catch((error) => {
           console.warn('Export manifest custody event failed:', error);
         });
       }
-      await ExportPacketService.recordGeneratedPacketFromAssembly(canonicalAssembly, mode, integrityManifest ?? undefined).catch((error) => {
+      await ExportPacketService.recordGeneratedPacketFromAssembly(canonicalAssembly, mode, integrityManifest ?? undefined, exportLanguage).catch((error) => {
         console.warn('Export v2 packet record failed:', error);
       });
     } else {
-      await ExportPacketService.recordGeneratedPacket(job, mode, filteredPhotos, filteredVoiceNotes).catch((error) => {
+      await ExportPacketService.recordGeneratedPacket(job, mode, filteredPhotos, filteredVoiceNotes, exportLanguage).catch((error) => {
         console.warn('Export packet record failed:', error);
       });
     }
