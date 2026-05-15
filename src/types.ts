@@ -16,6 +16,9 @@ export interface Job {
   status: JobStatus;
   syncStatus?: SyncStatus;
   notes: string;
+  uiLanguageAtCreation?: 'en' | 'es';
+  defaultCaptureLanguage?: 'en' | 'es';
+  defaultExportLanguage?: 'en' | 'es';
 }
 
 export interface CustodyLogEntry {
@@ -54,6 +57,8 @@ export interface JobPhoto {
   integrityStatus?: 'verified' | 'modified' | 'missing_hash' | 'unavailable';
   integrityStampedAt?: string;
   custodyLog?: CustodyLogEntry[];
+  language?: 'en' | 'es';
+  cloudObjectKey?: string;
 }
 
 export interface VoiceNote {
@@ -66,6 +71,8 @@ export interface VoiceNote {
   transcribedText: string;
   summary?: string;
   language?: 'en' | 'es' | 'unknown';
+  transcriptOriginal?: string;
+  summaryOriginal?: string;
   extractedTasks?: string[];
   materialMentions?: string[];
   issueMentions?: string[];

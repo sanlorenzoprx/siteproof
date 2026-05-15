@@ -13,6 +13,7 @@ import { ReportMode } from '../../services/pdfService';
 import { Job as LegacyJob, JobPhoto, VoiceNote as LegacyVoiceNote } from '../../types';
 import { WorkflowTemplate } from '../../templates/workflowTemplate.types';
 import { modeToPacketType } from './exportPacketService';
+import type { SiteProofLanguage } from '../../types/settings';
 
 export interface ExportProofBundle {
   proof: ProofObject;
@@ -204,7 +205,7 @@ function proofToVoiceNote(bundle: ExportProofBundle): LegacyVoiceNote | null {
 }
 
 export class ExportAssembler {
-  static async assemble(jobId: string, mode: ReportMode): Promise<ExportAssembly | null> {
+  static async assemble(jobId: string, mode: ReportMode, exportLanguage: SiteProofLanguage = 'en'): Promise<ExportAssembly | null> {
     const runtimeJob = await jobRepository.getById(jobId);
     if (!runtimeJob) return null;
 
@@ -217,7 +218,7 @@ export class ExportAssembler {
     ]);
 
     const packetType = modeToPacketType(mode);
-    const template = TemplateCatalogService.getTemplate(runtimeJob.template_id);
+    const template = TemplateCatalogService.getTemplate(runtimeJob.template_id, exportLanguage);
     const legacyJob = await buildLegacyJob(runtimeJob);
     const legacyPhotos = await resolveLegacyPhotos(jobId);
     const legacyNotes = await resolveLegacyNotes(jobId);

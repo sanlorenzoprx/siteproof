@@ -8,6 +8,7 @@ import { SyncRuntime } from '../services/sync/syncRuntime';
 import { BusinessProfile } from '../types';
 import { useSyncRuntimeStatus } from '../hooks/useSyncRuntimeStatus';
 import { formatDistanceToNow } from 'date-fns';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function Layout() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export function Layout() {
 
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const syncState = useSyncRuntimeStatus();
+  const { t } = useSettings();
 
   useEffect(() => {
     async function load() {
@@ -28,10 +30,10 @@ export function Layout() {
   }, []);
 
   const navItems = [
-    { icon: LayoutList, label: 'Dashboard', path: '/dashboard' },
-    { icon: ClipboardList, label: 'Field Jobs', path: '/' },
-    { icon: ClipboardCheck, label: 'Pilot', path: '/pilot-readiness' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: LayoutList, label: t('navigation.dashboard'), path: '/dashboard' },
+    { icon: ClipboardList, label: t('navigation.jobs'), path: '/' },
+    { icon: ClipboardCheck, label: t('navigation.pilot'), path: '/pilot-readiness' },
+    { icon: Settings, label: t('navigation.settings'), path: '/settings' },
   ];
 
   return (

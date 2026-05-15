@@ -4,6 +4,7 @@ import { TemplateCatalogService } from './templateCatalogService';
 import { MediaPipelineService } from './mediaPipelineService';
 import { VoiceAIService, VoiceAIAnalysis } from './voiceAIService';
 import { ProofIntegrityService } from './proofIntegrityService';
+import { SettingsService } from './settingsService';
 
 export interface SavePhotoInput {
   jobId: string;
@@ -33,6 +34,7 @@ export interface SaveVoiceNoteInput {
 
 export class ProofCaptureService {
   static async savePhoto(input: SavePhotoInput): Promise<JobPhoto> {
+    const settings = await SettingsService.getSettings();
     const job = await SiteProofDataService.getJobById(input.jobId);
     const context = TemplateCatalogService.getRequirementContext(job?.templateId, input.requirementId);
     const mediaResult = input.blob
@@ -63,6 +65,7 @@ export class ProofCaptureService {
       isIssue: input.isIssue,
       issueType: input.issueType,
       syncStatus: 'PENDING',
+      language: settings.captureLanguage,
     };
     await ProofIntegrityService.stampPhoto(photo);
     await SiteProofDataService.savePhoto(photo);
@@ -70,18 +73,21 @@ export class ProofCaptureService {
   }
 
   static async saveVoiceNote(input: SaveVoiceNoteInput): Promise<VoiceNote> {
+    const settings = await SettingsService.getSettings();
     const job = await SiteProofDataService.getJobById(input.jobId);
     const context = TemplateCatalogService.getRequirementContext(job?.templateId, input.requirementId);
     const analysis = VoiceAIService.mergeManualFlags(
-      input.analysis ?? VoiceAIService.analyzeTranscript(input.transcribedText),
+      input.analysis ?? VoiceAIService.analyzeTranscript(input.transcribedText, settings.captureLanguage),
       { isIssue: input.isIssue, isChangeOrder: input.isChangeOrder },
     );
     const note: VoiceNote = {
       id: crypto.randomUUID(),
       jobId: input.jobId,
       transcribedText: input.transcribedText,
+      transcriptOriginal: input.transcribedText,
       summary: analysis.summary,
-      language: analysis.language,
+      summaryOriginal: analysis.summary,
+      language: analysis.language === 'unknown' ? settings.captureLanguage : analysis.language,
       extractedTasks: analysis.extractedTasks,
       materialMentions: analysis.materialMentions,
       issueMentions: analysis.issueMentions,

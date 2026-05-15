@@ -106,6 +106,8 @@ export type ModifierActionType =
   | 'require_inspection_review';
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high';
+export type TemplateLanguage = 'en' | 'es';
+export type LocalizedTemplateText = Partial<Record<TemplateLanguage, string>>;
 
 export interface WorkflowTemplate {
   template_id: string;
@@ -115,7 +117,9 @@ export interface WorkflowTemplate {
   vertical: string;
   job_type: string;
   display_name: string;
+  display_name_i18n?: LocalizedTemplateText;
   description: string;
+  description_i18n?: LocalizedTemplateText;
   supported_property_types: PropertyType[];
   supported_regions: string[];
   default_language: string;
@@ -138,7 +142,9 @@ export interface WorkflowStageTemplate {
   stage_id: string;
   stage_key: WorkflowStageKey;
   display_name: string;
+  display_name_i18n?: LocalizedTemplateText;
   description: string;
+  description_i18n?: LocalizedTemplateText;
   sort_order: number;
   required: boolean;
   can_skip: boolean;
@@ -156,8 +162,11 @@ export interface ProofRequirement {
   proof_type: ProofType;
   priority: RequirementPriority;
   display_name: string;
+  display_name_i18n?: LocalizedTemplateText;
   field_instruction: string;
+  field_instruction_i18n?: LocalizedTemplateText;
   capture_hint?: string;
+  capture_hint_i18n?: LocalizedTemplateText;
   minimum_count: number;
   maximum_count?: number;
   allow_multiple: boolean;
@@ -178,7 +187,9 @@ export interface ProofRequirement {
 export interface ChecklistItem {
   checklist_id: string;
   display_name: string;
+  display_name_i18n?: LocalizedTemplateText;
   description: string;
+  description_i18n?: LocalizedTemplateText;
   priority: RequirementPriority;
   requires_note: boolean;
   requires_signature: boolean;

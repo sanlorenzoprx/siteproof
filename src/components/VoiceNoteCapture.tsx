@@ -10,8 +10,10 @@ import { VoiceAIAnalysis, VoiceAIService } from '../services/voiceAIService';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { AppSettingsService } from '../services/appSettingsService';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function VoiceNoteCapture() {
+  const { settings, updateSettings, t } = useSettings();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -38,18 +40,18 @@ export function VoiceNoteCapture() {
     return () => { mounted = false; };
   }, []);
 
-  const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId).filter((value, index, arr) => arr.indexOf(value) === index);
+  const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId, settings.uiLanguage).filter((value, index, arr) => arr.indexOf(value) === index);
 
   useEffect(() => {
     async function loadJobContext() {
       if (!id) return;
       const job = await SiteProofDataService.getJobById(id);
       setTemplateId(job?.templateId);
-      const context = TemplateCatalogService.getRequirementContext(job?.templateId, requirementId);
+      const context = TemplateCatalogService.getRequirementContext(job?.templateId, requirementId, settings.uiLanguage);
       if (context) setCategory(context.requirement.display_name);
     }
     loadJobContext();
-  }, [id, requirementId]);
+  }, [id, requirementId, settings.uiLanguage]);
 
   useEffect(() => {
     let interval: any;
@@ -101,7 +103,7 @@ export function VoiceNoteCapture() {
             
             const transcript = (!text || text === '(Unintelligible)') ? (text || "No speech detected.") : text;
             setTranscribedText(transcript);
-            setAnalysis(VoiceAIService.analyzeTranscript(transcript));
+            setAnalysis(VoiceAIService.analyzeTranscript(transcript, settings.captureLanguage));
             setStatus('done');
           };
         } catch (e) {
@@ -118,7 +120,7 @@ export function VoiceNoteCapture() {
       setStatus('recording');
     } catch (e) {
       console.error("Microphone access denied", e);
-      alert("Microphone access is required for voice notes.");
+      alert(t('voice.microphoneRequired'));
     }
   }
 
@@ -132,7 +134,7 @@ export function VoiceNoteCapture() {
   async function handleSave() {
     if (!id || !transcribedText) return;
     
-    const finalAnalysis = analysis ?? VoiceAIService.analyzeTranscript(transcribedText);
+    const finalAnalysis = analysis ?? VoiceAIService.analyzeTranscript(transcribedText, settings.captureLanguage);
     await ProofCaptureService.saveVoiceNote({
       jobId: id,
       transcribedText,
@@ -149,7 +151,7 @@ export function VoiceNoteCapture() {
 
   function updateTranscript(value: string) {
     setTranscribedText(value);
-    setAnalysis(VoiceAIService.analyzeTranscript(value));
+    setAnalysis(VoiceAIService.analyzeTranscript(value, settings.captureLanguage));
   }
 
   const formatTimer = (s: number) => {
@@ -168,7 +170,7 @@ export function VoiceNoteCapture() {
         >
           <X size={24} />
         </button>
-        <span className="text-white/30 text-xs font-bold uppercase tracking-[0.2em]">Voice Documentation</span>
+        <span className="text-white/30 text-xs font-bold uppercase tracking-[0.2em]">{t('voice.title')}</span>
         <div className="w-10" />
       </div>
 
@@ -186,15 +188,19 @@ export function VoiceNoteCapture() {
                 <Mic className="text-blue-600" size={48} />
               </div>
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-white tracking-tight">Speak your notes</h2>
+                <h2 className="text-2xl font-bold text-white tracking-tight">{t('voice.speakNotes')}</h2>
                 <p className="text-slate-400 max-w-xs mx-auto text-sm leading-relaxed">
                   SiteProof will automatically transcribe your voice memos and add them to the job report.
                 </p>
+                <div className="flex justify-center gap-2">
+                  <button onClick={() => void updateSettings({ captureLanguage: 'en' })} className={`px-3 py-2 rounded-xl text-xs font-black ${settings.captureLanguage === 'en' ? 'bg-white text-slate-950' : 'bg-white/10 text-white'}`}>{t('common.english')}</button>
+                  <button onClick={() => void updateSettings({ captureLanguage: 'es' })} className={`px-3 py-2 rounded-xl text-xs font-black ${settings.captureLanguage === 'es' ? 'bg-white text-slate-950' : 'bg-white/10 text-white'}`}>{t('common.spanish')}</button>
+                </div>
                 
                 {speechCalibrated ? (
                   <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-xl mx-auto w-fit">
                     <ShieldCheck size={14} className="text-green-500" />
-                    <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">Optimized Voice Profile Active</span>
+                    <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">{t('voice.profileActive')}</span>
                   </div>
                 ) : (
                   <button 
@@ -202,7 +208,7 @@ export function VoiceNoteCapture() {
                     className="flex items-center gap-2 bg-blue-600/10 border border-blue-600/20 px-4 py-2 rounded-xl mx-auto w-fit hover:bg-blue-600/20 transition-all"
                   >
                     <Zap size={14} className="text-blue-400" />
-                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Boost Accuracy: Calibrate Voice</span>
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{t('voice.calibrate')}</span>
                   </button>
                 )}
               </div>
@@ -225,7 +231,7 @@ export function VoiceNoteCapture() {
               </div>
               <div className="flex items-center justify-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
-                <span className="text-red-500 font-bold uppercase tracking-widest text-xs">Recording Live</span>
+                <span className="text-red-500 font-bold uppercase tracking-widest text-xs">{t('voice.recordingLive')}</span>
               </div>
             </motion.div>
           )}
@@ -239,7 +245,7 @@ export function VoiceNoteCapture() {
               className="space-y-4"
             >
               <Loader2 className="animate-spin text-blue-500 mx-auto" size={48} />
-              <p className="text-white font-bold tracking-tight">Transcribing note...</p>
+              <p className="text-white font-bold tracking-tight">{t('voice.transcribing')}</p>
             </motion.div>
           )}
 
@@ -253,9 +259,9 @@ export function VoiceNoteCapture() {
             >
               <div className="bg-white/5 border border-white/10 p-6 rounded-3xl text-left space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest block">Transcribed Result</span>
+                  <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest block">{t('voice.result')}</span>
                   <span className="inline-flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <Languages size={13} /> {analysis?.language === 'es' ? 'Spanish' : analysis?.language === 'en' ? 'English' : 'Auto'}
+                    <Languages size={13} /> {analysis?.language === 'es' ? t('common.spanish') : analysis?.language === 'en' ? t('common.english') : t('voice.auto')}
                   </span>
                 </div>
                 <textarea
@@ -263,20 +269,21 @@ export function VoiceNoteCapture() {
                   onChange={(event) => updateTranscript(event.target.value)}
                   className="w-full min-h-28 bg-slate-950/70 border border-white/10 rounded-2xl p-4 text-white text-base font-medium leading-relaxed outline-none focus:border-blue-500"
                 />
+                <p className="text-[11px] font-bold text-slate-500 mt-2">{t('capture.manualFallback')}</p>
               </div>
 
               {analysis && (
                 <div className="grid grid-cols-1 gap-3 text-left">
-                  <VoiceInsight title="Summary" icon={<ClipboardCheck size={16} />} items={[analysis.summary]} empty="No clear summary yet." />
-                  <VoiceInsight title="Materials" icon={<Wrench size={16} />} items={analysis.materialMentions} empty="No materials detected." />
-                  <VoiceInsight title="Issues" icon={<AlertTriangle size={16} />} items={analysis.issueMentions} empty="No issues detected." tone={analysis.issueMentions.length ? 'warning' : 'default'} />
-                  <VoiceInsight title="Change Orders" icon={<Zap size={16} />} items={analysis.changeOrderCandidates} empty="No change-order language detected." tone={analysis.changeOrderCandidates.length ? 'warning' : 'default'} />
-                  <VoiceInsight title="Customer Requests" icon={<Mic size={16} />} items={analysis.customerRequests} empty="No customer requests detected." />
+                  <VoiceInsight title={t('voice.summary')} icon={<ClipboardCheck size={16} />} items={[analysis.summary]} empty={t('voice.noSummary')} />
+                  <VoiceInsight title={t('voice.materials')} icon={<Wrench size={16} />} items={analysis.materialMentions} empty={t('voice.noMaterials')} />
+                  <VoiceInsight title={t('voice.issues')} icon={<AlertTriangle size={16} />} items={analysis.issueMentions} empty={t('voice.noIssues')} tone={analysis.issueMentions.length ? 'warning' : 'default'} />
+                  <VoiceInsight title={t('voice.changeOrders')} icon={<Zap size={16} />} items={analysis.changeOrderCandidates} empty={t('voice.noChangeOrders')} tone={analysis.changeOrderCandidates.length ? 'warning' : 'default'} />
+                  <VoiceInsight title={t('voice.customerRequests')} icon={<Mic size={16} />} items={analysis.customerRequests} empty={t('voice.noCustomerRequests')} />
                 </div>
               )}
               
               <div className="space-y-2 text-left">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Assign Category</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">{t('voice.assignCategory')}</label>
                 <div className="flex flex-wrap gap-2">
                   {categories.map(cat => (
                     <button
@@ -315,7 +322,7 @@ export function VoiceNoteCapture() {
 
         {status === 'recording' && (
           <div className="text-white/50 text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
-            Release to Transcribe
+            {t('voice.releaseToTranscribe')}
           </div>
         )}
 
@@ -325,14 +332,14 @@ export function VoiceNoteCapture() {
               onClick={() => { setStatus('idle'); setTranscribedText(''); setAnalysis(null); setAudioBlob(null); }}
               className="flex-1 py-4 bg-white/5 text-white font-bold rounded-2xl border border-white/10"
             >
-              Discard
+              {t('voice.discard')}
             </button>
             <button 
               onClick={handleSave}
               className="flex-1 py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl shadow-blue-600/20 flex items-center justify-center gap-2"
             >
               <Check size={20} />
-              Attach Note
+              {t('voice.attachNote')}
             </button>
           </div>
         )}

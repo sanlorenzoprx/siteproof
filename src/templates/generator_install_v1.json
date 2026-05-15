@@ -7,10 +7,19 @@
   "job_type": "generator_install",
   "display_name": "Generator Install",
   "description": "Workflow for documenting standby generator installation from site arrival through final export.",
-  "supported_property_types": ["residential", "commercial"],
-  "supported_regions": ["US", "PR"],
+  "supported_property_types": [
+    "residential",
+    "commercial"
+  ],
+  "supported_regions": [
+    "US",
+    "PR"
+  ],
   "default_language": "en",
-  "supported_languages": ["en", "es"],
+  "supported_languages": [
+    "en",
+    "es"
+  ],
   "estimated_duration_minutes": 480,
   "risk_level": "high",
   "requires_permit_review": true,
@@ -45,13 +54,32 @@
           "requires_user_note": true,
           "requires_ai_quality_check": false,
           "quality_rules": [],
-          "ai_label_hints": ["scope", "generator_size", "fuel_type", "ats"],
+          "ai_label_hints": [
+            "scope",
+            "generator_size",
+            "fuel_type",
+            "ats"
+          ],
           "inspection_tags": [],
-          "permit_tags": ["scope"],
-          "export_tags": ["customer_packet", "inspector_packet", "internal_record"],
+          "permit_tags": [
+            "scope"
+          ],
+          "export_tags": [
+            "customer_packet",
+            "inspector_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "local_only_allowed"
+          "sync_policy": "local_only_allowed",
+          "display_name_i18n": {
+            "en": "Job scope note",
+            "es": "Nota del alcance del trabajo"
+          },
+          "field_instruction_i18n": {
+            "en": "Add a short summary of generator size, fuel type, transfer switch scope, and any known constraints.",
+            "es": "Agregue un resumen breve del tamaño del generador, tipo de combustible, alcance del interruptor de transferencia y cualquier restricción conocida."
+          }
         }
       ],
       "checklist_items": [
@@ -63,7 +91,18 @@
           "requires_note": false,
           "requires_signature": false,
           "blocks_stage_completion": true,
-          "export_tags": ["inspector_packet", "internal_record"]
+          "export_tags": [
+            "inspector_packet",
+            "internal_record"
+          ],
+          "display_name_i18n": {
+            "en": "Jobsite ZIP confirmed",
+            "es": "Código postal del sitio confirmado"
+          },
+          "description_i18n": {
+            "en": "Confirm the jobsite ZIP because permit, inspection, utility, and AHJ rules should follow the jobsite location, not only the business ZIP.",
+            "es": "Confirme el código postal del sitio porque las reglas de permisos, inspección, servicios y autoridad competente deben seguir la ubicación del trabajo, no solo el código postal del negocio."
+          }
         },
         {
           "checklist_id": "permit_status_checked",
@@ -73,12 +112,31 @@
           "requires_note": true,
           "requires_signature": false,
           "blocks_stage_completion": false,
-          "export_tags": ["inspector_packet", "internal_record"]
+          "export_tags": [
+            "inspector_packet",
+            "internal_record"
+          ],
+          "display_name_i18n": {
+            "en": "Permit status checked",
+            "es": "Estado del permiso revisado"
+          },
+          "description_i18n": {
+            "en": "Confirm whether permit has been pulled, is pending, not required, or needs office review.",
+            "es": "Confirme si el permiso fue obtenido, está pendiente, no es requerido o necesita revisión de oficina."
+          }
         }
       ],
       "stage_validation_rules": [],
       "ai_stage_prompts": [],
-      "export_section_mappings": []
+      "export_section_mappings": [],
+      "display_name_i18n": {
+        "en": "Intake",
+        "es": "Inicio"
+      },
+      "description_i18n": {
+        "en": "Collect job, customer, site, and scope context before field work begins.",
+        "es": "Recopile el contexto del trabajo, cliente, sitio y alcance antes de comenzar el trabajo en campo."
+      }
     },
     {
       "stage_id": "site_arrival",
@@ -106,13 +164,27 @@
           "requires_user_note": false,
           "requires_ai_quality_check": false,
           "quality_rules": [],
-          "ai_label_hints": ["arrival", "gps_check_in"],
+          "ai_label_hints": [
+            "arrival",
+            "gps_check_in"
+          ],
           "inspection_tags": [],
           "permit_tags": [],
-          "export_tags": ["internal_record", "litigation_packet"],
+          "export_tags": [
+            "internal_record",
+            "litigation_packet"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "local_only_allowed"
+          "sync_policy": "local_only_allowed",
+          "display_name_i18n": {
+            "en": "GPS check-in",
+            "es": "Registro GPS"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture GPS check-in when arriving at the jobsite.",
+            "es": "Capture el registro GPS al llegar al sitio."
+          }
         },
         {
           "requirement_id": "site_overview_arrival",
@@ -128,20 +200,47 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["site_overview", "arrival", "work_area"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "site_overview",
+            "arrival",
+            "work_area"
+          ],
           "inspection_tags": [],
           "permit_tags": [],
-          "export_tags": ["customer_packet", "internal_record", "insurance_packet"],
+          "export_tags": [
+            "customer_packet",
+            "internal_record",
+            "insurance_packet"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Site overview at arrival",
+            "es": "Vista general del sitio al llegar"
+          },
+          "field_instruction_i18n": {
+            "en": "Take a wide photo showing the work area before starting.",
+            "es": "Tome una foto amplia que muestre el área de trabajo antes de comenzar."
+          }
         }
       ],
       "checklist_items": [],
       "stage_validation_rules": [],
       "ai_stage_prompts": [],
-      "export_section_mappings": []
+      "export_section_mappings": [],
+      "display_name_i18n": {
+        "en": "Site Arrival",
+        "es": "Llegada al sitio"
+      },
+      "description_i18n": {
+        "en": "Confirm jobsite location and capture initial site context.",
+        "es": "Confirme la ubicación del sitio y capture el contexto inicial."
+      }
     },
     {
       "stage_id": "existing_conditions",
@@ -168,14 +267,36 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["meter", "electric_meter"],
-          "inspection_tags": ["service_equipment"],
-          "permit_tags": ["electrical_permit"],
-          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "meter",
+            "electric_meter"
+          ],
+          "inspection_tags": [
+            "service_equipment"
+          ],
+          "permit_tags": [
+            "electrical_permit"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "customer_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Meter before work",
+            "es": "Medidor antes del trabajo"
+          },
+          "field_instruction_i18n": {
+            "en": "Take a clear photo of the electric meter before work begins.",
+            "es": "Tome una foto clara del medidor eléctrico antes de comenzar el trabajo."
+          }
         },
         {
           "requirement_id": "main_panel_before",
@@ -191,14 +312,36 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["main_panel", "breaker_panel"],
-          "inspection_tags": ["panel"],
-          "permit_tags": ["electrical_permit"],
-          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "main_panel",
+            "breaker_panel"
+          ],
+          "inspection_tags": [
+            "panel"
+          ],
+          "permit_tags": [
+            "electrical_permit"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "customer_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Main panel before work",
+            "es": "Panel principal antes del trabajo"
+          },
+          "field_instruction_i18n": {
+            "en": "Take a clear photo of the main panel before work begins.",
+            "es": "Tome una foto clara del panel principal antes de comenzar el trabajo."
+          }
         },
         {
           "requirement_id": "proposed_generator_location_before",
@@ -214,16 +357,40 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["generator_location", "pad_location", "site_conditions"],
-          "inspection_tags": ["clearance", "location"],
-          "permit_tags": ["site_plan"],
-          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "generator_location",
+            "pad_location",
+            "site_conditions"
+          ],
+          "inspection_tags": [
+            "clearance",
+            "location"
+          ],
+          "permit_tags": [
+            "site_plan"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "customer_packet",
+            "internal_record"
+          ],
           "compliance_notes": [
             "Clearance requirements vary by manufacturer, fuel type, and jurisdiction. Verify with AHJ and manufacturer documentation."
           ],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Proposed generator location before work",
+            "es": "Ubicación propuesta del generador antes del trabajo"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture the proposed generator location before installation.",
+            "es": "Capture la ubicación propuesta del generador antes de la instalación."
+          }
         },
         {
           "requirement_id": "existing_obstructions",
@@ -239,20 +406,55 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["obstruction", "clearance", "window", "vent", "fence", "landscaping"],
-          "inspection_tags": ["clearance", "site_conditions"],
-          "permit_tags": ["site_plan"],
-          "export_tags": ["inspector_packet", "internal_record", "insurance_packet"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "obstruction",
+            "clearance",
+            "window",
+            "vent",
+            "fence",
+            "landscaping"
+          ],
+          "inspection_tags": [
+            "clearance",
+            "site_conditions"
+          ],
+          "permit_tags": [
+            "site_plan"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "internal_record",
+            "insurance_packet"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Existing obstructions or site constraints",
+            "es": "Obstrucciones existentes o restricciones del sitio"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture fences, landscaping, windows, vents, slopes, drainage, or access constraints that may affect installation.",
+            "es": "Capture cercas, jardinería, ventanas, ventilaciones, pendientes, drenaje o restricciones de acceso que puedan afectar la instalación."
+          }
         }
       ],
       "checklist_items": [],
       "stage_validation_rules": [],
       "ai_stage_prompts": [],
-      "export_section_mappings": []
+      "export_section_mappings": [],
+      "display_name_i18n": {
+        "en": "Existing Conditions",
+        "es": "Condiciones existentes"
+      },
+      "description_i18n": {
+        "en": "Capture before-work evidence for service equipment and installation area.",
+        "es": "Capture evidencia previa al trabajo del equipo de servicio y del área de instalación."
+      }
     },
     {
       "stage_id": "active_work",
@@ -279,14 +481,38 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["generator_pad", "concrete_pad", "base"],
-          "inspection_tags": ["pad", "location"],
-          "permit_tags": ["site_plan"],
-          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "generator_pad",
+            "concrete_pad",
+            "base"
+          ],
+          "inspection_tags": [
+            "pad",
+            "location"
+          ],
+          "permit_tags": [
+            "site_plan"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "customer_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Generator pad or base",
+            "es": "Base del generador"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture the generator pad/base before generator placement when possible.",
+            "es": "Capture la base del generador antes de colocarlo cuando sea posible."
+          }
         },
         {
           "requirement_id": "transfer_switch_install",
@@ -302,14 +528,37 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["transfer_switch", "ats"],
-          "inspection_tags": ["transfer_switch", "service_equipment"],
-          "permit_tags": ["electrical_permit"],
-          "export_tags": ["inspector_packet", "customer_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "transfer_switch",
+            "ats"
+          ],
+          "inspection_tags": [
+            "transfer_switch",
+            "service_equipment"
+          ],
+          "permit_tags": [
+            "electrical_permit"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "customer_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Transfer switch installation",
+            "es": "Instalación del interruptor de transferencia"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture installed transfer switch and surrounding equipment.",
+            "es": "Capture el interruptor de transferencia instalado y el equipo circundante."
+          }
         },
         {
           "requirement_id": "conduit_routing",
@@ -325,14 +574,37 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["conduit", "routing", "penetration"],
-          "inspection_tags": ["raceway", "routing"],
-          "permit_tags": ["electrical_permit"],
-          "export_tags": ["inspector_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "conduit",
+            "routing",
+            "penetration"
+          ],
+          "inspection_tags": [
+            "raceway",
+            "routing"
+          ],
+          "permit_tags": [
+            "electrical_permit"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Conduit routing",
+            "es": "Ruta del conducto"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture conduit routing before it becomes hidden or hard to inspect.",
+            "es": "Capture la ruta del conducto antes de que quede oculta o difícil de inspeccionar."
+          }
         },
         {
           "requirement_id": "fuel_connection",
@@ -348,11 +620,28 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["fuel_line", "gas_connection", "propane", "natural_gas"],
-          "inspection_tags": ["fuel", "gas"],
-          "permit_tags": ["fuel_permit", "mechanical_permit"],
-          "export_tags": ["inspector_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "fuel_line",
+            "gas_connection",
+            "propane",
+            "natural_gas"
+          ],
+          "inspection_tags": [
+            "fuel",
+            "gas"
+          ],
+          "permit_tags": [
+            "fuel_permit",
+            "mechanical_permit"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "internal_record"
+          ],
           "compliance_notes": [
             "Fuel requirements vary by fuel type and jurisdiction. Verify with qualified gas/fuel contractor and AHJ."
           ],
@@ -371,7 +660,15 @@
               "minimum_count": 0
             }
           },
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Fuel connection",
+            "es": "Conexión de combustible"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture fuel connection if included in scope.",
+            "es": "Capture la conexión de combustible si está incluida en el alcance."
+          }
         },
         {
           "requirement_id": "grounding_or_bonding_detail",
@@ -387,16 +684,40 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["grounding", "bonding", "ground_wire", "electrode"],
-          "inspection_tags": ["grounding", "bonding"],
-          "permit_tags": ["electrical_permit"],
-          "export_tags": ["inspector_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "grounding",
+            "bonding",
+            "ground_wire",
+            "electrode"
+          ],
+          "inspection_tags": [
+            "grounding",
+            "bonding"
+          ],
+          "permit_tags": [
+            "electrical_permit"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "internal_record"
+          ],
           "compliance_notes": [
             "Grounding and bonding requirements depend on system design, code adoption, and AHJ interpretation. Verify locally."
           ],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Grounding/bonding detail",
+            "es": "Detalle de puesta a tierra/unión"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture grounding or bonding detail when visible and safe to document.",
+            "es": "Capture el detalle de puesta a tierra o unión cuando sea visible y seguro documentarlo."
+          }
         }
       ],
       "checklist_items": [
@@ -408,12 +729,30 @@
           "requires_note": false,
           "requires_signature": false,
           "blocks_stage_completion": false,
-          "export_tags": ["internal_record"]
+          "export_tags": [
+            "internal_record"
+          ],
+          "display_name_i18n": {
+            "en": "Review unexpected work/change-order items",
+            "es": "Revisar trabajo inesperado o cambios"
+          },
+          "description_i18n": {
+            "en": "Confirm whether extra trenching, relocation, repair, or customer-requested changes occurred.",
+            "es": "Confirme si hubo zanjeo adicional, reubicación, reparación o cambios solicitados por el cliente."
+          }
         }
       ],
       "stage_validation_rules": [],
       "ai_stage_prompts": [],
-      "export_section_mappings": []
+      "export_section_mappings": [],
+      "display_name_i18n": {
+        "en": "Active Work",
+        "es": "Trabajo activo"
+      },
+      "description_i18n": {
+        "en": "Document installation progress, hidden work, and important field conditions.",
+        "es": "Documente el avance de la instalación, trabajo oculto y condiciones importantes en campo."
+      }
     },
     {
       "stage_id": "inspection_readiness",
@@ -440,14 +779,40 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["not_blurry", "not_dark"],
-          "ai_label_hints": ["generator", "final_install", "completed"],
-          "inspection_tags": ["final", "clearance", "equipment"],
-          "permit_tags": ["final_inspection"],
-          "export_tags": ["inspector_packet", "customer_packet", "warranty_packet", "internal_record"],
+          "quality_rules": [
+            "not_blurry",
+            "not_dark"
+          ],
+          "ai_label_hints": [
+            "generator",
+            "final_install",
+            "completed"
+          ],
+          "inspection_tags": [
+            "final",
+            "clearance",
+            "equipment"
+          ],
+          "permit_tags": [
+            "final_inspection"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "customer_packet",
+            "warranty_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Final generator installation",
+            "es": "Instalación final del generador"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture final installed generator from multiple angles.",
+            "es": "Capture el generador instalado final desde varios ángulos."
+          }
         },
         {
           "requirement_id": "generator_serial_number",
@@ -463,14 +828,36 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["readable_text"],
-          "ai_label_hints": ["serial_number", "nameplate", "model_number"],
-          "inspection_tags": ["equipment_identification"],
-          "permit_tags": ["equipment"],
-          "export_tags": ["inspector_packet", "warranty_packet", "internal_record"],
+          "quality_rules": [
+            "readable_text"
+          ],
+          "ai_label_hints": [
+            "serial_number",
+            "nameplate",
+            "model_number"
+          ],
+          "inspection_tags": [
+            "equipment_identification"
+          ],
+          "permit_tags": [
+            "equipment"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "warranty_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Generator serial/model number",
+            "es": "Número de serie/modelo del generador"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture or enter generator model and serial number.",
+            "es": "Capture o ingrese el modelo y número de serie del generador."
+          }
         },
         {
           "requirement_id": "startup_or_test_result",
@@ -487,13 +874,35 @@
           "requires_user_note": true,
           "requires_ai_quality_check": false,
           "quality_rules": [],
-          "ai_label_hints": ["startup", "test", "voltage", "load_test"],
-          "inspection_tags": ["test_result"],
-          "permit_tags": ["final_inspection"],
-          "export_tags": ["inspector_packet", "customer_packet", "warranty_packet", "internal_record"],
+          "ai_label_hints": [
+            "startup",
+            "test",
+            "voltage",
+            "load_test"
+          ],
+          "inspection_tags": [
+            "test_result"
+          ],
+          "permit_tags": [
+            "final_inspection"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "customer_packet",
+            "warranty_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Startup/test result",
+            "es": "Resultado de arranque/prueba"
+          },
+          "field_instruction_i18n": {
+            "en": "Document startup or test result if performed.",
+            "es": "Documente el arranque o resultado de prueba si se realizó."
+          }
         },
         {
           "requirement_id": "permit_or_inspection_document",
@@ -509,14 +918,36 @@
           "requires_timestamp": true,
           "requires_user_note": false,
           "requires_ai_quality_check": true,
-          "quality_rules": ["readable_text"],
-          "ai_label_hints": ["permit", "inspection", "document"],
-          "inspection_tags": ["permit", "inspection"],
-          "permit_tags": ["permit_document"],
-          "export_tags": ["inspector_packet", "internal_record"],
+          "quality_rules": [
+            "readable_text"
+          ],
+          "ai_label_hints": [
+            "permit",
+            "inspection",
+            "document"
+          ],
+          "inspection_tags": [
+            "permit",
+            "inspection"
+          ],
+          "permit_tags": [
+            "permit_document"
+          ],
+          "export_tags": [
+            "inspector_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Permit or inspection document",
+            "es": "Documento de permiso o inspección"
+          },
+          "field_instruction_i18n": {
+            "en": "Attach or photograph permit card, inspection tag, or related jobsite document if available.",
+            "es": "Adjunte o fotografíe la tarjeta de permiso, etiqueta de inspección o documento relacionado del sitio si está disponible."
+          }
         }
       ],
       "checklist_items": [
@@ -528,12 +959,31 @@
           "requires_note": false,
           "requires_signature": false,
           "blocks_stage_completion": true,
-          "export_tags": ["inspector_packet", "internal_record"]
+          "export_tags": [
+            "inspector_packet",
+            "internal_record"
+          ],
+          "display_name_i18n": {
+            "en": "Required photos reviewed",
+            "es": "Fotos requeridas revisadas"
+          },
+          "description_i18n": {
+            "en": "Confirm all required photos are captured before generating inspector packet.",
+            "es": "Confirme que todas las fotos requeridas estén capturadas antes de generar el paquete para inspector."
+          }
         }
       ],
       "stage_validation_rules": [],
       "ai_stage_prompts": [],
-      "export_section_mappings": []
+      "export_section_mappings": [],
+      "display_name_i18n": {
+        "en": "Inspection Readiness",
+        "es": "Preparación para inspección"
+      },
+      "description_i18n": {
+        "en": "Capture closeout proof needed for inspection and permit records.",
+        "es": "Capture la evidencia de cierre necesaria para inspección y registros de permisos."
+      }
     },
     {
       "stage_id": "completion",
@@ -561,13 +1011,28 @@
           "requires_user_note": false,
           "requires_ai_quality_check": false,
           "quality_rules": [],
-          "ai_label_hints": ["customer_walkthrough", "closeout", "warranty"],
+          "ai_label_hints": [
+            "customer_walkthrough",
+            "closeout",
+            "warranty"
+          ],
           "inspection_tags": [],
           "permit_tags": [],
-          "export_tags": ["customer_packet", "internal_record"],
+          "export_tags": [
+            "customer_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Customer walkthrough note",
+            "es": "Nota de recorrido con el cliente"
+          },
+          "field_instruction_i18n": {
+            "en": "Record a short note summarizing customer walkthrough or closeout status.",
+            "es": "Registre una nota breve que resuma el recorrido con el cliente o el estado de cierre."
+          }
         },
         {
           "requirement_id": "customer_signature",
@@ -584,19 +1049,41 @@
           "requires_user_note": false,
           "requires_ai_quality_check": false,
           "quality_rules": [],
-          "ai_label_hints": ["signature", "signoff"],
+          "ai_label_hints": [
+            "signature",
+            "signoff"
+          ],
           "inspection_tags": [],
           "permit_tags": [],
-          "export_tags": ["customer_packet", "internal_record"],
+          "export_tags": [
+            "customer_packet",
+            "internal_record"
+          ],
           "compliance_notes": [],
           "conditional_logic": null,
-          "sync_policy": "sync_recommended"
+          "sync_policy": "sync_recommended",
+          "display_name_i18n": {
+            "en": "Customer signature",
+            "es": "Firma del cliente"
+          },
+          "field_instruction_i18n": {
+            "en": "Capture customer signoff if required by company workflow.",
+            "es": "Capture la firma del cliente si el flujo de la empresa lo requiere."
+          }
         }
       ],
       "checklist_items": [],
       "stage_validation_rules": [],
       "ai_stage_prompts": [],
-      "export_section_mappings": []
+      "export_section_mappings": [],
+      "display_name_i18n": {
+        "en": "Completion",
+        "es": "Finalización"
+      },
+      "description_i18n": {
+        "en": "Capture customer-facing completion proof and signoff.",
+        "es": "Capture evidencia de finalización para el cliente y la firma de cierre."
+      }
     },
     {
       "stage_id": "export_archive",
@@ -618,7 +1105,18 @@
           "requires_note": false,
           "requires_signature": false,
           "blocks_stage_completion": false,
-          "export_tags": ["customer_packet", "internal_record"]
+          "export_tags": [
+            "customer_packet",
+            "internal_record"
+          ],
+          "display_name_i18n": {
+            "en": "Customer packet generated",
+            "es": "Paquete del cliente generado"
+          },
+          "description_i18n": {
+            "en": "Generate customer-facing completion documentation when appropriate.",
+            "es": "Genere documentación de finalización para el cliente cuando corresponda."
+          }
         },
         {
           "checklist_id": "sync_status_reviewed",
@@ -628,12 +1126,30 @@
           "requires_note": false,
           "requires_signature": false,
           "blocks_stage_completion": false,
-          "export_tags": ["internal_record"]
+          "export_tags": [
+            "internal_record"
+          ],
+          "display_name_i18n": {
+            "en": "Sync status reviewed",
+            "es": "Estado de sincronización revisado"
+          },
+          "description_i18n": {
+            "en": "Confirm whether job is saved locally, waiting for internet, uploading, backed up, or needs attention.",
+            "es": "Confirme si el trabajo está guardado localmente, esperando internet, cargando, respaldado o necesita atención."
+          }
         }
       ],
       "stage_validation_rules": [],
       "ai_stage_prompts": [],
-      "export_section_mappings": []
+      "export_section_mappings": [],
+      "display_name_i18n": {
+        "en": "Export / Archive",
+        "es": "Exportar / Archivar"
+      },
+      "description_i18n": {
+        "en": "Generate documentation packets and confirm local/offline archive status.",
+        "es": "Genere paquetes de documentación y confirme el estado del archivo local/sin conexión."
+      }
     }
   ],
   "export_profiles": [
@@ -648,13 +1164,19 @@
           "section_id": "job_summary",
           "display_name": "Job Summary",
           "sort_order": 10,
-          "content_sources": ["job", "customer", "ai_summary"]
+          "content_sources": [
+            "job",
+            "customer",
+            "ai_summary"
+          ]
         },
         {
           "section_id": "before_after_photos",
           "display_name": "Before and After Photos",
           "sort_order": 20,
-          "content_sources": ["proof_objects"],
+          "content_sources": [
+            "proof_objects"
+          ],
           "filter": {
             "field": "export_tags",
             "operator": "contains",
@@ -665,7 +1187,11 @@
           "section_id": "completion_notes",
           "display_name": "Completion Notes",
           "sort_order": 30,
-          "content_sources": ["voice_notes", "text_notes", "signature"]
+          "content_sources": [
+            "voice_notes",
+            "text_notes",
+            "signature"
+          ]
         }
       ],
       "requires_validation_pass": false,
@@ -686,13 +1212,19 @@
           "section_id": "job_and_jurisdiction_summary",
           "display_name": "Job and Jurisdiction Summary",
           "sort_order": 10,
-          "content_sources": ["job", "jurisdiction", "permit"]
+          "content_sources": [
+            "job",
+            "jurisdiction",
+            "permit"
+          ]
         },
         {
           "section_id": "required_inspection_proof",
           "display_name": "Required Inspection Proof",
           "sort_order": 20,
-          "content_sources": ["proof_objects"],
+          "content_sources": [
+            "proof_objects"
+          ],
           "filter": {
             "field": "export_tags",
             "operator": "contains",
@@ -703,7 +1235,10 @@
           "section_id": "inspection_checklist",
           "display_name": "Inspection Checklist",
           "sort_order": 30,
-          "content_sources": ["checklist_items", "validation_results"]
+          "content_sources": [
+            "checklist_items",
+            "validation_results"
+          ]
         }
       ],
       "requires_validation_pass": true,
@@ -724,13 +1259,18 @@
           "section_id": "equipment_summary",
           "display_name": "Equipment Summary",
           "sort_order": 10,
-          "content_sources": ["proof_objects", "job"]
+          "content_sources": [
+            "proof_objects",
+            "job"
+          ]
         },
         {
           "section_id": "install_proof",
           "display_name": "Installation Proof",
           "sort_order": 20,
-          "content_sources": ["proof_objects"],
+          "content_sources": [
+            "proof_objects"
+          ],
           "filter": {
             "field": "export_tags",
             "operator": "contains",
@@ -756,19 +1296,28 @@
           "section_id": "full_job_timeline",
           "display_name": "Full Job Timeline",
           "sort_order": 10,
-          "content_sources": ["timeline_events", "proof_objects", "sync_state"]
+          "content_sources": [
+            "timeline_events",
+            "proof_objects",
+            "sync_state"
+          ]
         },
         {
           "section_id": "all_proof",
           "display_name": "All Proof Objects",
           "sort_order": 20,
-          "content_sources": ["proof_objects"]
+          "content_sources": [
+            "proof_objects"
+          ]
         },
         {
           "section_id": "change_order_candidates",
           "display_name": "Change Order Candidates",
           "sort_order": 30,
-          "content_sources": ["change_order_candidates", "voice_notes"]
+          "content_sources": [
+            "change_order_candidates",
+            "voice_notes"
+          ]
         }
       ],
       "requires_validation_pass": false,
@@ -801,7 +1350,10 @@
       "detect_materials": true,
       "detect_issues": true,
       "detect_change_orders": true,
-      "supported_languages": ["en", "es"],
+      "supported_languages": [
+        "en",
+        "es"
+      ],
       "output_schema": "voice_note_result_v1"
     },
     "report_narrative": {
@@ -832,7 +1384,10 @@
             "rule_type": "jurisdiction_warning",
             "severity": "warning",
             "display_message": "Jobsite ZIP may fall under a different AHJ than business ZIP. Verify permit and inspection requirements for the jobsite location.",
-            "applies_to": ["inspector_packet", "internal_record"],
+            "applies_to": [
+              "inspector_packet",
+              "internal_record"
+            ],
             "conditions": [],
             "recommended_action": "Review jobsite AHJ, permit office, utility provider, and inspection scheduling requirements."
           }
@@ -866,11 +1421,28 @@
             "requires_timestamp": true,
             "requires_user_note": false,
             "requires_ai_quality_check": true,
-            "quality_rules": ["not_blurry", "not_dark"],
-            "ai_label_hints": ["anchoring", "fastener", "base", "wind_zone"],
-            "inspection_tags": ["anchoring", "wind_zone"],
-            "permit_tags": ["site_plan", "final_inspection"],
-            "export_tags": ["inspector_packet", "internal_record"],
+            "quality_rules": [
+              "not_blurry",
+              "not_dark"
+            ],
+            "ai_label_hints": [
+              "anchoring",
+              "fastener",
+              "base",
+              "wind_zone"
+            ],
+            "inspection_tags": [
+              "anchoring",
+              "wind_zone"
+            ],
+            "permit_tags": [
+              "site_plan",
+              "final_inspection"
+            ],
+            "export_tags": [
+              "inspector_packet",
+              "internal_record"
+            ],
             "compliance_notes": [
               "Wind-zone anchoring requirements vary by jurisdiction, manufacturer, and site condition. Verify with AHJ."
             ],
@@ -889,7 +1461,9 @@
       "rule_type": "missing_proof",
       "severity": "blocking",
       "display_message": "Inspector packet requires all required inspector proof items before export.",
-      "applies_to": ["inspector_packet"],
+      "applies_to": [
+        "inspector_packet"
+      ],
       "conditions": [
         {
           "field": "proof_requirement.priority",
@@ -909,7 +1483,11 @@
       "rule_type": "low_quality_proof",
       "severity": "warning",
       "display_message": "One or more required photos may be blurry, dark, or hard to verify.",
-      "applies_to": ["customer_packet", "inspector_packet", "internal_record"],
+      "applies_to": [
+        "customer_packet",
+        "inspector_packet",
+        "internal_record"
+      ],
       "conditions": [
         {
           "field": "proof_object.quality_score",
@@ -924,7 +1502,11 @@
       "rule_type": "missing_gps",
       "severity": "warning",
       "display_message": "One or more required photos is missing GPS data.",
-      "applies_to": ["inspector_packet", "internal_record", "litigation_packet"],
+      "applies_to": [
+        "inspector_packet",
+        "internal_record",
+        "litigation_packet"
+      ],
       "conditions": [
         {
           "field": "proof_requirement.requires_gps",
@@ -938,5 +1520,13 @@
       ],
       "recommended_action": "Retake proof with location enabled or add an offline location note."
     }
-  ]
+  ],
+  "display_name_i18n": {
+    "en": "Generator Install",
+    "es": "Instalación de generador"
+  },
+  "description_i18n": {
+    "en": "Workflow for documenting standby generator installation from site arrival through final export.",
+    "es": "Flujo de trabajo para documentar la instalación de un generador de respaldo desde la llegada al sitio hasta la exportación final."
+  }
 }

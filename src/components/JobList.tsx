@@ -7,6 +7,7 @@ import { Job } from '../types';
 import { format } from 'date-fns';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function JobList() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -15,6 +16,7 @@ export function JobList() {
   const [search, setSearch] = useState('');
   const [quickInput, setQuickInput] = useState('');
   const navigate = useNavigate();
+  const { t } = useSettings();
 
   useEffect(() => {
     async function load() {
@@ -54,14 +56,14 @@ export function JobList() {
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-5xl font-black text-slate-900 tracking-tighter italic uppercase">Field Jobs</h1>
-          <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Capture proof. Export reports. Work offline.</p>
+          <h1 className="text-5xl font-black text-slate-900 tracking-tighter italic uppercase">{t('jobs.fieldJobs')}</h1>
+          <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">{t('jobs.tagline')}</p>
         </div>
         <button
           onClick={() => navigate('/create')}
           className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-5 rounded-[30px] font-black uppercase italic tracking-widest text-sm shadow-2xl shadow-blue-500/30 active:scale-95 transition-all"
         >
-          <Plus size={20} className="stroke-[3px]" /> Start Job
+          <Plus size={20} className="stroke-[3px]" /> {t('jobs.startJob')}
         </button>
       </header>
 
@@ -72,7 +74,7 @@ export function JobList() {
           value={quickInput}
           onChange={(e) => setQuickInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleQuickLaunch()}
-          placeholder="Quick start: Generator install for Mike at 123 Main St..."
+          placeholder="{t('jobs.quickStart')}"
           className="flex-1 bg-white border border-slate-200 rounded-3xl px-8 py-5 text-xl font-medium focus:outline-none focus:ring-4 focus:ring-blue-100 placeholder:text-slate-300"
         />
         <button
@@ -91,7 +93,7 @@ export function JobList() {
           className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-10 rounded-[35px] text-white cursor-pointer shadow-2xl flex justify-between items-center"
         >
           <div className="flex-1">
-            <p className="uppercase tracking-[3px] text-blue-200 text-xs font-black mb-2">RESUME LAST JOB</p>
+            <p className="uppercase tracking-[3px] text-blue-200 text-xs font-black mb-2">{t('jobs.resumeLastJob')}</p>
             <h3 className="text-4xl font-black mb-1">{lastJob.customerName}</h3>
             <p className="text-xl text-blue-100 font-medium">{lastJob.address} • {lastJob.jobType}</p>
           </div>
@@ -107,7 +109,7 @@ export function JobList() {
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={24} />
           <input
             type="text"
-            placeholder="Search for a Jobsite by customer or address..."
+            placeholder="{t('jobs.search')}"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-16 pr-6 py-6 bg-white border border-slate-200 rounded-[35px] focus:outline-none focus:ring-4 focus:ring-blue-50/50 focus:border-blue-200 transition-all text-lg font-medium"
@@ -121,15 +123,15 @@ export function JobList() {
           <div className="mx-auto w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-8">
             <ShieldCheck size={64} className="text-blue-600" />
           </div>
-          <h3 className="text-3xl font-black text-slate-900 tracking-tight">READY FOR THE FIELD?</h3>
+          <h3 className="text-3xl font-black text-slate-900 tracking-tight">{t('jobs.readyForField')}</h3>
           <p className="text-xl text-slate-500 mt-3 max-w-md mx-auto font-medium leading-relaxed">
-            Create your first job and start capturing bulletproof documentation in seconds.
+            {t('jobs.firstJobPrompt')}
           </p>
           <button
             onClick={() => navigate('/create')}
             className="mt-10 bg-blue-600 text-white px-12 py-5 rounded-[30px] text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95"
           >
-            + Start First Job
+            + {t('jobs.startFirstJob')}
           </button>
         </div>
       )}
@@ -158,8 +160,8 @@ export function JobList() {
                 <h3 className="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors mb-1">{job.customerName}</h3>
                 <p className="text-slate-500 font-medium truncate mb-2">{job.address}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500 uppercase tracking-widest">{photos[job.id] || 0} Photos</span>
-                  {photos[job.id] >= 5 && <span className="text-[10px] font-black bg-blue-50 px-2 py-1 rounded text-blue-600 uppercase tracking-widest italic">Proofed</span>}
+                  <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500 uppercase tracking-widest">{photos[job.id] || 0} {t('jobs.photos')}</span>
+                  {photos[job.id] >= 5 && <span className="text-[10px] font-black bg-blue-50 px-2 py-1 rounded text-blue-600 uppercase tracking-widest italic">{t('jobs.proofed')}</span>}
                 </div>
              </div>
              <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">

@@ -216,6 +216,9 @@ export class RuntimeOrchestrator {
       utility_provider: null,
       started_at: existing?.started_at ?? now,
       completed_at: legacyJob.status === 'COMPLETED' ? (existing?.completed_at ?? now) : existing?.completed_at ?? null,
+      ui_language_at_creation: legacyJob.uiLanguageAtCreation ?? existing?.ui_language_at_creation ?? 'en',
+      default_capture_language: legacyJob.defaultCaptureLanguage ?? existing?.default_capture_language ?? 'en',
+      default_export_language: legacyJob.defaultExportLanguage ?? existing?.default_export_language ?? 'en',
       created_at: existing?.created_at ?? new Date(legacyJob.createdAt || Date.now()).toISOString(),
       updated_at: now,
       deleted_at: existing?.deleted_at ?? null,
@@ -324,6 +327,8 @@ export class RuntimeOrchestrator {
       compression_state: photo.compressionState ?? 'pending',
       upload_state: 'pending_upload',
       checksum: photo.proofHash ?? null,
+      language: photo.language ?? null,
+      cloud_object_key: photo.cloudObjectKey ?? null,
     });
 
     await timelineRepository.createEvent({
@@ -430,6 +435,7 @@ export class RuntimeOrchestrator {
       change_order_candidates: note.changeOrderCandidates ?? (note.isChangeOrder ? [note.transcribedText] : []),
       material_mentions: note.materialMentions ?? [],
       issue_mentions: note.issueMentions ?? (note.isIssue ? [note.transcribedText] : []),
+      customer_requests: note.customerRequests ?? [],
     });
 
     if ((note.changeOrderCandidates?.length ?? 0) > 0 || note.isChangeOrder) {

@@ -19,14 +19,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { VoiceDictation } from './VoiceDictation';
 import { cn } from '../lib/utils';
 import { SITEPROOF_BRAND } from '../config/brand';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface OnboardingProps {
   onComplete?: () => void;
 }
 
 type OnboardingStep = 1 | 2 | 3 | 4 | 5;
-
-const tradeOptions = TemplateCatalogService.getTemplateOptions();
 
 function emptyBusinessProfile(): BusinessProfile {
   return {
@@ -52,8 +51,8 @@ function firstWords(value: string, fallback: string): string {
   return value.trim().split(/\s+/).slice(0, 4).join(' ') || fallback;
 }
 
-function parseQuickJob(text: string, selectedTemplateId: string) {
-  const selected = TemplateCatalogService.getTemplate(selectedTemplateId);
+function parseQuickJob(text: string, selectedTemplateId: string, uiLanguage: 'en' | 'es') {
+  const selected = TemplateCatalogService.getTemplate(selectedTemplateId, uiLanguage);
   const forMatch = text.match(/\bfor\s+(.+?)(?:\s+at\s+|$)/i);
   const atMatch = text.match(/\bat\s+(.+)$/i);
   const customerName = forMatch?.[1]?.trim() || firstWords(text, 'New Customer');
@@ -69,6 +68,7 @@ function parseQuickJob(text: string, selectedTemplateId: string) {
 }
 
 export function Onboarding({ onComplete }: OnboardingProps) {
+  const { settings, t } = useSettings();
   const navigate = useNavigate();
   const [step, setStep] = useState<OnboardingStep>(1);
   const [loading, setLoading] = useState(false);
@@ -79,13 +79,17 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const [error, setError] = useState<string | null>(null);
 
   const selectedTemplate = useMemo(
-    () => TemplateCatalogService.getTemplate(selectedTemplateId),
-    [selectedTemplateId],
+    () => TemplateCatalogService.getTemplate(selectedTemplateId, settings.uiLanguage),
+    [selectedTemplateId, settings.uiLanguage],
   );
 
   const quickJobPreview = useMemo(
-    () => parseQuickJob(quickJobText, selectedTemplateId),
-    [quickJobText, selectedTemplateId],
+    () => parseQuickJob(quickJobText, selectedTemplateId, settings.uiLanguage),
+    [quickJobText, selectedTemplateId, settings.uiLanguage],
+  );
+  const tradeOptions = useMemo(
+    () => TemplateCatalogService.getTemplateOptions(settings.uiLanguage),
+    [settings.uiLanguage],
   );
 
   async function completeVoiceTuning() {
@@ -125,7 +129,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       setStep(5);
     } catch (err) {
       console.error(err);
-      setError('SiteProof could not create the first job. Try again or check device storage permissions.');
+      setError(t('onboarding.createError'));
     } finally {
       setLoading(false);
     }
@@ -173,7 +177,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                   <div>
                     <p className="text-[11px] font-black uppercase tracking-[0.28em] text-blue-300 mb-3">{SITEPROOF_BRAND.appName}</p>
                     <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter leading-none uppercase">
-                      Document the job.
+                      {t('onboarding.documentJob')}
                     </h1>
                   </div>
                   <p className="text-slate-300 text-base leading-relaxed font-bold">
@@ -183,9 +187,9 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
                 <div className="grid gap-3">
                   {[
-                    ['Talk', 'Create jobs and notes without typing.'],
-                    ['Capture', 'Photos get timestamp, location, and proof context.'],
-                    ['Get paid', SITEPROOF_BRAND.proofLanguage.paid],
+                    [t('onboarding.talk'), t('onboarding.talkHelp')],
+                    [t('onboarding.capture'), t('onboarding.captureHelp')],
+                    [t('onboarding.getPaid'), SITEPROOF_BRAND.proofLanguage.paid],
                   ].map(([title, body]) => (
                     <div key={title} className="bg-white/5 border border-white/10 rounded-3xl p-4 flex gap-3">
                       <CheckCircle2 className="text-blue-300 shrink-0 mt-0.5" size={18} />
@@ -201,7 +205,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                   onClick={() => setStep(2)}
                   className="w-full bg-white text-slate-950 py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 transition-all active:scale-95"
                 >
-                  Tune SiteProof <ArrowRight size={20} />
+                  {t('onboarding.tune')} <ArrowRight size={20} />
                 </button>
               </motion.div>
             )}
@@ -219,16 +223,16 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     <Mic size={28} />
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.28em] text-green-300 mb-3">Step 1 interaction</p>
-                    <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">Tune SiteProof to your voice</h1>
+                    <p className="text-[11px] font-black uppercase tracking-[0.28em] text-green-300 mb-3">{t('onboarding.stepOne')}</p>
+                    <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">{t('onboarding.tune')} to your voice</h1>
                   </div>
                   <p className="text-slate-300 text-sm leading-relaxed font-bold">
-                    Say one real jobsite sentence. SiteProof uses voice to reduce typing, capture details, and turn field talk into organized proof.
+                    {t('onboarding.tuneVoiceHelp')}
                   </p>
                 </div>
 
                 <div className="bg-white/5 border border-white/10 rounded-[28px] p-5 space-y-4">
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Try saying</div>
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('onboarding.trySaying')}</div>
                   <p className="text-white font-black italic leading-relaxed">
                     “Installed transfer switch, checked grounding, customer requested extra conduit on west wall.”
                   </p>
@@ -237,7 +241,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                       rows={4}
                       value={voiceSample}
                       onChange={(event) => setVoiceSample(event.target.value)}
-                      placeholder="Tap the mic and speak your sample..."
+                      placeholder="{t('onboarding.samplePlaceholder')}"
                       className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-4 pr-16 text-white font-bold focus:outline-none focus:ring-2 focus:ring-green-500/50"
                     />
                     <VoiceDictation
@@ -253,13 +257,13 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     onClick={() => setStep(3)}
                     className="w-1/3 bg-white/5 text-white/60 py-5 rounded-2xl font-black uppercase tracking-widest hover:text-white transition-all"
                   >
-                    Skip
+                    {t('onboarding.skip')}
                   </button>
                   <button
                     onClick={completeVoiceTuning}
                     className="flex-1 bg-green-500 text-slate-950 py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-400 transition-all active:scale-95"
                   >
-                    Voice Tuned <ArrowRight size={20} />
+                    {t('onboarding.voiceTuned')} <ArrowRight size={20} />
                   </button>
                 </div>
               </motion.div>
@@ -278,11 +282,11 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     <Wrench size={28} />
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.28em] text-orange-300 mb-3">Trade workflow</p>
-                    <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">Pick the job type</h1>
+                    <p className="text-[11px] font-black uppercase tracking-[0.28em] text-orange-300 mb-3">{t('onboarding.tradeWorkflow')}</p>
+                    <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">{t('onboarding.pickJobType')}</h1>
                   </div>
                   <p className="text-slate-300 text-sm leading-relaxed font-bold">
-                    This loads the right capture checklist so SiteProof knows what proof matters before you ever build a report.
+                    {t('onboarding.tradeHelp')}
                   </p>
                 </div>
 
@@ -319,7 +323,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                   onClick={() => setStep(4)}
                   className="w-full bg-white text-slate-950 py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-50 transition-all active:scale-95"
                 >
-                  Create First Job <ArrowRight size={20} />
+                  {t('onboarding.createFirstJob')} <ArrowRight size={20} />
                 </button>
               </motion.div>
             )}
@@ -337,16 +341,16 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     <Zap size={28} />
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.28em] text-blue-300 mb-3">Voice start</p>
-                    <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">Create your first job by voice</h1>
+                    <p className="text-[11px] font-black uppercase tracking-[0.28em] text-blue-300 mb-3">{t('onboarding.voiceStart')}</p>
+                    <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">{t('onboarding.createByVoice')}</h1>
                   </div>
                   <p className="text-slate-300 text-sm leading-relaxed font-bold">
-                    Say the job in plain language. SiteProof will create the job, attach the {selectedTemplate.display_name} workflow, and open the camera.
+                    {t('onboarding.plainLanguage')}
                   </p>
                 </div>
 
                 <div className="bg-white/5 border border-white/10 rounded-[28px] p-5 space-y-4">
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Example</div>
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('onboarding.example')}</div>
                   <p className="text-white font-black italic leading-relaxed">
                     “New generator install for Mike at 123 Main Street.”
                   </p>
@@ -355,7 +359,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                       rows={4}
                       value={quickJobText}
                       onChange={(event) => setQuickJobText(event.target.value)}
-                      placeholder="Tap the mic and create the job..."
+                      placeholder="{t('onboarding.createPlaceholder')}"
                       className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-4 pr-16 text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                     />
                     <VoiceDictation
@@ -368,10 +372,10 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
                 {quickJobText.trim() && (
                   <div className="bg-blue-600/10 border border-blue-500/20 rounded-3xl p-5 space-y-2">
-                    <div className="text-[10px] font-black text-blue-300 uppercase tracking-widest">SiteProof will create</div>
-                    <div className="text-sm text-blue-50 font-bold">Customer: {quickJobPreview.customerName}</div>
-                    <div className="text-sm text-blue-50 font-bold">Site: {quickJobPreview.address}</div>
-                    <div className="text-sm text-blue-50 font-bold">Workflow: {selectedTemplate.display_name}</div>
+                    <div className="text-[10px] font-black text-blue-300 uppercase tracking-widest">{t('onboarding.willCreate')}</div>
+                    <div className="text-sm text-blue-50 font-bold">{t('onboarding.customer')}: {quickJobPreview.customerName}</div>
+                    <div className="text-sm text-blue-50 font-bold">{t('onboarding.site')}: {quickJobPreview.address}</div>
+                    <div className="text-sm text-blue-50 font-bold">{t('onboarding.workflow')}: {selectedTemplate.display_name}</div>
                   </div>
                 )}
 
@@ -382,14 +386,14 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     onClick={() => setStep(3)}
                     className="w-1/3 bg-white/5 text-white/60 py-5 rounded-2xl font-black uppercase tracking-widest hover:text-white transition-all"
                   >
-                    Back
+                    {t('onboarding.back')}
                   </button>
                   <button
                     onClick={createFirstJob}
                     disabled={!quickJobText.trim() || loading}
                     className="flex-1 bg-blue-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-500 transition-all active:scale-95 disabled:opacity-40"
                   >
-                    {loading ? 'Creating...' : 'Create + Open Camera'}
+                    {loading ? t('onboarding.creating') : t('onboarding.createOpenCamera')}
                   </button>
                 </div>
               </motion.div>
@@ -407,9 +411,9 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                   <Camera size={36} />
                 </div>
                 <div className="space-y-3">
-                  <p className="text-[11px] font-black uppercase tracking-[0.28em] text-blue-300">Ready to capture</p>
+                  <p className="text-[11px] font-black uppercase tracking-[0.28em] text-blue-300">{t('onboarding.readyCapture')}</p>
                   <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-none">
-                    Talk. Take photos. SiteProof organizes the job.
+                    {t('onboarding.organized')}
                   </h1>
                   <p className="text-slate-300 text-base leading-relaxed font-bold">
                     Your first job is live. The next screen opens directly into capture so the first emotional experience is proof in motion — not paperwork.
@@ -419,13 +423,13 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                   onClick={openCapture}
                   className="w-full bg-white text-slate-950 py-6 rounded-[30px] text-lg font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-blue-50 transition-all active:scale-95"
                 >
-                  <Camera size={22} /> Open Capture
+                  <Camera size={22} /> {t('onboarding.openCapture')}
                 </button>
                 <button
                   onClick={() => createdJobId && navigate(`/job/${createdJobId}`, { replace: true })}
                   className="w-full bg-white/5 text-white/70 py-4 rounded-2xl font-black uppercase tracking-widest hover:text-white transition-all"
                 >
-                  Review Job First
+                  {t('onboarding.reviewFirst')}
                 </button>
               </motion.div>
             )}

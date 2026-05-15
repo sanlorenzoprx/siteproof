@@ -41,6 +41,21 @@ const TASK_PATTERNS = [
   /\b(?:hay que|necesita|necesitamos|debe|seguimiento|volver|programar|llamar|ordenar|recoger|instalar|reemplazar|reparar|verificar|revisar|enviar|documentar)\b[^.?!]*/gi,
 ];
 
+const EXTRACTION_KEYWORDS = {
+  en: {
+    materials: ['material', 'wire', 'conduit', 'panel', 'breaker', 'fuel line'],
+    issues: ['issue', 'problem', 'missing', 'damaged', 'failed', 'blocked'],
+    customerRequests: ['customer requested', 'client asked', 'owner asked'],
+    changeOrders: ['extra', 'change order', 'additional', 'unexpected', 'upgrade'],
+  },
+  es: {
+    materials: ['material', 'cable', 'conduit', 'panel', 'breaker', 'línea de gas', 'linea de gas'],
+    issues: ['problema', 'falta', 'dañado', 'danado', 'falló', 'fallo', 'bloqueado'],
+    customerRequests: ['cliente pidió', 'cliente pidio', 'dueño pidió', 'dueno pidio'],
+    changeOrders: ['extra', 'orden de cambio', 'adicional', 'inesperado', 'mejora'],
+  },
+} as const;
+
 function uniqueClean(values: string[], max = 6): string[] {
   const seen = new Set<string>();
   return values
@@ -64,6 +79,15 @@ function extractMatches(text: string, patterns: RegExp[], max = 6): string[] {
     }
   }
   return uniqueClean(matches, max);
+}
+
+function normalizeForKeywordMatch(value: string): string {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+}
+
+function extractKeywordHits(text: string, keywords: readonly string[]): string[] {
+  const normalized = normalizeForKeywordMatch(text);
+  return uniqueClean(keywords.filter((keyword) => normalized.includes(normalizeForKeywordMatch(keyword))));
 }
 
 function detectLanguage(text: string): VoiceLanguage {
@@ -97,13 +121,14 @@ function buildSummary(text: string, language: VoiceLanguage): string {
 }
 
 export class VoiceAIService {
-  static analyzeTranscript(transcript: string): VoiceAIAnalysis {
+  static analyzeTranscript(transcript: string, preferredLanguage?: Exclude<VoiceLanguage, 'unknown'>): VoiceAIAnalysis {
     const cleanTranscript = transcript?.trim() || '';
-    const language = detectLanguage(cleanTranscript);
-    const materialMentions = extractMatches(cleanTranscript, MATERIAL_PATTERNS, 8);
-    const issueMentions = extractMatches(cleanTranscript, ISSUE_PATTERNS, 8);
-    const customerRequests = extractMatches(cleanTranscript, CUSTOMER_REQUEST_PATTERNS, 5);
-    const changeOrderCandidates = extractMatches(cleanTranscript, CHANGE_ORDER_PATTERNS, 6);
+    const language = preferredLanguage ?? detectLanguage(cleanTranscript);
+    const keywordLanguage = language === 'unknown' ? 'en' : language;
+    const materialMentions = uniqueClean([...extractMatches(cleanTranscript, MATERIAL_PATTERNS, 8), ...extractKeywordHits(cleanTranscript, EXTRACTION_KEYWORDS[keywordLanguage].materials)], 8);
+    const issueMentions = uniqueClean([...extractMatches(cleanTranscript, ISSUE_PATTERNS, 8), ...extractKeywordHits(cleanTranscript, EXTRACTION_KEYWORDS[keywordLanguage].issues)], 8);
+    const customerRequests = uniqueClean([...extractMatches(cleanTranscript, CUSTOMER_REQUEST_PATTERNS, 5), ...extractKeywordHits(cleanTranscript, EXTRACTION_KEYWORDS[keywordLanguage].customerRequests)], 5);
+    const changeOrderCandidates = uniqueClean([...extractMatches(cleanTranscript, CHANGE_ORDER_PATTERNS, 6), ...extractKeywordHits(cleanTranscript, EXTRACTION_KEYWORDS[keywordLanguage].changeOrders)], 6);
     const extractedTasks = extractMatches(cleanTranscript, TASK_PATTERNS, 6);
     const hasMeaningfulTranscript = cleanTranscript.length > 3 && !/unintelligible|unavailable|no speech/i.test(cleanTranscript);
 

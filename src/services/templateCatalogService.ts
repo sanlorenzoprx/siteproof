@@ -1,5 +1,6 @@
 import generatorInstallTemplate from '../templates/generator_install_v1.json';
-import { ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
+import { ProofRequirement, WorkflowStageTemplate, WorkflowTemplate, LocalizedTemplateText } from '../templates/workflowTemplate.types';
+import { SiteProofLanguage } from '../types/settings';
 
 export interface TemplateOption {
   templateId: string;
@@ -25,24 +26,54 @@ export interface RequirementContext {
 }
 
 export class TemplateCatalogService {
+  static localizeText(baseText: string, localizedText: LocalizedTemplateText | undefined, language: SiteProofLanguage): string {
+    return localizedText?.[language] ?? localizedText?.en ?? baseText;
+  }
+
+  static localizeTemplate(template: WorkflowTemplate, language: SiteProofLanguage): WorkflowTemplate {
+    return {
+      ...template,
+      display_name: this.localizeText(template.display_name, template.display_name_i18n, language),
+      description: this.localizeText(template.description, template.description_i18n, language),
+      stages: template.stages.map((stage) => ({
+        ...stage,
+        display_name: this.localizeText(stage.display_name, stage.display_name_i18n, language),
+        description: this.localizeText(stage.description, stage.description_i18n, language),
+        proof_requirements: stage.proof_requirements.map((requirement) => ({
+          ...requirement,
+          display_name: this.localizeText(requirement.display_name, requirement.display_name_i18n, language),
+          field_instruction: this.localizeText(requirement.field_instruction, requirement.field_instruction_i18n, language),
+          capture_hint: requirement.capture_hint
+            ? this.localizeText(requirement.capture_hint, requirement.capture_hint_i18n, language)
+            : requirement.capture_hint,
+        })),
+        checklist_items: stage.checklist_items?.map((item) => ({
+          ...item,
+          display_name: this.localizeText(item.display_name, item.display_name_i18n, language),
+          description: this.localizeText(item.description, item.description_i18n, language),
+        })),
+      })),
+    };
+  }
   static normalizeTemplateId(templateId?: string | null): string {
     if (!templateId) return 'generator_install_v1';
     return aliases[templateId] ?? templateId;
   }
 
-  static getTemplate(templateId?: string | null): WorkflowTemplate {
+  static getTemplate(templateId?: string | null, language?: SiteProofLanguage): WorkflowTemplate {
     const normalized = this.normalizeTemplateId(templateId);
-    return bundledTemplates.find((template) => template.template_id === normalized) ?? (generatorInstallTemplate as WorkflowTemplate);
+    const template = bundledTemplates.find((item) => item.template_id === normalized) ?? (generatorInstallTemplate as WorkflowTemplate);
+    return language ? this.localizeTemplate(template, language) : template;
   }
 
-  static getTemplateOptions(): TemplateOption[] {
+  static getTemplateOptions(language: SiteProofLanguage = 'en'): TemplateOption[] {
     return bundledTemplates.map((template) => ({
       templateId: template.template_id,
-      displayName: template.display_name,
-      jobType: template.display_name,
+      displayName: this.localizeText(template.display_name, template.display_name_i18n, language),
+      jobType: this.localizeText(template.display_name, template.display_name_i18n, language),
       trade: template.trade,
       vertical: template.vertical,
-      description: template.description,
+      description: this.localizeText(template.description, template.description_i18n, language),
     }));
   }
 
@@ -61,9 +92,9 @@ export class TemplateCatalogService {
     return options[0];
   }
 
-  static getRequirementContext(templateId: string | undefined, requirementId: string | undefined): RequirementContext | null {
+  static getRequirementContext(templateId: string | undefined, requirementId: string | undefined, language: SiteProofLanguage = 'en'): RequirementContext | null {
     if (!requirementId) return null;
-    const template = this.getTemplate(templateId);
+    const template = this.getTemplate(templateId, language);
     for (const stage of template.stages) {
       const requirement = (stage.proof_requirements ?? []).find((item) => item.requirement_id === requirementId);
       if (requirement) return { template, stage, requirement };
@@ -71,8 +102,8 @@ export class TemplateCatalogService {
     return null;
   }
 
-  static getCaptureCategories(templateId?: string | null, preferredRequirementId?: string | null): string[] {
-    const template = this.getTemplate(templateId);
+  static getCaptureCategories(templateId?: string | null, preferredRequirementId?: string | null, language: SiteProofLanguage = 'en'): string[] {
+    const template = this.getTemplate(templateId, language);
     const requirements = template.stages.flatMap((stage) => stage.proof_requirements ?? []);
     const names = requirements.map((requirement) => requirement.display_name);
     const preferred = preferredRequirementId

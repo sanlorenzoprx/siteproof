@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -27,6 +27,8 @@ import { RuntimeSnapshot } from '../services/runtimeOrchestrator';
 import { ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
 import { TemplateCatalogService } from '../services/templateCatalogService';
 import { cn } from '../lib/utils';
+import { ReportLanguageToggle } from './reports/ReportLanguageToggle';
+import { useSettings } from '../contexts/SettingsContext';
 import { useInspectionReadiness } from '../hooks/useInspectionReadiness';
 import { InspectionReadyCard } from './inspection/InspectionReadyCard';
 import { MissingProofList } from './inspection/MissingProofList';
@@ -54,8 +56,8 @@ const PhotoThumbnail = ({ photo, className }: { photo: JobPhoto; className?: str
   return <img src={url} className={className} alt={photo.category} />;
 };
 
-function getTemplateForJob(job: Job | null): WorkflowTemplate | null {
-  return TemplateCatalogService.getTemplate(job?.templateId);
+function getTemplateForJob(job: Job | null, uiLanguage: 'en' | 'es'): WorkflowTemplate | null {
+  return TemplateCatalogService.getTemplate(job?.templateId, uiLanguage);
 }
 
 function requirementCapturePath(jobId: string, requirement: ProofRequirement, stageId?: string): string {
@@ -70,23 +72,24 @@ function requirementCapturePath(jobId: string, requirement: ProofRequirement, st
   return `/job/${jobId}/camera?${params.toString()}`;
 }
 
-function requirementActionLabel(requirement: ProofRequirement): string {
-  if (requirement.proof_type === 'voice_note') return 'Record Note';
-  if (requirement.proof_type === 'text_note') return 'Dictate Note';
-  if (requirement.proof_type === 'signature') return 'Capture Signoff';
-  if (requirement.proof_type === 'serial_number') return 'Capture Serial';
-  if (requirement.proof_type === 'test_result') return 'Capture Test';
-  return 'Take Photo';
+function requirementActionLabel(requirement: ProofRequirement, t: (key: string) => string): string {
+  if (requirement.proof_type === 'voice_note') return t('jobDetail.recordNote');
+  if (requirement.proof_type === 'text_note') return t('jobDetail.dictateNote');
+  if (requirement.proof_type === 'signature') return t('jobDetail.captureSignoff');
+  if (requirement.proof_type === 'serial_number') return t('jobDetail.captureSerial');
+  if (requirement.proof_type === 'test_result') return t('jobDetail.captureTest');
+  return t('jobDetail.takePhoto');
 }
 
-function priorityBadge(requirement: ProofRequirement) {
-  if (requirement.priority === 'required') return 'Required';
-  if (requirement.priority === 'recommended') return 'Recommended';
-  if (requirement.priority === 'conditional') return 'Conditional';
-  return 'Optional';
+function priorityBadge(requirement: ProofRequirement, t: (key: string) => string) {
+  if (requirement.priority === 'required') return t('jobDetail.required');
+  if (requirement.priority === 'recommended') return t('jobDetail.recommended');
+  if (requirement.priority === 'conditional') return t('jobDetail.conditional');
+  return t('jobDetail.optional');
 }
 
 export function JobDetail() {
+  const { settings, t } = useSettings();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -125,7 +128,7 @@ export function JobDetail() {
       setPendingSyncCount(syncState.pendingCount || 0);
       setExportPackets(exportsData.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
 
-      const template = getTemplateForJob(jobData);
+      const template = getTemplateForJob(jobData, settings.uiLanguage);
       if (template) {
         setExpandedStages(
           Object.fromEntries(
@@ -137,9 +140,9 @@ export function JobDetail() {
       }
     }
     load();
-  }, [id, navigate]);
+  }, [id, navigate, settings.uiLanguage]);
 
-  const template = useMemo(() => getTemplateForJob(job), [job]);
+  const template = useMemo(() => getTemplateForJob(job, settings.uiLanguage), [job, settings.uiLanguage]);
   const visibleStages = useMemo(
     () => (template?.stages ?? []).filter((stage) => stage.visible_in_field_mode),
     [template],
@@ -193,12 +196,12 @@ export function JobDetail() {
   async function handleExportReport(mode: ReportMode) {
     setGeneratingReport(true);
     try {
-      await PdfService.generateReport(job!, photos, voiceNotes, mode);
+      await PdfService.generateReport(job!, photos, voiceNotes, mode, undefined, settings.exportLanguage);
       const nextExports = await ExportPacketService.getPacketHistory(job!.id);
       setExportPackets(nextExports.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
     } catch (error) {
       console.error(error);
-      alert('Report failed. Please try again.');
+      alert(t('jobDetail.reportFailed'));
     } finally {
       setGeneratingReport(false);
     }
@@ -223,7 +226,7 @@ export function JobDetail() {
             <button
               onClick={() => navigate('/')}
               className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-500 transition-all"
-              aria-label="Back to jobs"
+              aria-label={t('jobDetail.backJobs')}
             >
               <ArrowLeft size={22} />
             </button>
@@ -246,12 +249,12 @@ export function JobDetail() {
                 {pendingSyncCount > 0 ? (
                   <span className="flex items-center gap-1.5 text-orange-600">
                     <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                    {pendingSyncCount} waiting to sync
+                    {pendingSyncCount} {t('jobDetail.waitingSync')}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 text-green-600">
                     <span className="w-2 h-2 rounded-full bg-green-500" />
-                    Saved locally
+                    {t('jobDetail.savedLocally')}
                   </span>
                 )}
               </div>
@@ -263,23 +266,23 @@ export function JobDetail() {
               onClick={() => navigate(`/job/${job.id}/camera?category=${encodeURIComponent(currentStage?.display_name ?? 'General Photo')}`)}
               className="bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all flex items-center gap-2"
             >
-              <Camera size={18} /> Take Photo
+              <Camera size={18} /> {t('jobDetail.takePhoto')}
             </button>
             <button
               onClick={() => setActiveView('export')}
               className="bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all flex items-center gap-2"
             >
-              <Download size={18} /> Generate Packet
+              <Download size={18} /> {t('jobDetail.generatePacket')}
             </button>
             <button
               onClick={async () => {
-                if (confirm('Delete this job and its local proof?')) {
+                if (confirm(t('jobDetail.deleteConfirm'))) {
                   await SiteProofDataService.deleteJob(job.id);
                   navigate('/');
                 }
               }}
               className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-red-500 transition-all"
-              aria-label="Delete job"
+              aria-label={t('jobDetail.deleteJob')}
             >
               <Trash2 size={20} />
             </button>
@@ -306,11 +309,11 @@ export function JobDetail() {
 
             <div className="flex gap-2 p-1.5 bg-slate-200/60 rounded-2xl w-fit overflow-x-auto no-scrollbar">
               {[
-                { id: 'proof', label: 'Proof' },
-                { id: 'photos', label: `Photos (${photos.length})` },
-                { id: 'notes', label: `Notes (${voiceNotes.length})` },
-                { id: 'timeline', label: 'Timeline' },
-                { id: 'export', label: 'Export' },
+                { id: 'proof', label: t('jobDetail.proof') },
+                { id: 'photos', label: `${t('jobDetail.photos')} (${photos.length})` },
+                { id: 'notes', label: `${t('jobDetail.notes')} (${voiceNotes.length})` },
+                { id: 'timeline', label: t('jobDetail.timeline') },
+                { id: 'export', label: t('jobDetail.export') },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -338,6 +341,7 @@ export function JobDetail() {
                     expanded={expandedStages[stage.stage_id] ?? false}
                     onToggle={() => setExpandedStages((current) => ({ ...current, [stage.stage_id]: !(current[stage.stage_id] ?? false) }))}
                     onCapture={(requirement) => navigate(requirementCapturePath(job.id, requirement, stage.stage_id))}
+                    t={t}
                   />
                 ))}
               </section>
@@ -347,21 +351,21 @@ export function JobDetail() {
               <section className="space-y-5">
                 <div className="bg-white rounded-[32px] border border-slate-200 p-5 shadow-sm flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-black text-slate-950 text-lg tracking-tight">Jobsite Gallery</h3>
-                    <p className="text-xs font-bold text-slate-500">Thumbnails, compression status, GPS proof, and requirement context.</p>
+                    <h3 className="font-black text-slate-950 text-lg tracking-tight">{t('jobDetail.gallery')}</h3>
+                    <p className="text-xs font-bold text-slate-500">{t('jobDetail.galleryHelp')}</p>
                   </div>
                   <button
                     onClick={() => navigate(`/job/${job.id}/camera`)}
                     className="px-5 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-600/20"
                   >
                     <Camera size={18} />
-                    Add Photo
+                    {t('jobDetail.addPhoto')}
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                   {photos.map((photo) => (
-                    <PhotoGalleryCard key={photo.id} photo={photo} />
+                    <PhotoGalleryCard key={photo.id} photo={photo} t={t} />
                   ))}
                 </div>
               </section>
@@ -381,19 +385,19 @@ export function JobDetail() {
                       </div>
                       {note.summary && (
                         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 mb-3">
-                          <div className="text-[9px] font-black uppercase tracking-widest text-blue-600 mb-1">Voice AI Summary</div>
+                          <div className="text-[9px] font-black uppercase tracking-widest text-blue-600 mb-1">{t('jobDetail.aiSummary')}</div>
                           <p className="text-xs font-bold text-blue-950 leading-relaxed">{note.summary}</p>
                         </div>
                       )}
                       <p className="text-slate-900 font-bold leading-relaxed">“{note.transcribedText}”</p>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <VoiceChip icon={<Languages size={13} />} label={note.language === 'es' ? 'Spanish' : note.language === 'en' ? 'English' : 'Language Auto'} />
+                        <VoiceChip icon={<Languages size={13} />} label={note.language === 'es' ? t('jobDetail.spanish') : note.language === 'en' ? t('jobDetail.english') : t('jobDetail.languageAuto')} />
                         {note.materialMentions?.slice(0, 3).map((item) => (
                           <span key={item}><VoiceChip icon={<Wrench size={13} />} label={item} /></span>
                         ))}
-                        {note.issueMentions?.length ? <VoiceChip tone="warning" icon={<AlertTriangle size={13} />} label={`${note.issueMentions.length} issue${note.issueMentions.length === 1 ? '' : 's'}`} /> : null}
-                        {note.changeOrderCandidates?.length ? <VoiceChip tone="warning" icon={<Zap size={13} />} label="Change Order Candidate" /> : null}
-                        {note.customerRequests?.length ? <VoiceChip icon={<Mic size={13} />} label="Customer Request" /> : null}
+                        {note.issueMentions?.length ? <VoiceChip tone="warning" icon={<AlertTriangle size={13} />} label={`${note.issueMentions.length} ${note.issueMentions.length === 1 ? t('jobDetail.issue') : t('jobDetail.issues')}`} /> : null}
+                        {note.changeOrderCandidates?.length ? <VoiceChip tone="warning" icon={<Zap size={13} />} label={t('jobDetail.changeOrderCandidate')} /> : null}
+                        {note.customerRequests?.length ? <VoiceChip icon={<Mic size={13} />} label={t('jobDetail.customerRequest')} /> : null}
                       </div>
                     </div>
                   </div>
@@ -403,7 +407,7 @@ export function JobDetail() {
                   className="w-full py-8 border-4 border-dashed border-slate-200 rounded-[28px] flex flex-col items-center justify-center gap-4 text-slate-300 hover:border-blue-300 hover:text-blue-500 transition-all"
                 >
                   <Mic size={38} />
-                  <span className="font-black text-xs uppercase tracking-widest">Record Field Note</span>
+                  <span className="font-black text-xs uppercase tracking-widest">{t('jobDetail.recordFieldNote')}</span>
                 </button>
               </section>
             )}
@@ -417,33 +421,34 @@ export function JobDetail() {
                 <div className="bg-slate-900 rounded-[36px] p-8 text-white overflow-hidden relative">
                   <div className="absolute -right-10 -top-10 opacity-5"><FileText size={220} /></div>
                   <div className="relative z-10">
-                    <h2 className="text-3xl font-black tracking-tight mb-3">Generate Packet</h2>
+                    <h2 className="text-3xl font-black tracking-tight mb-3">{t('jobDetail.generatePacket')}</h2>
                     <p className="text-sm font-bold text-slate-400 max-w-xl mb-8">
-                      Create the right proof packet for the customer, inspector, office, or a dispute. Inspector packets use the required proof checklist.
+                      {t('jobDetail.exportHelp')}
                     </p>
                     <div className="grid md:grid-cols-2 gap-4">
-                      <ExportButton title="Customer Packet" description="Polished summary, final photos, and customer-friendly notes." icon={<Zap size={26} />} onClick={() => handleExportReport(ReportMode.CUSTOMER)} disabled={generatingReport} />
-                      <ExportButton title="Inspector Packet" description="Required proof, GPS/timestamps, and inspection-ready evidence." icon={<ShieldCheck size={26} />} onClick={() => handleExportReport(ReportMode.INSPECTOR)} disabled={generatingReport || (readiness?.blocking_items.length ?? missingRequired.length) > 0} blocked={(readiness?.blocking_items.length ?? missingRequired.length) > 0} />
-                      <ExportButton title="Internal Record" description="Full job timeline for office backup and closeout." icon={<FileText size={26} />} onClick={() => handleExportReport(ReportMode.STANDARD)} disabled={generatingReport} />
-                      <ExportButton title="Dispute Pack" description="Focused report for issues, deficiencies, and change-order proof." icon={<AlertTriangle size={26} />} onClick={() => handleExportReport(ReportMode.DISPUTE)} disabled={generatingReport} />
+                      <ExportButton title={t('jobDetail.customerPacket')} description={t('jobDetail.customerPacketHelp')} icon={<Zap size={26} />} onClick={() => handleExportReport(ReportMode.CUSTOMER)} disabled={generatingReport} />
+                      <ExportButton title={t('jobDetail.inspectorPacket')} description={t('jobDetail.inspectorPacketHelp')} icon={<ShieldCheck size={26} />} onClick={() => handleExportReport(ReportMode.INSPECTOR)} disabled={generatingReport || (readiness?.blocking_items.length ?? missingRequired.length) > 0} blocked={(readiness?.blocking_items.length ?? missingRequired.length) > 0} />
+                      <ExportButton title={t('jobDetail.internalRecord')} description={t('jobDetail.internalRecordHelp')} icon={<FileText size={26} />} onClick={() => handleExportReport(ReportMode.STANDARD)} disabled={generatingReport} />
+                      <ExportButton title={t('jobDetail.disputePack')} description={t('jobDetail.disputePackHelp')} icon={<AlertTriangle size={26} />} onClick={() => handleExportReport(ReportMode.DISPUTE)} disabled={generatingReport} />
                     </div>
+                    <div className="mt-6"><ReportLanguageToggle /></div>
 
                     <div className="mt-8 bg-white/5 border border-white/10 rounded-[28px] p-5">
                       <div className="flex items-center justify-between gap-4 mb-4">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">Generated Packet History</h3>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exportPackets.length} saved locally</span>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">{t('jobDetail.history')}</h3>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exportPackets.length} {t('jobDetail.savedLocallyCount')}</span>
                       </div>
                       {exportPackets.length === 0 ? (
-                        <p className="text-xs font-bold text-slate-500">No packets generated yet. Generated PDFs are saved locally and queued for sync.</p>
+                        <p className="text-xs font-bold text-slate-500">{t('jobDetail.noPackets')}</p>
                       ) : (
                         <div className="space-y-3">
                           {exportPackets.slice(0, 5).map((packet) => (
                             <div key={packet.export_id} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
                               <div>
                                 <div className="text-sm font-black text-white">{packet.title}</div>
-                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{format(new Date(packet.generated_at), 'MMM d, h:mm a')} • {packet.included_proof_ids.length} proof items</div>
+                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{format(new Date(packet.generated_at), 'MMM d, h:mm a')} • {packet.included_proof_ids.length} {t('jobDetail.proofItems')}</div>
                               </div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-green-300">Saved</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-green-300">{t('jobDetail.saved')}</span>
                             </div>
                           ))}
                         </div>
@@ -459,57 +464,57 @@ export function JobDetail() {
             <ReadyForInspectionBanner readiness={readiness} />
             <section className="bg-white border border-slate-200 rounded-[32px] p-6 shadow-sm">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-5 flex items-center gap-2">
-                <ShieldCheck size={15} className="text-blue-500" /> Job Summary
+                <ShieldCheck size={15} className="text-blue-500" /> {t('jobDetail.jobSummary')}
               </h3>
               <div className="space-y-5">
-                <SummaryRow label="Current Stage" value={currentStage?.display_name ?? 'Ready'} />
-                <SummaryRow label="Photos" value={String(photos.length)} />
-                <SummaryRow label="Voice Notes" value={String(voiceNotes.length)} />
-                <SummaryRow label="Timeline Events" value={String(1 + photos.length + voiceNotes.length + exportPackets.length)} />
-                <SummaryRow label="Issues / Change Orders" value={String(issueCount)} />
-                <SummaryRow label="Template" value={template.display_name} />
+                <SummaryRow label={t('jobDetail.currentStage')} value={currentStage?.display_name ?? 'Ready'} />
+                <SummaryRow label={t('jobDetail.photos')} value={String(photos.length)} />
+                <SummaryRow label={t('jobDetail.voiceNotes')} value={String(voiceNotes.length)} />
+                <SummaryRow label={t('jobDetail.timelineEvents')} value={String(1 + photos.length + voiceNotes.length + exportPackets.length)} />
+                <SummaryRow label={t('jobDetail.issuesChangeOrders')} value={String(issueCount)} />
+                <SummaryRow label={t('jobDetail.template')} value={template.display_name} />
               </div>
               <div className="mt-6 pt-6 border-t border-slate-100">
                 <div className="bg-blue-50 p-5 rounded-3xl">
                   <div className="flex items-center gap-2 text-blue-700 mb-2">
                     <MapPin size={15} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Offline Proof</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t('jobDetail.offlineProof')}</span>
                   </div>
                   <p className="text-xs font-bold text-blue-900 leading-relaxed">
-                    Evidence is saved locally with job, stage, timestamp, and GPS where available. Sync can complete later when internet returns.
+                    {t('jobDetail.offlineProofHelp')}
                   </p>
                 </div>
               </div>
             </section>
 
             <section className="bg-white border border-slate-200 rounded-[32px] p-6 shadow-sm">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-5">Fast Actions</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-5">{t('jobDetail.fastActions')}</h3>
               <div className="grid grid-cols-1 gap-3">
                 <button onClick={() => navigate(`/job/${job.id}/camera?category=Issue`)} className="w-full bg-orange-50 text-orange-700 p-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-100 transition-all">
-                  <AlertTriangle size={18} /> Report Issue
+                  <AlertTriangle size={18} /> {t('jobDetail.reportIssue')}
                 </button>
                 <button onClick={() => navigate(`/job/${job.id}/camera?category=Change%20Order`)} className="w-full bg-blue-50 text-blue-700 p-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-100 transition-all">
-                  <Zap size={18} /> Flag Change Order
+                  <Zap size={18} /> {t('jobDetail.flagChangeOrder')}
                 </button>
                 <button onClick={() => navigate(`/job/${job.id}/voice?category=General`)} className="w-full bg-slate-100 text-slate-700 p-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 transition-all">
-                  <Mic size={18} /> Record Note
+                  <Mic size={18} /> {t('jobDetail.recordNote')}
                 </button>
               </div>
             </section>
 
             <section className={cn('p-6 rounded-[32px] text-white shadow-xl', proofScore === 100 ? 'bg-green-600 shadow-green-600/20' : 'bg-slate-900 shadow-slate-900/20')}>
-              <h4 className="text-xl font-black tracking-tight mb-2">{proofScore === 100 ? 'Ready to close' : 'Keep capturing proof'}</h4>
+              <h4 className="text-xl font-black tracking-tight mb-2">{proofScore === 100 ? t('jobDetail.readyClose') : t('jobDetail.keepCapturing')}</h4>
               <p className="text-xs font-bold opacity-80 mb-6">
                 {proofScore === 100
-                  ? 'Required proof is complete. You can close the job or generate packets.'
-                  : 'Complete required proof before leaving the jobsite.'}
+                  ? t('jobDetail.readyCloseHelp')
+                  : t('jobDetail.keepCapturingHelp')}
               </p>
               <button
                 onClick={completeJob}
                 disabled={proofScore < 100}
                 className="w-full bg-white text-slate-950 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100"
               >
-                Complete Job
+                {t('jobDetail.completeJob')}
               </button>
             </section>
           </aside>
@@ -540,6 +545,7 @@ function WorkflowStageCard({
   expanded,
   onToggle,
   onCapture,
+  t,
 }: {
   key?: React.Key;
   jobId: string;
@@ -550,11 +556,12 @@ function WorkflowStageCard({
   expanded: boolean;
   onToggle: () => void;
   onCapture: (requirement: ProofRequirement) => void;
+  t: (key: string) => string;
 }) {
   const required = stage.proof_requirements.filter((requirement) => requirement.priority === 'required');
   const completedRequired = required.filter((requirement) => (proofByRequirement.get(requirement.requirement_id) ?? 0) >= requirement.minimum_count).length;
   const stageComplete = required.length === 0 || completedRequired >= required.length;
-  const statusLabel = stageComplete ? 'Complete' : runtimeStage?.status === 'in_progress' ? 'In Progress' : 'Needs Proof';
+  const statusLabel = stageComplete ? t('jobDetail.complete') : runtimeStage?.status === 'in_progress' ? t('jobDetail.inProgress') : t('jobDetail.needsProof');
 
   return (
     <div className="bg-white border border-slate-200 rounded-[32px] shadow-sm overflow-hidden">
@@ -609,12 +616,12 @@ function WorkflowStageCard({
                           'px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest',
                           requirement.priority === 'required' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500',
                         )}>
-                          {priorityBadge(requirement)}
+                          {priorityBadge(requirement, t)}
                         </span>
-                        {count > 0 && <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">{count} captured</span>}
+                        {count > 0 && <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">{count} {t('jobDetail.captured')}</span>}
                       </div>
                       <p className="text-xs font-bold text-slate-600 leading-relaxed">{requirement.field_instruction}</p>
-                      {requirement.capture_hint && <p className="text-[11px] font-bold text-slate-400 mt-1">Tip: {requirement.capture_hint}</p>}
+                      {requirement.capture_hint && <p className="text-[11px] font-bold text-slate-400 mt-1">{t('jobDetail.tip')}: {requirement.capture_hint}</p>}
                     </div>
                   </div>
                   <button
@@ -625,7 +632,7 @@ function WorkflowStageCard({
                     )}
                   >
                     {requirement.proof_type === 'voice_note' || requirement.proof_type === 'text_note' ? <Mic size={16} /> : <Camera size={16} />}
-                    {done ? 'Add More' : requirementActionLabel(requirement)}
+                    {done ? t('jobDetail.addMore') : requirementActionLabel(requirement, t)}
                   </button>
                 </div>
               </div>
@@ -634,7 +641,7 @@ function WorkflowStageCard({
 
           {stage.checklist_items && stage.checklist_items.length > 0 && (
             <div className="mt-4 bg-slate-50 border border-slate-100 rounded-3xl p-4">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Checklist</div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">{t('jobDetail.checklist')}</div>
               <div className="space-y-2">
                 {stage.checklist_items.map((item) => (
                   <div key={item.checklist_id} className="flex items-start gap-3 text-xs font-bold text-slate-600">
@@ -655,7 +662,7 @@ function WorkflowStageCard({
 }
 
 
-function PhotoGalleryCard({ photo }: { photo: JobPhoto; key?: React.Key }) {
+function PhotoGalleryCard({ photo, t }: { photo: JobPhoto; t: (key: string) => string; key?: React.Key }) {
   const hasGps = typeof photo.latitude === 'number' && typeof photo.longitude === 'number';
   const compressed = photo.compressionState === 'compressed' || photo.compressionState === 'not_needed';
   const quality = photo.qualityScore ? Math.round(photo.qualityScore * 100) : null;
@@ -666,15 +673,15 @@ function PhotoGalleryCard({ photo }: { photo: JobPhoto; key?: React.Key }) {
         <PhotoThumbnail photo={photo} className="w-full h-full object-cover" />
         <div className="absolute top-3 left-3 flex flex-wrap gap-2">
           <span className={cn('px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white', hasGps ? 'bg-green-600' : 'bg-red-500')}>
-            {hasGps ? 'GPS' : 'No GPS'}
+            {hasGps ? 'GPS' : t('jobDetail.noGps')}
           </span>
           <span className={cn('px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white', compressed ? 'bg-blue-600' : 'bg-slate-600')}>
-            {compressed ? 'Media Ready' : 'Processing'}
+            {compressed ? t('jobDetail.mediaReady') : t('jobDetail.processing')}
           </span>
         </div>
         {photo.isIssue && (
           <div className="absolute top-3 right-3 bg-orange-500 text-white px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-            {photo.issueType?.replace('_', ' ') || 'Issue'}
+            {photo.issueType?.replace('_', ' ') || t('jobDetail.issue')}
           </div>
         )}
       </div>
@@ -685,15 +692,15 @@ function PhotoGalleryCard({ photo }: { photo: JobPhoto; key?: React.Key }) {
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">Size</div>
+            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.size')}</div>
             <div className="text-[11px] font-black text-slate-900">{MediaPipelineService.humanFileSize(photo.compressedSize ?? photo.originalSize)}</div>
           </div>
           <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">Quality</div>
+            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.quality')}</div>
             <div className="text-[11px] font-black text-slate-900">{quality ? `${quality}%` : '—'}</div>
           </div>
           <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">Pixels</div>
+            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.pixels')}</div>
             <div className="text-[11px] font-black text-slate-900">{photo.width && photo.height ? `${photo.width}×${photo.height}` : '—'}</div>
           </div>
         </div>
@@ -751,3 +758,4 @@ function VoiceChip({ icon, label, tone = 'default' }: { icon: React.ReactNode; l
     </span>
   );
 }
+

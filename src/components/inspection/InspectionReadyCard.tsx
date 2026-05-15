@@ -2,17 +2,19 @@ import React from 'react';
 import { AlertTriangle, CheckCircle, ShieldCheck } from 'lucide-react';
 import { InspectionReadinessResult } from '../../features/inspection/inspectionReadinessService';
 import { cn } from '../../lib/utils';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export function InspectionReadyCard({ readiness, loading }: { readiness: InspectionReadinessResult | null; loading?: boolean }) {
+  const { t } = useSettings();
   const score = readiness?.readiness_score ?? 0;
   const status = readiness?.status ?? 'not_ready';
   const title = loading
-    ? 'Checking Inspection Readiness'
+    ? t('inspection.checking')
     : status === 'ready'
-      ? 'Ready for Inspection'
+      ? t('inspection.ready')
       : status === 'warning'
-        ? 'Ready with Warnings'
-        : 'Not Ready for Inspection';
+        ? t('inspection.warning')
+        : t('inspection.notReady');
 
   const Icon = status === 'ready' ? CheckCircle : status === 'warning' ? AlertTriangle : ShieldCheck;
 
@@ -30,12 +32,12 @@ export function InspectionReadyCard({ readiness, loading }: { readiness: Inspect
             <Icon size={28} />
           </div>
           <div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Inspection Ready Mode</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('inspection.mode')}</div>
             <h2 className="text-2xl md:text-3xl font-black text-slate-950 tracking-tight">{title}</h2>
             <p className="text-xs md:text-sm font-bold text-slate-500 mt-2">
               {readiness
                 ? `${readiness.completed_requirements}/${readiness.total_requirements} required inspector proof items complete · ${readiness.completed_stages}/${readiness.total_stages} stages complete`
-                : 'Loading required proof, stages, and quality checks.'}
+                : t('inspection.loading')}
             </p>
           </div>
         </div>
@@ -47,8 +49,8 @@ export function InspectionReadyCard({ readiness, loading }: { readiness: Inspect
               status === 'ready' ? 'text-green-600' : status === 'warning' ? 'text-yellow-600' : 'text-blue-600',
             )}>{score}%</span>
             <div className="text-right text-[10px] font-black uppercase tracking-widest text-slate-400">
-              <div>{readiness?.blocking_items.length ?? 0} blocking</div>
-              <div>{readiness?.warning_items.length ?? 0} warnings</div>
+              <div>{readiness?.blocking_items.length ?? 0} {t('inspection.blocking')}</div>
+              <div>{readiness?.warning_items.length ?? 0} {t('inspection.warnings')}</div>
             </div>
           </div>
           <div className="h-3 bg-white/70 rounded-full overflow-hidden border border-white/70">

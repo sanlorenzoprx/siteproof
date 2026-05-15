@@ -9,8 +9,12 @@ import { cn } from '../lib/utils';
 import { VoiceDictation } from './VoiceDictation';
 import { BusinessOverviewField } from './BusinessOverviewField';
 import { TaglineGeneratorField } from './TaglineGeneratorField';
+import { LanguageSettingsPanel } from './settings/LanguageSettingsPanel';
+import { CloudUpsellCard } from './cloud/CloudUpsellCard';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function Settings() {
+  const { t } = useSettings();
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
@@ -77,25 +81,26 @@ export function Settings() {
         <button onClick={() => navigate(-1)} className="p-2 hover:bg-white rounded-xl text-slate-500 transition-colors">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">System Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t('settings.title')}</h1>
       </header>
 
       <div className="space-y-6">
+        <LanguageSettingsPanel />
         {/* Business & Identity Section */}
         <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6">
            <div className="flex items-center gap-3 mb-2">
             <div className="bg-blue-600/10 p-2 rounded-lg">
               <Shield className="text-blue-600" size={20} />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Brand & User Identity</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('settingsDetail.brandIdentity')}</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <div className="space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Company Details</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">{t('settingsDetail.companyDetails')}</h3>
                 <div className="space-y-3">
                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Business Name</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('settingsDetail.businessName')}</label>
                       <div className="relative">
                         <input 
                           type="text" 
@@ -122,14 +127,14 @@ export function Settings() {
                    />
 
                    <div className="space-y-1 pt-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Business Address</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('settingsDetail.businessAddress')}</label>
                       <div className="relative">
                         <input 
                           type="text" 
                           value={business?.address || ''} 
                           onChange={e => setBusiness({...business!, address: e.target.value})}
                           className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium mb-2 pr-10"
-                          placeholder="Street Address"
+                          placeholder={t('settingsDetail.streetAddress')}
                         />
                         <VoiceDictation 
                           onResult={(text) => setBusiness({...business!, address: text})}
@@ -139,28 +144,28 @@ export function Settings() {
                       <div className="grid grid-cols-2 gap-2">
                         <input 
                           type="text" 
-                          placeholder="City"
+                          placeholder={t('settingsDetail.city')}
                           value={business?.city || ''} 
                           onChange={e => setBusiness({...business!, city: e.target.value})}
                           className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"
                         />
                         <input 
                           type="text" 
-                          placeholder="State / Province"
+                          placeholder={t('settingsDetail.stateProvince')}
                           value={business?.state || ''} 
                           onChange={e => setBusiness({...business!, state: e.target.value})}
                           className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"
                         />
                         <input 
                           type="text" 
-                          placeholder="ZIP / Postal"
+                          placeholder={t('settingsDetail.zipPostal')}
                           value={business?.zipCode || ''} 
                           onChange={e => setBusiness({...business!, zipCode: e.target.value})}
                           className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"
                         />
                         <input 
                           type="text" 
-                          placeholder="Country"
+                          placeholder={t('settingsDetail.country')}
                           value={business?.country || ''} 
                           onChange={e => setBusiness({...business!, country: e.target.value})}
                           className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"
@@ -170,7 +175,7 @@ export function Settings() {
 
                    <div className="grid grid-cols-2 gap-2 pt-2">
                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('settingsDetail.phone')}</label>
                         <div className="relative">
                           <input 
                             type="text" 
@@ -185,7 +190,7 @@ export function Settings() {
                         </div>
                      </div>
                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Contact Email</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('settingsDetail.contactEmail')}</label>
                         <div className="relative">
                           <input 
                             type="email" 
@@ -203,7 +208,7 @@ export function Settings() {
 
                    <div className="grid grid-cols-2 gap-2 pt-2">
                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">License #</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('settingsDetail.license')}</label>
                         <input 
                           type="text" 
                           value={business?.licenseNumber || ''} 
@@ -214,7 +219,7 @@ export function Settings() {
                    </div>
 
                    <div className="space-y-1 pt-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Website</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('settingsDetail.website')}</label>
                       <input 
                         type="url" 
                         value={business?.website || ''} 
@@ -227,7 +232,7 @@ export function Settings() {
                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                         <svg className="w-2.5 h-2.5 fill-blue-600" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                        LinkedIn URL
+                        {t('settingsDetail.linkedin')}
                       </label>
                       <input 
                         type="url" 
@@ -241,10 +246,10 @@ export function Settings() {
              </div>
              
              <div className="space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Current User</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">{t('settingsDetail.currentUser')}</h3>
                 <div className="space-y-3">
                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('settingsDetail.fullName')}</label>
                       <input 
                         type="text" 
                         value={user?.fullName || ''} 
@@ -253,7 +258,7 @@ export function Settings() {
                       />
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('settingsDetail.email')}</label>
                       <input 
                         type="email" 
                         value={user?.email || ''} 
@@ -262,16 +267,16 @@ export function Settings() {
                       />
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('settingsDetail.role')}</label>
                       <select 
                         value={user?.role || ''} 
                         onChange={e => setUser({...user!, role: e.target.value})}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"
                       >
-                         <option>Field Technician</option>
-                         <option>Lead Inspector</option>
-                         <option>Project Manager</option>
-                         <option>Safety Officer</option>
+                         <option>{t('settingsDetail.fieldTechnician')}</option>
+                         <option>{t('settingsDetail.leadInspector')}</option>
+                         <option>{t('settingsDetail.projectManager')}</option>
+                         <option>{t('settingsDetail.safetyOfficer')}</option>
                       </select>
                    </div>
                 </div>
@@ -280,45 +285,47 @@ export function Settings() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-orange-600 uppercase tracking-widest ml-1">Admin Access PIN</label>
+                <label className="text-[10px] font-bold text-orange-600 uppercase tracking-widest ml-1">{t('settingsDetail.adminPin')}</label>
                 <input 
                   type="password"
                   maxLength={6}
                   value={business?.adminPin || ''}
                   onChange={e => setBusiness({...business!, adminPin: e.target.value.replace(/\D/g, '')})}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-orange-500 transition-all font-mono tracking-widest"
-                  placeholder="Set 4-6 Digit PIN"
+                  placeholder={t('settingsDetail.setPin')}
                 />
-                <p className="text-[9px] text-slate-400 italic ml-1">Limits Dashboard access to authorized personnel only.</p>
+                <p className="text-[9px] text-slate-400 italic ml-1">{t('settingsDetail.pinHelp')}</p>
              </div>
           </div>
           
           <div className="space-y-1 pt-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Regulatory Footer (Appears on every page)</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">{t('settingsDetail.regulatoryFooter')}</label>
             <textarea 
               value={business?.regulatoryInfo || ''}
               onChange={e => setBusiness({...business!, regulatoryInfo: e.target.value})}
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-xs font-medium h-20"
-              placeholder="e.g. OSHA / NEC compliant documentation generated by SiteProof"
+              placeholder={t('settingsDetail.regulatoryPlaceholder')}
             />
           </div>
         </section>
+
+        <CloudUpsellCard />
 
         <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="bg-blue-600/10 p-2 rounded-lg">
               <Cloud className="text-blue-600" size={20} />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Cloud Sync & Backup</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('settingsDetail.cloudSync')}</h2>
           </div>
           
           <p className="text-sm text-slate-500 leading-relaxed italic">
-            <span className="font-bold text-blue-600">Enterprise Mode:</span> SiteProof keeps field work offline-first on this device and can sync to Cloudflare when backup is configured. Job proof remains usable even without internet.
+            <span className="font-bold text-blue-600">{t('settingsDetail.enterpriseMode')}</span> {t('settingsDetail.cloudHelp')}
           </p>
 
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Worker Endpoint URL</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">{t('settingsDetail.workerUrl')}</label>
               <input
                 type="url"
                 placeholder="https://siteproof-api.workers.dev"
@@ -329,7 +336,7 @@ export function Settings() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cloud Access Key (Secret)</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">{t('settingsDetail.cloudKey')}</label>
               <input
                 type="password"
                 placeholder="••••••••••••••••"
@@ -348,7 +355,7 @@ export function Settings() {
             )}
           >
             {saved ? <CheckCircle size={20} /> : <Save size={20} />}
-            <span>{saved ? "Configuration Saved" : "Save Cloud Settings"}</span>
+            <span>{saved ? t('settingsDetail.configSaved') : t('settingsDetail.saveCloud')}</span>
           </button>
         </section>
 
@@ -357,11 +364,11 @@ export function Settings() {
             <div className="bg-purple-600/10 p-2 rounded-lg">
               <MicIcon className="text-purple-600" size={20} />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Speech Intelligence</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('settingsDetail.speech')}</h2>
           </div>
           
           <p className="text-sm text-slate-500 leading-relaxed">
-            Train the AI to recognize your specific voice and industry terminology for more accurate transcriptions.
+            {t('settingsDetail.speechHelp')}
           </p>
 
           <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between">
@@ -372,10 +379,10 @@ export function Settings() {
               )} />
               <div>
                 <div className="text-sm font-bold text-slate-900">
-                  {speechCalibrated ? "Optimized Voice Profile" : "Not Calibrated"}
+                  {speechCalibrated ? t('settingsDetail.optimized') : t('settingsDetail.notCalibrated')}
                 </div>
                 <div className="text-[10px] text-slate-500 uppercase font-black">
-                  {speechCalibrated ? "Voice profile active" : "Using Default Settings"}
+                  {speechCalibrated ? t('settingsDetail.voiceActive') : t('settingsDetail.defaultSettings')}
                 </div>
               </div>
             </div>
@@ -383,7 +390,7 @@ export function Settings() {
               onClick={() => navigate('/settings/speech')}
               className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all"
             >
-              {speechCalibrated ? "Retrain" : "Start Training"}
+              {speechCalibrated ? t('settingsDetail.retrain') : t('settingsDetail.startTraining')}
             </button>
           </div>
         </section>
@@ -394,18 +401,18 @@ export function Settings() {
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
               <div className="flex items-center gap-3">
                 <Shield size={18} className="text-green-500" />
-                <span className="text-sm font-medium text-slate-700">Offline Mode</span>
+                <span className="text-sm font-medium text-slate-700">{t('settingsDetail.offlineMode')}</span>
               </div>
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full uppercase">Always Active</span>
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full uppercase">{t('settingsDetail.alwaysActive')}</span>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
               <div className="flex items-center gap-3">
                 <Database size={18} className="text-slate-400" />
-                <span className="text-sm font-medium text-slate-700">Digital Archive</span>
+                <span className="text-sm font-medium text-slate-700">{t('settingsDetail.archive')}</span>
               </div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                Offline-first storage
+                {t('settingsDetail.offlineStorage')}
               </span>
             </div>
           </div>

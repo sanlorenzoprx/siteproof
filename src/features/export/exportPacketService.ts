@@ -6,6 +6,7 @@ import { ReportMode } from '../../services/pdfService';
 import type { ExportIntegrityManifest } from '../../services/proofIntegrityService';
 import { buildExportFileName, packetTitle } from './exportFileNaming';
 import type { ExportAssembly } from './exportAssembler';
+import type { SiteProofLanguage } from '../../types/settings';
 
 export function modeToPacketType(mode: ReportMode): ExportPacketType {
   switch (mode) {
@@ -27,12 +28,12 @@ export class ExportPacketService {
    * Export v2: record packets from canonical runtime entities.
    * The included_proof_ids field now contains ProofObject IDs, not legacy photo/note IDs.
    */
-  static async recordGeneratedPacketFromAssembly(assembly: ExportAssembly, mode: ReportMode, manifest?: ExportIntegrityManifest) {
-    const fileName = buildExportFileName(assembly.legacyJob, mode);
+  static async recordGeneratedPacketFromAssembly(assembly: ExportAssembly, mode: ReportMode, manifest?: ExportIntegrityManifest, exportLanguage: SiteProofLanguage = 'en') {
+    const fileName = buildExportFileName(assembly.legacyJob, mode, exportLanguage);
     const exportPacket = await exportRepository.createExport({
       job_id: assembly.runtimeJob.job_id,
       packet_type: assembly.packetType,
-      title: packetTitle(mode),
+      title: packetTitle(mode, exportLanguage),
       local_file_uri: `siteproof://exports/${assembly.runtimeJob.job_id}/${fileName}`,
       cloud_file_uri: null,
       included_proof_ids: assembly.selectedProofIds,
@@ -44,12 +45,13 @@ export class ExportPacketService {
       template_version: assembly.runtimeJob.template_version,
       share_status: 'not_shared',
       sent_to: [],
+      export_language: exportLanguage,
     });
 
     await timelineRepository.createEvent({
       job_id: assembly.runtimeJob.job_id,
       event_type: 'export_generated',
-      event_title: `${packetTitle(mode)} generated`,
+      event_title: `${packetTitle(mode, exportLanguage)} generated`,
       event_description: `${assembly.selectedProofIds.length} proof items included from canonical ProofObjects.`,
       related_proof_ids: assembly.selectedProofIds,
     }).catch((error) => console.warn('Export timeline event failed:', error));
@@ -60,16 +62,16 @@ export class ExportPacketService {
   /**
    * Compatibility path for older calls. Prefer recordGeneratedPacketFromAssembly.
    */
-  static async recordGeneratedPacket(job: Job, mode: ReportMode, photos: JobPhoto[], notes: VoiceNote[]) {
+  static async recordGeneratedPacket(job: Job, mode: ReportMode, photos: JobPhoto[], notes: VoiceNote[], exportLanguage: SiteProofLanguage = 'en') {
     const { ExportAssembler } = await import('./exportAssembler');
-    const assembly = await ExportAssembler.assemble(job.id, mode).catch(() => null);
-    if (assembly) return this.recordGeneratedPacketFromAssembly(assembly, mode);
+    const assembly = await ExportAssembler.assemble(job.id, mode, exportLanguage).catch(() => null);
+    if (assembly) return this.recordGeneratedPacketFromAssembly(assembly, mode, undefined, exportLanguage);
 
-    const fileName = buildExportFileName(job, mode);
+    const fileName = buildExportFileName(job, mode, exportLanguage);
     return exportRepository.createExport({
       job_id: job.id,
       packet_type: modeToPacketType(mode),
-      title: packetTitle(mode),
+      title: packetTitle(mode, exportLanguage),
       local_file_uri: `siteproof://exports/${job.id}/${fileName}`,
       cloud_file_uri: null,
       included_proof_ids: [
@@ -81,6 +83,7 @@ export class ExportPacketService {
       template_version: '1.0.0',
       share_status: 'not_shared',
       sent_to: [],
+      export_language: exportLanguage,
     });
   }
 
