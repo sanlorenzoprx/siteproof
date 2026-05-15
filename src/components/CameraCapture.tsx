@@ -11,7 +11,7 @@ import { MediaPipelineService } from '../services/mediaPipelineService';
 import { useSettings } from '../contexts/SettingsContext';
 
 export function CameraCapture() {
-  const { t } = useSettings();
+  const { settings, t } = useSettings();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ export function CameraCapture() {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId);
+  const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId, settings.uiLanguage);
 
   useEffect(() => {
     async function loadJob() {
@@ -53,7 +53,7 @@ export function CameraCapture() {
         if (j) {
           setJobName(j.customerName);
           setTemplateId(j.templateId);
-          const context = TemplateCatalogService.getRequirementContext(j.templateId, requirementId);
+          const context = TemplateCatalogService.getRequirementContext(j.templateId, requirementId, settings.uiLanguage);
           if (context) {
             setCategory(context.requirement.display_name);
             setCaptureHint(context.requirement.capture_hint || context.requirement.field_instruction || null);
@@ -70,7 +70,7 @@ export function CameraCapture() {
         console.warn("Location access denied");
       }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
     }
-  }, [id, requirementId]);
+  }, [id, requirementId, settings.uiLanguage]);
 
   useEffect(() => {
     let mounted = true;

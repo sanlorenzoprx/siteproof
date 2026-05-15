@@ -56,8 +56,8 @@ const PhotoThumbnail = ({ photo, className }: { photo: JobPhoto; className?: str
   return <img src={url} className={className} alt={photo.category} />;
 };
 
-function getTemplateForJob(job: Job | null): WorkflowTemplate | null {
-  return TemplateCatalogService.getTemplate(job?.templateId);
+function getTemplateForJob(job: Job | null, uiLanguage: 'en' | 'es'): WorkflowTemplate | null {
+  return TemplateCatalogService.getTemplate(job?.templateId, uiLanguage);
 }
 
 function requirementCapturePath(jobId: string, requirement: ProofRequirement, stageId?: string): string {
@@ -128,7 +128,7 @@ export function JobDetail() {
       setPendingSyncCount(syncState.pendingCount || 0);
       setExportPackets(exportsData.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
 
-      const template = getTemplateForJob(jobData);
+      const template = getTemplateForJob(jobData, settings.uiLanguage);
       if (template) {
         setExpandedStages(
           Object.fromEntries(
@@ -140,9 +140,9 @@ export function JobDetail() {
       }
     }
     load();
-  }, [id, navigate]);
+  }, [id, navigate, settings.uiLanguage]);
 
-  const template = useMemo(() => getTemplateForJob(job), [job]);
+  const template = useMemo(() => getTemplateForJob(job, settings.uiLanguage), [job, settings.uiLanguage]);
   const visibleStages = useMemo(
     () => (template?.stages ?? []).filter((stage) => stage.visible_in_field_mode),
     [template],

@@ -8,6 +8,7 @@ import { SettingsService } from './services/settingsService';
 import { buildExportFileName } from './features/export/exportFileNaming';
 import { ReportMode } from './services/pdfService';
 import fs from 'node:fs';
+import { TemplateCatalogService } from './services/templateCatalogService';
 
 test('settings defaults keep UI/capture/export independently configurable', () => {
   const settings = createDefaultSettings('es');
@@ -100,4 +101,30 @@ test('cloud sync boundary no-ops when disabled and queues offline', async () => 
 
   SettingsService.getSettings = originalGet;
   SettingsService.saveSettings = originalSave;
+});
+
+test('template-authored content localizes from the data layer', () => {
+  const spanishTemplate = TemplateCatalogService.getTemplate('generator_install_v1', 'es');
+  const intake = spanishTemplate.stages.find((stage) => stage.stage_id === 'intake');
+  const scopeNote = intake?.proof_requirements.find((requirement) => requirement.requirement_id === 'job_scope_note');
+
+  assert.equal(spanishTemplate.display_name, 'Instalación de generador');
+  assert.equal(intake?.display_name, 'Inicio');
+  assert.equal(scopeNote?.display_name, 'Nota del alcance del trabajo');
+  assert.match(scopeNote?.field_instruction ?? '', /Agregue un resumen breve/);
+  assert.equal(intake?.checklist_items?.[0]?.display_name, 'Código postal del sitio confirmado');
+});
+
+test('template localization falls back to English when selected language text is missing', () => {
+  assert.equal(TemplateCatalogService.localizeText('English fallback', { en: 'English fallback' }, 'es'), 'English fallback');
+  assert.equal(TemplateCatalogService.localizeText('Base fallback', undefined, 'es'), 'Base fallback');
+});
+
+test('template capture categories and requirement context honor UI language', () => {
+  const categories = TemplateCatalogService.getCaptureCategories('generator_install_v1', 'job_scope_note', 'es');
+  const context = TemplateCatalogService.getRequirementContext('generator_install_v1', 'job_scope_note', 'es');
+
+  assert.equal(categories[0], 'Nota del alcance del trabajo');
+  assert.equal(context?.stage.display_name, 'Inicio');
+  assert.equal(context?.requirement.display_name, 'Nota del alcance del trabajo');
 });

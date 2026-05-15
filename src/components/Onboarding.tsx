@@ -27,8 +27,6 @@ interface OnboardingProps {
 
 type OnboardingStep = 1 | 2 | 3 | 4 | 5;
 
-const tradeOptions = TemplateCatalogService.getTemplateOptions();
-
 function emptyBusinessProfile(): BusinessProfile {
   return {
     companyName: 'My Field Company',
@@ -53,8 +51,8 @@ function firstWords(value: string, fallback: string): string {
   return value.trim().split(/\s+/).slice(0, 4).join(' ') || fallback;
 }
 
-function parseQuickJob(text: string, selectedTemplateId: string) {
-  const selected = TemplateCatalogService.getTemplate(selectedTemplateId);
+function parseQuickJob(text: string, selectedTemplateId: string, uiLanguage: 'en' | 'es') {
+  const selected = TemplateCatalogService.getTemplate(selectedTemplateId, uiLanguage);
   const forMatch = text.match(/\bfor\s+(.+?)(?:\s+at\s+|$)/i);
   const atMatch = text.match(/\bat\s+(.+)$/i);
   const customerName = forMatch?.[1]?.trim() || firstWords(text, 'New Customer');
@@ -70,7 +68,7 @@ function parseQuickJob(text: string, selectedTemplateId: string) {
 }
 
 export function Onboarding({ onComplete }: OnboardingProps) {
-  const { t } = useSettings();
+  const { settings, t } = useSettings();
   const navigate = useNavigate();
   const [step, setStep] = useState<OnboardingStep>(1);
   const [loading, setLoading] = useState(false);
@@ -81,13 +79,17 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const [error, setError] = useState<string | null>(null);
 
   const selectedTemplate = useMemo(
-    () => TemplateCatalogService.getTemplate(selectedTemplateId),
-    [selectedTemplateId],
+    () => TemplateCatalogService.getTemplate(selectedTemplateId, settings.uiLanguage),
+    [selectedTemplateId, settings.uiLanguage],
   );
 
   const quickJobPreview = useMemo(
-    () => parseQuickJob(quickJobText, selectedTemplateId),
-    [quickJobText, selectedTemplateId],
+    () => parseQuickJob(quickJobText, selectedTemplateId, settings.uiLanguage),
+    [quickJobText, selectedTemplateId, settings.uiLanguage],
+  );
+  const tradeOptions = useMemo(
+    () => TemplateCatalogService.getTemplateOptions(settings.uiLanguage),
+    [settings.uiLanguage],
   );
 
   async function completeVoiceTuning() {

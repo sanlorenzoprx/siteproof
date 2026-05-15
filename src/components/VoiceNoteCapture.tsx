@@ -40,18 +40,18 @@ export function VoiceNoteCapture() {
     return () => { mounted = false; };
   }, []);
 
-  const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId).filter((value, index, arr) => arr.indexOf(value) === index);
+  const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId, settings.uiLanguage).filter((value, index, arr) => arr.indexOf(value) === index);
 
   useEffect(() => {
     async function loadJobContext() {
       if (!id) return;
       const job = await SiteProofDataService.getJobById(id);
       setTemplateId(job?.templateId);
-      const context = TemplateCatalogService.getRequirementContext(job?.templateId, requirementId);
+      const context = TemplateCatalogService.getRequirementContext(job?.templateId, requirementId, settings.uiLanguage);
       if (context) setCategory(context.requirement.display_name);
     }
     loadJobContext();
-  }, [id, requirementId]);
+  }, [id, requirementId, settings.uiLanguage]);
 
   useEffect(() => {
     let interval: any;

@@ -8,7 +8,7 @@ import { VoiceDictation } from './VoiceDictation';
 import { useSettings } from '../contexts/SettingsContext';
 
 export function CreateJob() {
-  const { t } = useSettings();
+  const { settings, t } = useSettings();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -91,7 +91,7 @@ export function CreateJob() {
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.template')}</label>
               <select value={form.templateId} onChange={e => setForm({...form, templateId: e.target.value, jobType: e.target.options[e.target.selectedIndex].text})}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-                {TemplateCatalogService.getTemplateOptions().map((option) => (
+                {TemplateCatalogService.getTemplateOptions(settings.uiLanguage).map((option) => (
                   <option key={option.templateId} value={option.templateId}>{option.displayName}</option>
                 ))}
               </select>
