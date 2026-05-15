@@ -17,6 +17,7 @@ Evaluate the feature across:
 9. Reuse of canonical primitives
 10. Risk of feature bloat
 11. Implementation sequence
+12. Bilingual English/Spanish completeness
 
 Look specifically for:
 
@@ -62,6 +63,8 @@ Return:
 - offline survivability score
 - export value score when applicable
 - governance updates recommended
+- bilingual behavior reviewed
+- exemptions or blockers, if any
 
 Final question:
 
@@ -71,3 +74,17 @@ What can be automated or documented so this class of issue is caught earlier nex
 ## Legacy Cleanup Lens
 
 If the feature touches old architecture, review whether it cleans, migrates, or contains that path. Do not approve new feature work that expands legacy storage, sync, export, media, or model patterns when canonical SiteProof primitives and repositories already exist.
+
+## Bilingual Acceptance Checklist
+
+Before completion, verify:
+
+- [ ] No new avoidable hardcoded English UI strings were added.
+- [ ] New UI copy has English and Spanish translations.
+- [ ] New settings/buttons/alerts/empty states follow `uiLanguage`.
+- [ ] Any voice/capture behavior follows `captureLanguage`.
+- [ ] Any report/export/PDF behavior follows `exportLanguage`.
+- [ ] Template-authored content uses localized template data where applicable.
+- [ ] English fallback exists for missing Spanish template text.
+- [ ] Tests or static guards were added where practical.
+- [ ] Any exemptions are documented with exact file/path/reason.

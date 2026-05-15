@@ -36,6 +36,7 @@ const sections = [
   ['## Test Generation Prompt', read('docs/ai/test-generation-prompt.md')],
   ['## Legacy Cleanup Audit Prompt', read('docs/ai/legacy-cleanup-audit-prompt.md')],
   ['## Legacy Cleanup Workflow', read('governance/legacy-cleanup-workflow.md')],
+  ['## Feature Review Checklist', read('governance/ai-feature-review-checklist.md')],
   ['## Required JSON Schema', '```json\n' + read('governance/ai-review-schema.json') + '\n```'],
   ['## Feature / Diff Input', input],
   ['## Expected Output', optionalRead('docs/ai/codex-operating-prompt.md')],

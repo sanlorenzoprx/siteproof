@@ -12,6 +12,7 @@ const prompt = read('docs/ai/feature-review-prompt.md');
 const taskGraphPrompt = read('docs/ai/task-graph-review-prompt.md');
 const schema = read('governance/ai-review-schema.json');
 const legacyPrompt = read('docs/ai/legacy-cleanup-audit-prompt.md');
+const checklist = read('governance/ai-feature-review-checklist.md');
 
 let featureText = '';
 if (featurePath) {
@@ -31,6 +32,8 @@ console.log(`\n## Task Graph Review Prompt\n`);
 console.log(taskGraphPrompt);
 console.log(`\n## Legacy Cleanup Audit Prompt\n`);
 console.log(legacyPrompt);
+console.log(`\n## Feature Review Checklist\n`);
+console.log(checklist);
 console.log(`\n## Required JSON Output Schema\n`);
 console.log('```json');
 console.log(schema);

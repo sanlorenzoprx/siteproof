@@ -230,6 +230,27 @@ Prompt source:
 
 `docs/ai/legacy-cleanup-audit-prompt.md`
 
+### 8. Bilingual English/Spanish Completeness
+
+## SiteProof Bilingual-First Development Rule
+
+All future SiteProof product work must be implemented bilingual-first.
+
+English and Spanish support are not follow-up tasks. They are part of the definition of done.
+
+Every new or modified user-facing feature must:
+
+1. Use the existing i18n system for app UI copy.
+2. Support `uiLanguage` for interface labels, buttons, alerts, empty states, settings, and instructions.
+3. Preserve `captureLanguage` for dictation, voice notes, field text analysis, and capture metadata.
+4. Preserve `exportLanguage` for reports, PDFs, filenames, export packets, and customer/inspector-facing output.
+5. Avoid hardcoded user-facing English strings unless explicitly documented as exempt.
+6. Add Spanish copy at the same time English copy is added.
+7. Add tests or static guards where practical.
+8. Document any remaining English-only text as an intentional exemption, not silent technical debt.
+
+Passing tests is necessary but not sufficient. A feature is not complete unless bilingual behavior is reviewed.
+
 ## Required Decision Output
 
 Every AI review should produce a structured decision:
@@ -377,6 +398,20 @@ It is done when it:
 - has generated test coverage or test plan
 - passes governance checks
 - has clear residual risks documented
+- has bilingual English/Spanish behavior implemented or explicitly blocked
+
+## Completion Standard
+
+Passing tests is necessary but not sufficient.
+
+A task is not complete until:
+
+- acceptance criteria are reviewed,
+- bilingual English/Spanish behavior is implemented or explicitly blocked,
+- offline-first behavior is preserved,
+- relevant tests/checks pass,
+- remaining risks and exemptions are documented,
+- and the required implementation report is created.
 
 ## North Star
 
