@@ -1,8 +1,10 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { InspectionIssue } from '../../features/inspection/inspectionReadinessService';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export function QualityWarningsPanel({ groupedItems }: { groupedItems: Record<string, InspectionIssue[]> }) {
+  const { t } = useSettings();
   const entries = Object.entries(groupedItems);
   if (entries.length === 0) return null;
 
@@ -13,8 +15,8 @@ export function QualityWarningsPanel({ groupedItems }: { groupedItems: Record<st
           <AlertTriangle size={20} />
         </div>
         <div>
-          <h2 className="font-black text-yellow-950 uppercase tracking-tight">Inspection Warnings</h2>
-          <p className="text-xs font-bold text-yellow-700/70 mt-1">These do not block export, but they may weaken the packet.</p>
+          <h2 className="font-black text-yellow-950 uppercase tracking-tight">{t('inspection.warningTitle')}</h2>
+          <p className="text-xs font-bold text-yellow-700/70 mt-1">{t('inspection.warningsHelp')}</p>
         </div>
       </div>
 

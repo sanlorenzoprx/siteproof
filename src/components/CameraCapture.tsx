@@ -8,8 +8,10 @@ import { AIService } from '../services/aiService';
 
 import { cn } from '../lib/utils';
 import { MediaPipelineService } from '../services/mediaPipelineService';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function CameraCapture() {
+  const { t } = useSettings();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -91,7 +93,7 @@ export function CameraCapture() {
         if (videoRef.current) videoRef.current.srcObject = s;
       } catch (err) {
         console.error('Camera access denied', err);
-        alert('Could not access camera. Please check permissions.');
+        alert(t('capture.cameraError'));
         navigate(`/job/${id}`);
       }
     }
@@ -172,7 +174,7 @@ export function CameraCapture() {
         setIsRecordingVoice(true);
       } catch (err) {
         console.error("Microphone access denied", err);
-        alert("Microphone required for voice tags.");
+        alert(t('capture.microphoneRequired'));
       }
     }
   }
@@ -291,11 +293,11 @@ export function CameraCapture() {
             )}
           >
             <Zap size={14} className={burstMode ? "fill-white" : ""} />
-            Burst {burstMode ? "ON" : "OFF"}
+            {t('capture.burst')} {burstMode ? t('capture.on') : t('capture.off')}
           </button>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-black/20 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-widest border border-white/10">
             <MapPin size={14} className={location ? "text-green-400" : "text-slate-400"} />
-            {location ? `GPS Locked${location.accuracy ? ` ±${Math.round(location.accuracy)}m` : ''}` : "Locating..."}
+            {location ? `GPS Locked${location.accuracy ? ` ±${Math.round(location.accuracy)}m` : ''}` : t('capture.locating')}
           </div>
         </div>
       </div>
@@ -318,7 +320,7 @@ export function CameraCapture() {
         <canvas ref={canvasRef} className="hidden" />
         {!capturedImage && (
           <div className="absolute left-4 right-4 bottom-4 bg-black/45 backdrop-blur-md border border-white/10 rounded-3xl p-4 text-white">
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200 mb-1">Capturing proof for</div>
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200 mb-1">{t('capture.capturingProofFor')}</div>
             <div className="text-lg font-black leading-tight">{category}</div>
             {captureHint && <div className="text-xs text-white/70 font-semibold mt-1 leading-relaxed">{captureHint}</div>}
           </div>
@@ -367,7 +369,7 @@ export function CameraCapture() {
                   <Camera className="text-slate-900" size={32} />
                 </div>
               </button>
-              <button onClick={() => setFacingMode((current) => current === 'environment' ? 'user' : 'environment')} className="text-white/50 p-2" aria-label="Switch camera">
+              <button onClick={() => setFacingMode((current) => current === 'environment' ? 'user' : 'environment')} className="text-white/50 p-2" aria-label={t('capture.switchCamera')}>
                 <RefreshCw size={24} />
               </button>
             </div>
@@ -375,7 +377,7 @@ export function CameraCapture() {
         ) : (
           <div className="space-y-6">
             <div className="flex items-center justify-between text-white">
-              <span className="text-sm font-bold uppercase tracking-widest text-white/50">Capture Context</span>
+              <span className="text-sm font-bold uppercase tracking-widest text-white/50">{t('capture.captureContext')}</span>
               <span className="bg-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase italic tracking-tight">{category}</span>
             </div>
 
@@ -384,7 +386,7 @@ export function CameraCapture() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Zap size={18} className={cn(isIssue ? "text-orange-500 fill-orange-500" : "text-white/20")} />
-                  <span className="text-xs font-bold text-white uppercase italic">Deficiency or Issue?</span>
+                  <span className="text-xs font-bold text-white uppercase italic">{t('capture.deficiencyQuestion')}</span>
                 </div>
                 <button 
                   onClick={() => setIsIssue(!isIssue)}
@@ -422,7 +424,7 @@ export function CameraCapture() {
                 onClick={() => setCapturedImage(null)}
                 className="py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-colors"
               >
-                Retake
+                {t('capture.retake')}
               </button>
               <button 
                 onClick={handleSave}
@@ -434,7 +436,7 @@ export function CameraCapture() {
                 ) : (
                   <>
                     <Check size={20} />
-                    Save Photo
+                    {t('capture.savePhoto')}
                   </>
                 )}
               </button>

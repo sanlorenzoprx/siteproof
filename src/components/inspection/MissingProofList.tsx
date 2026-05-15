@@ -2,6 +2,7 @@ import React from 'react';
 import { Camera, ChevronRight, Mic } from 'lucide-react';
 import { InspectionIssue } from '../../features/inspection/inspectionReadinessService';
 import { ProofRequirement } from '../../templates/workflowTemplate.types';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export function MissingProofList({
   groupedItems,
@@ -12,14 +13,15 @@ export function MissingProofList({
   onCaptureIssue: (issue: InspectionIssue) => void;
   getRequirement?: (requirementId?: string | null) => ProofRequirement | undefined;
 }) {
+  const { t } = useSettings();
   const entries = Object.entries(groupedItems);
   if (entries.length === 0) return null;
 
   return (
     <section className="bg-orange-50 border border-orange-100 rounded-[32px] p-6 space-y-5">
       <div>
-        <h2 className="font-black text-orange-950 uppercase tracking-tight">Missing Required Proof</h2>
-        <p className="text-xs font-bold text-orange-700/70 mt-1">Capture these before generating the inspector packet.</p>
+        <h2 className="font-black text-orange-950 uppercase tracking-tight">{t('inspection.missingProof')}</h2>
+        <p className="text-xs font-bold text-orange-700/70 mt-1">{t('inspection.captureBeforePacket')}</p>
       </div>
 
       <div className="space-y-4">

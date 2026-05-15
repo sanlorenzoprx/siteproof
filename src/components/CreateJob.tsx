@@ -5,8 +5,10 @@ import { TemplateCatalogService } from '../services/templateCatalogService';
 import { ArrowLeft, Check, Info } from 'lucide-react';
 import { JobStatus } from '../types';
 import { VoiceDictation } from './VoiceDictation';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function CreateJob() {
+  const { t } = useSettings();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -51,13 +53,13 @@ export function CreateJob() {
         >
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-3xl font-black text-slate-900 tracking-tight italic uppercase">Start Job</h1>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight italic uppercase">{t('jobs.startJob')}</h1>
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Customer Name</label>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.customerName')}</label>
             <div className="relative">
               <input type="text" required value={form.customerName} 
                 onChange={e => setForm({...form, customerName: e.target.value})}
@@ -71,7 +73,7 @@ export function CreateJob() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Job Address</label>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.jobAddress')}</label>
             <div className="relative">
               <input type="text" required value={form.address}
                 onChange={e => setForm({...form, address: e.target.value})}
@@ -86,7 +88,7 @@ export function CreateJob() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Template</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.template')}</label>
               <select value={form.templateId} onChange={e => setForm({...form, templateId: e.target.value, jobType: e.target.options[e.target.selectedIndex].text})}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer">
                 {TemplateCatalogService.getTemplateOptions().map((option) => (
@@ -96,7 +98,7 @@ export function CreateJob() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Quote Amount ($)</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.quoteAmount')}</label>
               <input type="number" value={form.quotedAmount}
                 onChange={e => setForm({...form, quotedAmount: e.target.value})}
                 placeholder="0.00"
@@ -107,14 +109,14 @@ export function CreateJob() {
           {/* Technician Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Technician Name</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.technicianName')}</label>
               <input type="text" value={form.technicianName}
                 onChange={e => setForm({...form, technicianName: e.target.value})}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all" 
                 placeholder="Name of Lead" />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Technician Role</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.technicianRole')}</label>
               <input type="text" value={form.technicianRole}
                 onChange={e => setForm({...form, technicianRole: e.target.value})}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all" 
@@ -123,7 +125,7 @@ export function CreateJob() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Initial Notes</label>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.initialNotes')}</label>
             <div className="relative">
               <textarea
                 rows={3}
@@ -143,7 +145,7 @@ export function CreateJob() {
         <div className="bg-blue-50 p-6 rounded-3xl flex items-start gap-3 border border-blue-100">
           <Info className="text-blue-600 shrink-0 mt-0.5" size={20} />
           <p className="text-xs text-blue-800 font-bold leading-relaxed italic">
-            Starting a job creates the offline workflow, required proof checklist, GPS/timestamp capture, and inspection-ready report path for this site.
+            {t('jobs.createHelp')}
           </p>
         </div>
 
@@ -152,7 +154,7 @@ export function CreateJob() {
           disabled={loading}
           className="w-full bg-blue-600 text-white py-6 rounded-[30px] text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
         >
-          {loading ? "Starting..." : "Start Job →"}
+          {loading ? "{t('jobs.starting')}" : "{t('jobs.startJob')} →"}
         </button>
       </form>
     </div>

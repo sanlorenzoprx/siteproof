@@ -7,6 +7,7 @@ import { CloudSyncService } from './services/cloudSyncService';
 import { SettingsService } from './services/settingsService';
 import { buildExportFileName } from './features/export/exportFileNaming';
 import { ReportMode } from './services/pdfService';
+import fs from 'node:fs';
 
 test('settings defaults keep UI/capture/export independently configurable', () => {
   const settings = createDefaultSettings('es');
@@ -19,6 +20,31 @@ test('i18n resolves English, Spanish, and safe fallback keys', () => {
   assert.equal(translate('en', 'reports.reportTitle'), 'SiteProof Jobsite Proof Report');
   assert.equal(translate('es', 'reports.reportTitle'), 'Reporte de Prueba de Obra SiteProof');
   assert.equal(translate('es', 'unknown.key'), 'unknown.key');
+});
+
+test('priority bilingual surface keys exist in Spanish', () => {
+  for (const key of [
+    'jobs.fieldJobs',
+    'jobs.startJob',
+    'capture.savePhoto',
+    'inspection.ready',
+    'onboarding.openCapture',
+    'offline.stormMode',
+  ]) {
+    assert.notEqual(translate('es', key), key);
+  }
+});
+
+test('high-priority translated components do not reintroduce known hardcoded English copy', () => {
+  const source = [
+    'src/components/JobList.tsx',
+    'src/components/CreateJob.tsx',
+    'src/components/CameraCapture.tsx',
+    'src/components/inspection/InspectionReadyCard.tsx',
+  ].map((file) => fs.readFileSync(file, 'utf8')).join('\n');
+  for (const forbidden of ['Field Jobs', 'READY FOR THE FIELD?', 'Save Photo', 'Inspection Ready Mode']) {
+    assert.equal(source.includes(forbidden), false, `Found untranslated copy: ${forbidden}`);
+  }
 });
 
 test('voice extraction supports English and Spanish', () => {
