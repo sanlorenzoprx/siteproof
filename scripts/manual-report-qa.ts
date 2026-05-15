@@ -14,8 +14,13 @@ import type { ExportAssembly, ExportProofBundle } from '../src/features/export/e
 import type { JobPhoto, VoiceNote } from '../src/types';
 import type { MediaAsset, ProofObject, TimelineEvent, VoiceNote as RuntimeVoiceNote, WorkflowStageInstance } from '../src/db/schema';
 
-const outDir = path.resolve('tmp/report-qa');
-fs.rmSync(outDir, { recursive: true, force: true });
+let outDir = path.resolve('tmp/report-qa');
+try {
+  fs.rmSync(outDir, { recursive: true, force: true });
+} catch (error) {
+  outDir = path.resolve(`tmp/report-qa-${Date.now()}`);
+  console.warn(`Could not clear tmp/report-qa, writing QA PDFs to ${outDir} instead.`, error);
+}
 fs.mkdirSync(outDir, { recursive: true });
 
 function crc32(buffer: Buffer): number {

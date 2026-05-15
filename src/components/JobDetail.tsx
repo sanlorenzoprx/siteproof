@@ -40,6 +40,9 @@ import { ExportPacketService } from '../features/export/exportPacketService';
 import { ExportPacket } from '../db/schema';
 import { MediaPipelineService } from '../services/mediaPipelineService';
 import { TimelinePlayback } from './timeline/TimelinePlayback';
+import { LicenseService } from '../services/licenseService';
+import { SignaturePad } from './SignaturePad';
+import { SignatureRecord, SignatureService } from '../services/signatureService';
 
 type DetailView = 'proof' | 'photos' | 'notes' | 'timeline' | 'export';
 
@@ -105,6 +108,7 @@ export function JobDetail() {
   const [selectedReportType, setSelectedReportType] = useState<SiteProofReportType>(SiteProofReportType.CUSTOMER_COMPLETION);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [exportPackets, setExportPackets] = useState<ExportPacket[]>([]);
+  const [signatures, setSignatures] = useState<SignatureRecord[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -115,12 +119,13 @@ export function JobDetail() {
         return;
       }
 
-      const [photosData, notesData, snapshot, syncState, exportsData] = await Promise.all([
+      const [photosData, notesData, snapshot, syncState, exportsData, signatureData] = await Promise.all([
         SiteProofDataService.getPhotos(id),
         SiteProofDataService.getVoiceNotes(id),
         SiteProofDataService.getRuntimeSnapshot(id),
         SiteProofDataService.getSyncState(),
         ExportPacketService.getPacketHistory(id),
+        SignatureService.getByJob(id),
       ]);
 
       setJob(jobData);
@@ -129,6 +134,7 @@ export function JobDetail() {
       setRuntimeSnapshot(snapshot);
       setPendingSyncCount(syncState.pendingCount || 0);
       setExportPackets(exportsData.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
+      setSignatures(signatureData);
 
       const template = getTemplateForJob(jobData, settings.uiLanguage);
       if (template) {
@@ -196,12 +202,19 @@ export function JobDetail() {
   if (!job || !template) return null;
 
   async function handleGenerateSelectedReport() {
+    const licenseState = await LicenseService.getLicenseState();
+    if (!LicenseService.canGenerateReport(licenseState)) {
+      alert(t('license.trialEndedMessage'));
+      navigate('/license');
+      return;
+    }
     setGeneratingReport(true);
     try {
+      const signatureDataUrl = signatures.find((signature) => signature.signerRole === 'customer')?.signatureDataUrl;
       if (selectedReportType === SiteProofReportType.ALL_REPORTS) {
-        await PdfService.generateAllAppReports(job!, settings.exportLanguage);
+        await PdfService.generateAllAppReports(job!, settings.exportLanguage, {}, signatureDataUrl);
       } else {
-        await PdfService.generateAppReport(job!, selectedReportType, undefined, settings.exportLanguage);
+        await PdfService.generateAppReport(job!, selectedReportType, signatureDataUrl, settings.exportLanguage);
       }
       const nextExports = await ExportPacketService.getPacketHistory(job!.id);
       setExportPackets(nextExports.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
@@ -462,6 +475,14 @@ export function JobDetail() {
                         <Download size={18} /> {generatingReport ? t('jobDetail.generatingReport') : t('jobDetail.generateReport')}
                       </button>
                     </div>
+                    {(selectedReportType === SiteProofReportType.CUSTOMER_COMPLETION || selectedReportType === SiteProofReportType.PAYMENT_FINAL_HANDOFF) ? (
+                      <div className="mt-4">
+                        <SignaturePad jobId={job.id} onSaved={(record) => setSignatures((current) => [record, ...current])} />
+                        <p className="mt-3 text-xs font-bold text-slate-400">
+                          {signatures.length ? `${signatures[0].signerName ?? t('signature.unnamedSigner')} - ${format(new Date(signatures[0].signedAt), 'MMM d, h:mm a')}` : t('signature.customerNotDocumented')}
+                        </p>
+                      </div>
+                    ) : null}
                     <div className="mt-6"><ReportLanguageToggle /></div>
 
                     <div className="mt-8 bg-white/5 border border-white/10 rounded-[28px] p-5">

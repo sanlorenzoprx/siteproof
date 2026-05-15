@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Info } from 'lucide-react';
 import { JobStatus } from '../types';
 import { VoiceDictation } from './VoiceDictation';
 import { useSettings } from '../contexts/SettingsContext';
+import { LicenseService } from '../services/licenseService';
 
 export function CreateJob() {
   const { settings, t } = useSettings();
@@ -26,6 +27,12 @@ export function CreateJob() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerName || !form.address) return;
+    const license = await LicenseService.getLicenseState();
+    if (!LicenseService.canCreateJob(license)) {
+      alert(t('license.trialEndedMessage'));
+      navigate('/license');
+      return;
+    }
     
     setLoading(true);
     const newJob = await JobWorkflowService.createJob({

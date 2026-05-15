@@ -286,10 +286,12 @@ function addSignature(layout: PdfLayout, signatureDataUrl?: string) {
     } catch {
       layout.doc.rect(layout.margin, layout.y, 150, 36);
     }
+    layout.y += 46;
   } else {
-    layout.doc.rect(layout.margin, layout.y, 150, 36);
+    layout.doc.setFont('helvetica', 'bold');
+    layout.doc.text(tr(layout.language, 'signature.customerNotDocumented'), layout.margin, layout.y);
+    layout.y += 12;
   }
-  layout.y += 46;
   layout.doc.text(`${tr(layout.language, 'reports.date')}: ${fmt(layout.language, Date.now(), 'PP')}`, layout.margin, layout.y);
   layout.y += 10;
 }
