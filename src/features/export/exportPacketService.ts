@@ -5,8 +5,31 @@ import { Job, JobPhoto, VoiceNote } from '../../types';
 import { ReportMode } from '../../services/pdfService';
 import type { ExportIntegrityManifest } from '../../services/proofIntegrityService';
 import { buildExportFileName, packetTitle } from './exportFileNaming';
+import type { ExportFileReportKind } from './exportFileNaming';
 import type { ExportAssembly } from './exportAssembler';
 import type { SiteProofLanguage } from '../../types/settings';
+import { SiteProofReportType } from './reportTypes';
+
+export function reportTypeToPacketType(reportType: SiteProofReportType): ExportPacketType {
+  switch (reportType) {
+    case SiteProofReportType.CUSTOMER_COMPLETION:
+      return 'customer_completion_report';
+    case SiteProofReportType.DAILY_JOB_PROOF:
+      return 'daily_job_proof_report';
+    case SiteProofReportType.INSPECTION_READINESS:
+      return 'inspection_readiness_report';
+    case SiteProofReportType.CHANGE_ORDER_EVIDENCE:
+      return 'change_order_evidence_report';
+    case SiteProofReportType.PHOTO_PROOF_TIMELINE:
+      return 'photo_proof_timeline';
+    case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
+      return 'payment_final_handoff_report';
+    case SiteProofReportType.ALL_REPORTS:
+      return 'all_reports';
+    default:
+      return 'internal_record';
+  }
+}
 
 export function modeToPacketType(mode: ReportMode): ExportPacketType {
   switch (mode) {
@@ -28,12 +51,12 @@ export class ExportPacketService {
    * Export v2: record packets from canonical runtime entities.
    * The included_proof_ids field now contains ProofObject IDs, not legacy photo/note IDs.
    */
-  static async recordGeneratedPacketFromAssembly(assembly: ExportAssembly, mode: ReportMode, manifest?: ExportIntegrityManifest, exportLanguage: SiteProofLanguage = 'en') {
-    const fileName = buildExportFileName(assembly.legacyJob, mode, exportLanguage);
+  static async recordGeneratedPacketFromAssembly(assembly: ExportAssembly, reportKind: ExportFileReportKind, manifest?: ExportIntegrityManifest, exportLanguage: SiteProofLanguage = 'en') {
+    const fileName = buildExportFileName(assembly.legacyJob, reportKind, exportLanguage);
     const exportPacket = await exportRepository.createExport({
       job_id: assembly.runtimeJob.job_id,
       packet_type: assembly.packetType,
-      title: packetTitle(mode, exportLanguage),
+      title: packetTitle(reportKind, exportLanguage),
       local_file_uri: `siteproof://exports/${assembly.runtimeJob.job_id}/${fileName}`,
       cloud_file_uri: null,
       included_proof_ids: assembly.selectedProofIds,
@@ -51,10 +74,48 @@ export class ExportPacketService {
     await timelineRepository.createEvent({
       job_id: assembly.runtimeJob.job_id,
       event_type: 'export_generated',
-      event_title: `${packetTitle(mode, exportLanguage)} generated`,
+      event_title: `${packetTitle(reportKind, exportLanguage)} generated`,
       event_description: `${assembly.selectedProofIds.length} proof items included from canonical ProofObjects.`,
       related_proof_ids: assembly.selectedProofIds,
     }).catch((error) => console.warn('Export timeline event failed:', error));
+
+    return exportPacket;
+  }
+
+  static async recordGeneratedAllReportsPacket(
+    assembly: ExportAssembly,
+    includedProofIds: string[],
+    includedSections: string[],
+    manifest?: ExportIntegrityManifest,
+    exportLanguage: SiteProofLanguage = 'en',
+  ) {
+    const fileName = buildExportFileName(assembly.legacyJob, SiteProofReportType.ALL_REPORTS, exportLanguage);
+    const uniqueProofIds = [...new Set(includedProofIds)];
+    const exportPacket = await exportRepository.createExport({
+      job_id: assembly.runtimeJob.job_id,
+      packet_type: 'all_reports',
+      title: packetTitle(SiteProofReportType.ALL_REPORTS, exportLanguage),
+      local_file_uri: `siteproof://exports/${assembly.runtimeJob.job_id}/${fileName}`,
+      cloud_file_uri: null,
+      included_proof_ids: uniqueProofIds,
+      included_sections: includedSections,
+      manifest_hash: manifest?.manifestHash ?? null,
+      signed_manifest_hash: manifest?.signedManifestHash ?? null,
+      manifest_id: manifest?.manifestId ?? null,
+      template_id: assembly.runtimeJob.template_id,
+      template_version: assembly.runtimeJob.template_version,
+      share_status: 'not_shared',
+      sent_to: [],
+      export_language: exportLanguage,
+    });
+
+    await timelineRepository.createEvent({
+      job_id: assembly.runtimeJob.job_id,
+      event_type: 'export_generated',
+      event_title: `${packetTitle(SiteProofReportType.ALL_REPORTS, exportLanguage)} generated`,
+      event_description: `${uniqueProofIds.length} proof items included across six app reports.`,
+      related_proof_ids: uniqueProofIds,
+    }).catch((error) => console.warn('All reports timeline event failed:', error));
 
     return exportPacket;
   }

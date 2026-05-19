@@ -9,11 +9,15 @@ import { customerRepository } from '../../db/repositories/customerRepository';
 import { ExportPacketType, Job as RuntimeJob, MediaAsset, ProofObject, TimelineEvent, VoiceNote as RuntimeVoiceNote, WorkflowStageInstance } from '../../db/schema';
 import { TemplateCatalogService } from '../../services/templateCatalogService';
 import { SiteProofDataService } from '../../services/siteProofDataService';
-import { ReportMode } from '../../services/pdfService';
+import type { ReportMode } from '../../services/pdfService';
 import { Job as LegacyJob, JobPhoto, VoiceNote as LegacyVoiceNote } from '../../types';
 import { WorkflowTemplate } from '../../templates/workflowTemplate.types';
-import { modeToPacketType } from './exportPacketService';
 import type { SiteProofLanguage } from '../../types/settings';
+import { filterProofBundlesForReport } from './reportFilters';
+import { getReportDefinition } from './reportDefinitions';
+import type { ReportDefinition } from './reportDefinitions';
+import type { FilteredReportProofSelection, ReportFilterOptions } from './reportFilters';
+import { SiteProofReportType } from './reportTypes';
 
 export interface ExportProofBundle {
   proof: ProofObject;
@@ -41,6 +45,9 @@ export interface ExportAssembly {
   selectedProofIds: string[];
   includedSections: string[];
   packetType: ExportPacketType;
+  reportType?: SiteProofReportType;
+  reportDefinition?: ReportDefinition;
+  openRequiredItems?: string[];
 }
 
 function isoToMs(value?: string | null): number {
@@ -79,9 +86,74 @@ function requirementLabel(template: WorkflowTemplate | null, proof: ProofObject)
 
 function proofMatchesPacket(proof: ProofObject, packetType: ExportPacketType): boolean {
   if (proof.deleted_at) return false;
+  if (
+    packetType === 'customer_completion_report'
+    || packetType === 'daily_job_proof_report'
+    || packetType === 'inspection_readiness_report'
+    || packetType === 'change_order_evidence_report'
+    || packetType === 'photo_proof_timeline'
+    || packetType === 'payment_final_handoff_report'
+    || packetType === 'all_reports'
+  ) return true;
   if (packetType === 'internal_record') return true;
   if (packetType === 'litigation_packet') return proof.user_labels.includes('issue') || proof.user_labels.includes('CHANGE_ORDER') || proof.metadata?.is_issue === true;
   return proof.export_tags.includes(packetType) || proof.export_tags.includes('internal_record');
+}
+
+function legacyModeToPacketType(mode: ReportMode): ExportPacketType {
+  switch (mode as unknown as string) {
+    case 'CUSTOMER':
+      return 'customer_packet';
+    case 'INSPECTOR':
+      return 'inspector_packet';
+    case 'WARRANTY':
+      return 'warranty_packet';
+    case 'DISPUTE':
+      return 'litigation_packet';
+    default:
+      return 'internal_record';
+  }
+}
+
+function reportTypeToPacketType(reportType: SiteProofReportType): ExportPacketType {
+  switch (reportType) {
+    case SiteProofReportType.CUSTOMER_COMPLETION:
+      return 'customer_completion_report';
+    case SiteProofReportType.DAILY_JOB_PROOF:
+      return 'daily_job_proof_report';
+    case SiteProofReportType.INSPECTION_READINESS:
+      return 'inspection_readiness_report';
+    case SiteProofReportType.CHANGE_ORDER_EVIDENCE:
+      return 'change_order_evidence_report';
+    case SiteProofReportType.PHOTO_PROOF_TIMELINE:
+      return 'photo_proof_timeline';
+    case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
+      return 'payment_final_handoff_report';
+    case SiteProofReportType.ALL_REPORTS:
+      return 'all_reports';
+    default:
+      return 'internal_record';
+  }
+}
+
+export function filterAssemblyRelatedDataForReport(
+  assembly: Pick<ExportAssembly, 'mediaAssets' | 'timelineEvents'>,
+  selectedProofIds: string[],
+  reportType: SiteProofReportType,
+): Pick<ExportAssembly, 'mediaAssets' | 'timelineEvents'> {
+  const selectedProofIdSet = new Set(selectedProofIds);
+  const includeUnlinkedTimelineEvents = reportType === SiteProofReportType.PHOTO_PROOF_TIMELINE;
+
+  return {
+    mediaAssets: assembly.mediaAssets.filter((asset) => selectedProofIdSet.has(asset.proof_id)),
+    timelineEvents: assembly.timelineEvents.filter((event) => {
+      if (event.related_proof_ids.length === 0) {
+        // Photo Proof Timeline is intentionally evidence-first and may retain unlinked job timeline rows.
+        return includeUnlinkedTimelineEvents;
+      }
+      return event.related_proof_ids.some((proofId) => selectedProofIdSet.has(proofId));
+    }),
+  };
 }
 
 async function buildLegacyJob(runtimeJob: RuntimeJob): Promise<LegacyJob> {
@@ -206,6 +278,40 @@ function proofToVoiceNote(bundle: ExportProofBundle): LegacyVoiceNote | null {
 
 export class ExportAssembler {
   static async assemble(jobId: string, mode: ReportMode, exportLanguage: SiteProofLanguage = 'en'): Promise<ExportAssembly | null> {
+    return this.assembleForPacket(jobId, legacyModeToPacketType(mode), exportLanguage);
+  }
+
+  static async assembleForReport(
+    jobId: string,
+    reportType: SiteProofReportType,
+    exportLanguage: SiteProofLanguage = 'en',
+    options: ReportFilterOptions = {},
+  ): Promise<ExportAssembly | null> {
+    const reportDefinition = getReportDefinition(reportType);
+    const assembly = await this.assembleForPacket(jobId, reportTypeToPacketType(reportType), exportLanguage);
+    if (!assembly) return null;
+
+    const filtered = filterProofBundlesForReport(assembly, reportDefinition, options);
+    const selectedProofIdSet = new Set(filtered.selectedProofIds);
+    const relatedData = filterAssemblyRelatedDataForReport(assembly, filtered.selectedProofIds, reportType);
+
+    return {
+      ...assembly,
+      proofs: assembly.proofs.filter((proof) => selectedProofIdSet.has(proof.proof_id)),
+      mediaAssets: relatedData.mediaAssets,
+      timelineEvents: relatedData.timelineEvents,
+      proofBundles: filtered.proofBundles,
+      photos: filtered.photos,
+      notes: filtered.notes,
+      selectedProofIds: filtered.selectedProofIds,
+      includedSections: filtered.includedSections,
+      reportType,
+      reportDefinition,
+      openRequiredItems: filtered.openRequiredItems,
+    };
+  }
+
+  private static async assembleForPacket(jobId: string, packetType: ExportPacketType, exportLanguage: SiteProofLanguage = 'en'): Promise<ExportAssembly | null> {
     const runtimeJob = await jobRepository.getById(jobId);
     if (!runtimeJob) return null;
 
@@ -217,7 +323,6 @@ export class ExportAssembler {
       timelineRepository.getByJob(jobId),
     ]);
 
-    const packetType = modeToPacketType(mode);
     const template = TemplateCatalogService.getTemplate(runtimeJob.template_id, exportLanguage);
     const legacyJob = await buildLegacyJob(runtimeJob);
     const legacyPhotos = await resolveLegacyPhotos(jobId);
@@ -289,5 +394,13 @@ export class ExportAssembler {
       `${assembly.voiceNotes.length} structured voice note${assembly.voiceNotes.length === 1 ? '' : 's'}`,
       `generated ${format(Date.now(), 'PP p')}`,
     ].join(' • ');
+  }
+
+  static filterForReport(
+    assembly: ExportAssembly,
+    definition: ReportDefinition,
+    options: ReportFilterOptions = {},
+  ): FilteredReportProofSelection {
+    return filterProofBundlesForReport(assembly, definition, options);
   }
 }

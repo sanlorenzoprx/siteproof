@@ -96,6 +96,13 @@ export type TimelineEventType =
   | 'change_order_detected';
 
 export type ExportPacketType =
+  | 'customer_completion_report'
+  | 'daily_job_proof_report'
+  | 'inspection_readiness_report'
+  | 'change_order_evidence_report'
+  | 'photo_proof_timeline'
+  | 'payment_final_handoff_report'
+  | 'all_reports'
   | 'customer_packet'
   | 'inspector_packet'
   | 'insurance_packet'

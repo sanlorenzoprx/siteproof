@@ -82,7 +82,7 @@ test('export file naming includes selected export language', () => {
     status: 'ACTIVE',
     notes: '',
   }, ReportMode.STANDARD, 'es');
-  assert.match(name, /^siteproof-ada_lovelace-es-\d{8}-\d{6}\.pdf$/);
+  assert.match(name, /^siteproof-internalrecord-ada_lovelace-es-\d{8}-\d{6}\.pdf$/);
 });
 
 test('cloud sync boundary no-ops when disabled and queues offline', async () => {
@@ -142,7 +142,7 @@ test('export titles and filenames honor export language independently', () => {
     notes: '',
   };
   assert.equal(packetTitle(ReportMode.CUSTOMER, 'es'), 'Paquete del cliente');
-  assert.match(buildExportFileName(job, ReportMode.CUSTOMER, 'es'), /^siteproof-grace_hopper-es-\d{8}-\d{6}\.pdf$/);
+  assert.match(buildExportFileName(job, ReportMode.CUSTOMER, 'es'), /^siteproof-customerpacket-grace_hopper-es-\d{8}-\d{6}\.pdf$/);
 });
 
 test('field-critical capture surfaces avoid known hardcoded English UI labels', () => {
