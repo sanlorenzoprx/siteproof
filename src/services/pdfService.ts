@@ -14,6 +14,12 @@ import { getLicenseReportFooter, getCustomerProofPacketIntro } from './export/of
 import type { SiteProofLanguage } from '../types/settings';
 import { translate } from '../config/i18n';
 import { enUS, es } from 'date-fns/locale';
+import { APP_REPORT_TYPES, SiteProofReportType } from '../features/export/reportTypes';
+import { getReportDefinition } from '../features/export/reportDefinitions';
+import type { ReportDefinition } from '../features/export/reportDefinitions';
+import type { ReportFilterOptions } from '../features/export/reportFilters';
+import { addAppReportFooters, renderAppReportIntoDocument, renderAppReportPdf } from '../features/export/pdfRenderers/reportPdfRenderers';
+import { buildLocalReportNarrative } from '../features/export/reportNarratives';
 
 export enum ReportMode {
   STANDARD = 'STANDARD',
@@ -25,6 +31,145 @@ export enum ReportMode {
 }
 
 export class PdfService {
+  static async generateAppReport(
+    job: Job,
+    reportType: SiteProofReportType,
+    signatureDataUrl?: string,
+    exportLanguage: SiteProofLanguage = 'en',
+    options: ReportFilterOptions = {},
+  ): Promise<void> {
+    const { ExportAssembler } = await import('../features/export/exportAssembler');
+    const reportDefinition = getReportDefinition(reportType);
+    const assembly = await ExportAssembler.assembleForReport(job.id, reportType, exportLanguage, options);
+    if (!assembly) throw new Error('Could not assemble report data for this job.');
+
+    const business = await SiteProofDataService.getBusinessProfile();
+    const user = await SiteProofDataService.getUserProfile();
+    const integrityManifest = reportDefinition.includeIntegrityManifest
+      ? await ProofIntegrityService.buildExportManifest({
+        jobId: assembly.runtimeJob.job_id,
+        proofs: assembly.proofs,
+        mediaAssets: assembly.mediaAssets,
+        timelineEvents: assembly.timelineEvents,
+      })
+      : null;
+
+    const doc = renderAppReportPdf({
+      assembly,
+      definition: reportDefinition,
+      language: exportLanguage,
+      business,
+      user,
+      integrityManifest,
+      signatureDataUrl,
+      narrative: buildLocalReportNarrative(assembly, reportDefinition, exportLanguage),
+    });
+
+    const fileName = buildExportFileName(assembly.legacyJob, reportType, exportLanguage);
+    if (integrityManifest) {
+      await ProofIntegrityService.recordExportCustody(assembly.runtimeJob.job_id, assembly.selectedProofIds, integrityManifest.manifestHash).catch((error) => {
+        console.warn('Export manifest custody event failed:', error);
+      });
+    }
+    await ExportPacketService.recordGeneratedPacketFromAssembly(assembly, reportType, integrityManifest ?? undefined, exportLanguage).catch((error) => {
+      console.warn('App report packet record failed:', error);
+    });
+    doc.save(fileName);
+  }
+
+  static async generateAllAppReports(
+    job: Job,
+    exportLanguage: SiteProofLanguage = 'en',
+    options: ReportFilterOptions = {},
+  ): Promise<void> {
+    const { ExportAssembler } = await import('../features/export/exportAssembler');
+    const business = await SiteProofDataService.getBusinessProfile();
+    const user = await SiteProofDataService.getUserProfile();
+    const doc = new jsPDF({ compress: true });
+    const assemblies: ExportAssembly[] = [];
+    const includedProofIds = new Set<string>();
+
+    for (const reportType of APP_REPORT_TYPES) {
+      const definition = getReportDefinition(reportType);
+      const assembly = await ExportAssembler.assembleForReport(job.id, reportType, exportLanguage, options);
+      if (!assembly) continue;
+      assemblies.push(assembly);
+      assembly.selectedProofIds.forEach((proofId) => includedProofIds.add(proofId));
+
+      const integrityManifest = definition.includeIntegrityManifest
+        ? await ProofIntegrityService.buildExportManifest({
+          jobId: assembly.runtimeJob.job_id,
+          proofs: assembly.proofs,
+          mediaAssets: assembly.mediaAssets,
+          timelineEvents: assembly.timelineEvents,
+        })
+        : null;
+
+      renderAppReportIntoDocument(doc, {
+        assembly,
+        definition,
+        language: exportLanguage,
+        business,
+        user,
+        integrityManifest,
+        signatureDataUrl: undefined,
+        narrative: buildLocalReportNarrative(assembly, definition, exportLanguage),
+      }, assemblies.length > 1);
+    }
+
+    if (!assemblies.length) throw new Error('Could not assemble app reports for this job.');
+
+    const allReportsDefinition = getReportDefinition(SiteProofReportType.DAILY_JOB_PROOF);
+    addAppReportFooters(doc, {
+      assembly: assemblies[0],
+      definition: allReportsDefinition,
+      language: exportLanguage,
+      business,
+      user,
+      integrityManifest: null,
+      signatureDataUrl: undefined,
+      narrative: buildLocalReportNarrative(assemblies[0], allReportsDefinition, exportLanguage),
+    });
+
+    const unionProofIds = [...includedProofIds];
+    const unionProofSet = new Set(unionProofIds);
+    const firstAssembly = assemblies[0];
+    const allReportsManifest = await ProofIntegrityService.buildExportManifest({
+      jobId: firstAssembly.runtimeJob.job_id,
+      proofs: assemblies.flatMap((assembly) => assembly.proofs).filter((proof, index, proofs) => (
+        unionProofSet.has(proof.proof_id) && proofs.findIndex((item) => item.proof_id === proof.proof_id) === index
+      )),
+      mediaAssets: assemblies.flatMap((assembly) => assembly.mediaAssets).filter((asset, index, assets) => (
+        unionProofSet.has(asset.proof_id) && assets.findIndex((item) => item.media_id === asset.media_id) === index
+      )),
+      timelineEvents: assemblies.flatMap((assembly) => assembly.timelineEvents).filter((event, index, events) => (
+        event.related_proof_ids.some((proofId) => unionProofSet.has(proofId))
+        && events.findIndex((item) => item.event_id === event.event_id) === index
+      )),
+    }).catch((error) => {
+      console.warn('All reports manifest failed:', error);
+      return null;
+    });
+
+    if (allReportsManifest) {
+      await ProofIntegrityService.recordExportCustody(firstAssembly.runtimeJob.job_id, unionProofIds, allReportsManifest.manifestHash).catch((error) => {
+        console.warn('All reports custody event failed:', error);
+      });
+    }
+
+    await ExportPacketService.recordGeneratedAllReportsPacket(
+      firstAssembly,
+      unionProofIds,
+      ['all_reports', ...APP_REPORT_TYPES.map((reportType) => `report:${reportType}`)],
+      allReportsManifest ?? undefined,
+      exportLanguage,
+    ).catch((error) => {
+      console.warn('All reports packet record failed:', error);
+    });
+
+    doc.save(buildExportFileName(firstAssembly.legacyJob, SiteProofReportType.ALL_REPORTS, exportLanguage));
+  }
+
   static async generateReport(
     job: Job,
     photos: JobPhoto[],
@@ -32,12 +177,15 @@ export class PdfService {
     mode: ReportMode = ReportMode.STANDARD,
     signatureDataUrl?: string,
     exportLanguage: SiteProofLanguage = 'en',
+    preparedAssembly?: ExportAssembly | null,
+    reportDefinition?: ReportDefinition,
+    reportType?: SiteProofReportType,
   ): Promise<void> {
-    let canonicalAssembly: ExportAssembly | null = null;
+    let canonicalAssembly: ExportAssembly | null = preparedAssembly ?? null;
     let integrityManifest: ExportIntegrityManifest | null = null;
     try {
       const { ExportAssembler } = await import('../features/export/exportAssembler');
-      canonicalAssembly = await ExportAssembler.assemble(job.id, mode, exportLanguage);
+      canonicalAssembly = canonicalAssembly ?? await ExportAssembler.assemble(job.id, mode, exportLanguage);
       if (canonicalAssembly) {
         job = canonicalAssembly.legacyJob;
         photos = canonicalAssembly.photos;
@@ -61,10 +209,16 @@ export class PdfService {
     const pageWidth = doc.internal.pageSize.getWidth();
     let y = 20;
 
-    const isCustomer = mode === ReportMode.CUSTOMER;
-    const isDispute = mode === ReportMode.DISPUTE;
-    const isHandoff = mode === ReportMode.HANDOFF;
-    const isInspector = mode === ReportMode.INSPECTOR;
+    reportDefinition = reportDefinition ?? this.legacyDefinitionForMode(mode);
+    const isCustomer = reportDefinition.audience === 'customer';
+    const isDispute = reportDefinition.audience === 'dispute_support';
+    const isHandoff = reportDefinition.audience === 'payment';
+    const isInspector = reportDefinition.audience === 'inspector';
+    const includeChecklist = reportDefinition.includeChecklist;
+    const includeTimeline = reportDefinition.includeTimeline;
+    const includeSignature = reportDefinition.includeSignature;
+    const includeIntegrityManifest = reportDefinition.includeIntegrityManifest;
+    const reportKind = reportType ?? mode;
     const tr = (key: string) => translate(exportLanguage, key);
     const dateLocale = exportLanguage === 'es' ? es : enUS;
     const fmt = (value: number | Date, pattern: string) => format(value, pattern, { locale: dateLocale });
@@ -187,32 +341,34 @@ export class PdfService {
     doc.text(localLines, margin, y);
     y += localLines.length * 5.5 + 12;
 
-    // AI Enhanced Intelligence (Async/Wait)
-    try {
-      const aiSummary = await AIService.summarizeJob(job, filteredPhotos, filteredVoiceNotes, exportLanguage);
-      // Only show AI summary if it adds value (different from local)
-      if (aiSummary && aiSummary !== localSummary) {
-        doc.setFillColor(248, 250, 252);
-        const aiLines = doc.splitTextToSize(aiSummary, pageWidth - margin * 2 - 16);
-        const blockHeight = aiLines.length * 5 + 15;
-        
-        doc.rect(margin, y, pageWidth - margin * 2, blockHeight, 'F');
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(37, 99, 235);
-        doc.text(tr('reports.aiSiteIntelligence').toUpperCase(), margin + 8, y + 8);
-        
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(10);
-        doc.text(aiLines, margin + 8, y + 15);
-        
-        y += blockHeight + 15;
-        doc.setTextColor(15, 23, 42); // Reset color
+    if (!reportType) {
+      // AI Enhanced Intelligence (Async/Wait)
+      try {
+        const aiSummary = await AIService.summarizeJob(job, filteredPhotos, filteredVoiceNotes, exportLanguage);
+        // Only show AI summary if it adds value (different from local)
+        if (aiSummary && aiSummary !== localSummary) {
+          doc.setFillColor(248, 250, 252);
+          const aiLines = doc.splitTextToSize(aiSummary, pageWidth - margin * 2 - 16);
+          const blockHeight = aiLines.length * 5 + 15;
+          
+          doc.rect(margin, y, pageWidth - margin * 2, blockHeight, 'F');
+          
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(37, 99, 235);
+          doc.text(tr('reports.aiSiteIntelligence').toUpperCase(), margin + 8, y + 8);
+          
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(10);
+          doc.text(aiLines, margin + 8, y + 15);
+          
+          y += blockHeight + 15;
+          doc.setTextColor(15, 23, 42); // Reset color
+        }
+      } catch (err) {
+        console.warn("AI Summerization failed, continuing with local summary only.");
+        y += 10;
       }
-    } catch (err) {
-      console.warn("AI Summerization failed, continuing with local summary only.");
-      y += 10;
     }
 
     // Key Stats Bar
@@ -240,7 +396,7 @@ export class PdfService {
 
     // ====================== INTERNAL SECTIONS ======================
     // Checklist (for templated jobs)
-    if (job.templateId) {
+    if (includeChecklist && job.templateId) {
       const template = TemplateCatalogService.getTemplate(job.templateId, exportLanguage);
       doc.addPage();
       addHeader();
@@ -372,6 +528,7 @@ export class PdfService {
     }
 
     // Timeline Summary
+    if (includeTimeline) {
     doc.addPage();
     addHeader();
     y = 65;
@@ -400,9 +557,10 @@ export class PdfService {
       doc.text(`${row.label} — ${row.detail}`, margin + 58, y);
       y += 8;
     });
+    }
 
     // Proof Integrity Manifest
-    if (integrityManifest) {
+    if (includeIntegrityManifest && integrityManifest) {
       doc.addPage();
       addHeader();
       y = 65;
@@ -451,6 +609,7 @@ export class PdfService {
     }
 
     // Final Page - Acknowledgement
+    if (includeSignature) {
     doc.addPage();
     addHeader();
     y = 80;
@@ -479,6 +638,7 @@ export class PdfService {
     doc.setFontSize(10);
     doc.text(tr('reports.scanVerify'), pageWidth - margin - 70, y + 25);
     await this.addRealQRCode(doc, pageWidth - 80, y - 10, job.id);
+    }
 
     // Apply headers + footers to all pages
     const totalPages = doc.getNumberOfPages();
@@ -488,7 +648,7 @@ export class PdfService {
       addFooter(i, totalPages);
     }
 
-    const fileName = buildExportFileName(job, mode, exportLanguage);
+    const fileName = buildExportFileName(job, reportKind, exportLanguage);
     if (canonicalAssembly) {
       if (integrityManifest) {
         await ProofIntegrityService.recordExportCustody(canonicalAssembly.runtimeJob.job_id, canonicalAssembly.selectedProofIds, integrityManifest.manifestHash).catch((error) => {
@@ -504,6 +664,28 @@ export class PdfService {
       });
     }
     doc.save(fileName);
+  }
+
+  private static definitionToLegacyMode(definition: ReportDefinition): ReportMode {
+    if (definition.audience === 'customer' || definition.audience === 'payment') return ReportMode.CUSTOMER;
+    if (definition.audience === 'inspector') return ReportMode.INSPECTOR;
+    if (definition.audience === 'dispute_support') return ReportMode.DISPUTE;
+    return ReportMode.STANDARD;
+  }
+
+  private static legacyDefinitionForMode(mode: ReportMode): ReportDefinition {
+    switch (mode) {
+      case ReportMode.CUSTOMER:
+        return getReportDefinition(SiteProofReportType.CUSTOMER_COMPLETION);
+      case ReportMode.INSPECTOR:
+        return getReportDefinition(SiteProofReportType.INSPECTION_READINESS);
+      case ReportMode.DISPUTE:
+        return getReportDefinition(SiteProofReportType.CHANGE_ORDER_EVIDENCE);
+      case ReportMode.HANDOFF:
+        return getReportDefinition(SiteProofReportType.PAYMENT_FINAL_HANDOFF);
+      default:
+        return getReportDefinition(SiteProofReportType.DAILY_JOB_PROOF);
+    }
   }
 
   private static async addRealQRCode(doc: jsPDF, x: number, y: number, jobId: string) {

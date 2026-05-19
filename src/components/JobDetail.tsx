@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { SiteProofDataService } from '../services/siteProofDataService';
-import { PdfService, ReportMode } from '../services/pdfService';
+import { PdfService } from '../services/pdfService';
+import { APP_REPORT_TYPES, SiteProofReportType } from '../features/export/reportTypes';
 import { Job, JobPhoto, VoiceNote } from '../types';
 import { RuntimeSnapshot } from '../services/runtimeOrchestrator';
 import { ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
@@ -101,6 +102,7 @@ export function JobDetail() {
   const [activeView, setActiveView] = useState<DetailView>((searchParams.get('tab') as DetailView) || 'proof');
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [selectedReportType, setSelectedReportType] = useState<SiteProofReportType>(SiteProofReportType.CUSTOMER_COMPLETION);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [exportPackets, setExportPackets] = useState<ExportPacket[]>([]);
 
@@ -193,10 +195,14 @@ export function JobDetail() {
 
   if (!job || !template) return null;
 
-  async function handleExportReport(mode: ReportMode) {
+  async function handleGenerateSelectedReport() {
     setGeneratingReport(true);
     try {
-      await PdfService.generateReport(job!, photos, voiceNotes, mode, undefined, settings.exportLanguage);
+      if (selectedReportType === SiteProofReportType.ALL_REPORTS) {
+        await PdfService.generateAllAppReports(job!, settings.exportLanguage);
+      } else {
+        await PdfService.generateAppReport(job!, selectedReportType, undefined, settings.exportLanguage);
+      }
       const nextExports = await ExportPacketService.getPacketHistory(job!.id);
       setExportPackets(nextExports.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
     } catch (error) {
@@ -217,6 +223,9 @@ export function JobDetail() {
     const runtime = stageRuntimeByTemplateId.get(stage.stage_id);
     return runtime?.status !== 'complete';
   }) ?? visibleStages[visibleStages.length - 1];
+  const reportOptions = [...APP_REPORT_TYPES, SiteProofReportType.ALL_REPORTS] as const;
+  const inspectionReportBlocked = selectedReportType === SiteProofReportType.INSPECTION_READINESS
+    && (readiness?.blocking_items.length ?? missingRequired.length) > 0;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28">
@@ -425,11 +434,33 @@ export function JobDetail() {
                     <p className="text-sm font-bold text-slate-400 max-w-xl mb-8">
                       {t('jobDetail.exportHelp')}
                     </p>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <ExportButton title={t('jobDetail.customerPacket')} description={t('jobDetail.customerPacketHelp')} icon={<Zap size={26} />} onClick={() => handleExportReport(ReportMode.CUSTOMER)} disabled={generatingReport} />
-                      <ExportButton title={t('jobDetail.inspectorPacket')} description={t('jobDetail.inspectorPacketHelp')} icon={<ShieldCheck size={26} />} onClick={() => handleExportReport(ReportMode.INSPECTOR)} disabled={generatingReport || (readiness?.blocking_items.length ?? missingRequired.length) > 0} blocked={(readiness?.blocking_items.length ?? missingRequired.length) > 0} />
-                      <ExportButton title={t('jobDetail.internalRecord')} description={t('jobDetail.internalRecordHelp')} icon={<FileText size={26} />} onClick={() => handleExportReport(ReportMode.STANDARD)} disabled={generatingReport} />
-                      <ExportButton title={t('jobDetail.disputePack')} description={t('jobDetail.disputePackHelp')} icon={<AlertTriangle size={26} />} onClick={() => handleExportReport(ReportMode.DISPUTE)} disabled={generatingReport} />
+                    <div className="bg-white/5 border border-white/10 rounded-[28px] p-5 space-y-4">
+                      <label className="block">
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('jobDetail.reportType')}</span>
+                        <select
+                          value={selectedReportType}
+                          onChange={(event) => setSelectedReportType(event.target.value as SiteProofReportType)}
+                          className="w-full min-h-14 rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 text-base font-black text-white outline-none focus:border-blue-400"
+                        >
+                          {reportOptions.map((reportType) => (
+                            <option key={reportType} value={reportType}>
+                              {t(`jobDetail.reportTypes.${reportType}`)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {inspectionReportBlocked ? (
+                        <div className="rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-xs font-bold text-orange-100">
+                          {t('jobDetail.inspectionReportBlocked')}
+                        </div>
+                      ) : null}
+                      <button
+                        onClick={handleGenerateSelectedReport}
+                        disabled={generatingReport || inspectionReportBlocked}
+                        className="w-full min-h-14 bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:hover:bg-blue-600"
+                      >
+                        <Download size={18} /> {generatingReport ? t('jobDetail.generatingReport') : t('jobDetail.generateReport')}
+                      </button>
                     </div>
                     <div className="mt-6"><ReportLanguageToggle /></div>
 
@@ -706,34 +737,6 @@ function PhotoGalleryCard({ photo, t }: { photo: JobPhoto; t: (key: string) => s
         </div>
       </div>
     </div>
-  );
-}
-
-function ExportButton({
-  title,
-  description,
-  icon,
-  onClick,
-  disabled,
-  blocked,
-}: {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  blocked?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-white/10 border border-white/10 p-6 rounded-[28px] text-left transition-all"
-    >
-      <div className="text-white mb-4">{icon}</div>
-      <h4 className="font-black uppercase tracking-tight text-lg mb-2">{title}</h4>
-      <p className="text-xs font-bold text-slate-400 leading-relaxed">{blocked ? 'Blocked until required proof is complete.' : description}</p>
-    </button>
   );
 }
 
