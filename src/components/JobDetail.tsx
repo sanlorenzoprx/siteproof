@@ -26,8 +26,8 @@ import { SiteProofDataService } from '../services/siteProofDataService';
 import { PdfService } from '../services/pdfService';
 import { APP_REPORT_TYPES, SiteProofReportType } from '../features/export/reportTypes';
 import { Job, JobPhoto, VoiceNote } from '../types';
-import { RuntimeSnapshot } from '../services/runtimeOrchestrator';
-import { ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
+import { RuntimeOrchestrator, RuntimeSnapshot } from '../services/runtimeOrchestrator';
+import { ChecklistItem, ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
 import { TemplateCatalogService } from '../services/templateCatalogService';
 import { cn } from '../lib/utils';
 import { ReportLanguageToggle } from './reports/ReportLanguageToggle';
@@ -40,6 +40,7 @@ import { ReadyForInspectionBanner } from './inspection/ReadyForInspectionBanner'
 import { InspectionIssue } from '../features/inspection/inspectionReadinessService';
 import { ExportPacketService } from '../features/export/exportPacketService';
 import { ExportPacket } from '../db/schema';
+import { proofRepository } from '../db/repositories/proofRepository';
 import { MediaPipelineService } from '../services/mediaPipelineService';
 import { TimelinePlayback } from './timeline/TimelinePlayback';
 import { LicenseService } from '../services/licenseService';
@@ -310,6 +311,28 @@ export function JobDetail() {
     window.location.href = target.href;
   }
 
+  async function completeChecklistItem(stage: WorkflowStageTemplate, item: ChecklistItem) {
+    const runtimeStage = stageRuntimeByTemplateId.get(stage.stage_id);
+    await proofRepository.createProof({
+      job_id: job!.id,
+      stage_instance_id: runtimeStage?.stage_instance_id ?? null,
+      requirement_id: item.checklist_id,
+      proof_type: 'checklist_item',
+      title: item.display_name,
+      description: item.description,
+      required_flag: item.blocks_stage_completion,
+      priority: item.priority,
+      export_tags: item.export_tags,
+      notes: null,
+      metadata: {
+        checklist_item: true,
+        blocks_stage_completion: item.blocks_stage_completion,
+      },
+    });
+    const snapshot = await RuntimeOrchestrator.recomputeJobCompletion(job!.id);
+    setRuntimeSnapshot(snapshot);
+  }
+
   async function completeJob() {
     if (!job) return;
     await SiteProofDataService.saveJob({ ...job, status: 'COMPLETED' });
@@ -472,6 +495,7 @@ export function JobDetail() {
                     expanded={expandedStages[stage.stage_id] ?? false}
                     onToggle={() => setExpandedStages((current) => ({ ...current, [stage.stage_id]: !(current[stage.stage_id] ?? false) }))}
                     onCapture={(requirement) => navigate(requirementCapturePath(job.id, requirement, stage.stage_id))}
+                    onCompleteChecklistItem={(item) => void completeChecklistItem(stage, item)}
                     t={t}
                   />
                 ))}
@@ -659,6 +683,16 @@ export function JobDetail() {
                                   {ReportShareService.canShareLink(packet) ? packet.share_status.replaceAll('_', ' ') : 'Saved locally - cloud link needed'}
                                 </span>
                                 <div className="flex flex-wrap gap-2">
+                                  {packet.local_file_uri.startsWith('data:') ? (
+                                    <a
+                                      href={packet.local_file_uri}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="px-3 py-2 rounded-xl bg-white text-slate-950 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
+                                    >
+                                      <FileText size={14} /> Open Local Report
+                                    </a>
+                                  ) : null}
                                   <button
                                     onClick={() => void sharePacket(packet, 'email')}
                                     disabled={!ReportShareService.canShareLink(packet)}
@@ -771,6 +805,7 @@ function WorkflowStageCard({
   expanded,
   onToggle,
   onCapture,
+  onCompleteChecklistItem,
   t,
 }: {
   key?: React.Key;
@@ -782,6 +817,7 @@ function WorkflowStageCard({
   expanded: boolean;
   onToggle: () => void;
   onCapture: (requirement: ProofRequirement) => void;
+  onCompleteChecklistItem: (item: ChecklistItem) => void;
   t: (key: string) => string;
 }) {
   const required = stage.proof_requirements.filter((requirement) => requirement.priority === 'required');
@@ -869,15 +905,25 @@ function WorkflowStageCard({
             <div className="mt-4 bg-slate-50 border border-slate-100 rounded-3xl p-4">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">{t('jobDetail.checklist')}</div>
               <div className="space-y-2">
-                {stage.checklist_items.map((item) => (
-                  <div key={item.checklist_id} className="flex items-start gap-3 text-xs font-bold text-slate-600">
-                    <Circle size={14} className="mt-0.5 text-slate-300" />
+                {stage.checklist_items.map((item) => {
+                  const done = (proofByRequirement.get(item.checklist_id) ?? 0) > 0;
+                  return (
+                  <button
+                    key={item.checklist_id}
+                    type="button"
+                    onClick={() => !done && onCompleteChecklistItem(item)}
+                    className={cn(
+                      'w-full text-left flex items-start gap-3 text-xs font-bold rounded-2xl p-3 transition-all',
+                      done ? 'bg-green-50 text-slate-600' : 'bg-white text-slate-600 hover:bg-slate-100',
+                    )}
+                  >
+                    {done ? <CheckCircle size={14} className="mt-0.5 text-green-600" /> : <Circle size={14} className="mt-0.5 text-slate-300" />}
                     <div>
                       <span className="text-slate-900">{item.display_name}</span>
                       <p className="text-slate-500 font-semibold mt-0.5">{item.description}</p>
                     </div>
-                  </div>
-                ))}
+                  </button>
+                );})}
               </div>
             </div>
           )}

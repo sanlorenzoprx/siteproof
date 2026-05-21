@@ -71,7 +71,8 @@ export class PdfService {
         console.warn('Export manifest custody event failed:', error);
       });
     }
-    await ExportPacketService.recordGeneratedPacketFromAssembly(assembly, reportType, integrityManifest ?? undefined, exportLanguage).catch((error) => {
+    const localFileUri = doc.output('datauristring');
+    await ExportPacketService.recordGeneratedPacketFromAssembly(assembly, reportType, integrityManifest ?? undefined, exportLanguage, localFileUri).catch((error) => {
       console.warn('App report packet record failed:', error);
     });
     doc.save(fileName);
@@ -158,12 +159,14 @@ export class PdfService {
       });
     }
 
+    const localFileUri = doc.output('datauristring');
     await ExportPacketService.recordGeneratedAllReportsPacket(
       firstAssembly,
       unionProofIds,
       ['all_reports', ...APP_REPORT_TYPES.map((reportType) => `report:${reportType}`)],
       allReportsManifest ?? undefined,
       exportLanguage,
+      localFileUri,
     ).catch((error) => {
       console.warn('All reports packet record failed:', error);
     });

@@ -1,5 +1,7 @@
 import { proofRepository } from '../db/repositories/proofRepository';
+import { workflowLearningEventRepository } from '../db/repositories/workflowLearningEventRepository';
 import { TradeTemplatePackService } from './tradeTemplatePackService';
+import { TemplateCatalogService } from './templateCatalogService';
 import { WorkflowPersonalizationRuntime } from './workflowPersonalizationRuntime';
 
 export interface MissingProofWarning {
@@ -12,13 +14,39 @@ export interface MissingProofWarning {
 
 export class MissingProofDetectionService {
   static async getWarnings(job: { id: string; tradePackId?: string; trade?: string; specialty?: string }): Promise<MissingProofWarning[]> {
+    const template = TemplateCatalogService.getTemplate(job.tradePackId);
     const pack = TradeTemplatePackService.getPack(job.tradePackId);
-    const proof = await proofRepository.getByJob(job.id).catch(() => []);
+    const [proof, learningEvents] = await Promise.all([
+      proofRepository.getByJob(job.id).catch(() => []),
+      workflowLearningEventRepository.getByJobId(job.id).catch(() => []),
+    ]);
     const capturedStepIds = new Set(proof.map((item) => item.requirement_id).filter(Boolean));
+    const notNeededStepIds = new Set(
+      learningEvents
+        .filter((event) => event.action === 'mark_not_needed' && !event.deleted_at)
+        .map((event) => event.step_id),
+    );
+
+    if (template) {
+      return template.stages
+        .flatMap((stage) => stage.proof_requirements ?? [])
+        .filter((requirement) =>
+          (requirement.priority === 'required' || requirement.priority === 'recommended') &&
+          !capturedStepIds.has(requirement.requirement_id) &&
+          !notNeededStepIds.has(requirement.requirement_id),
+        )
+        .map((requirement) => ({
+          stepId: requirement.requirement_id,
+          title: requirement.display_name,
+          required: requirement.priority === 'required',
+          warning: requirement.capture_hint ?? requirement.field_instruction,
+          action: requirement.priority === 'required' ? 'capture_missing_proof' : 'mark_not_needed',
+        }));
+    }
 
     return pack.stages
       .flatMap((stage) => stage.steps)
-      .filter((step) => (step.required || step.recommended) && !capturedStepIds.has(step.stepId))
+      .filter((step) => (step.required || step.recommended) && !capturedStepIds.has(step.stepId) && !notNeededStepIds.has(step.stepId))
       .map((step) => ({
         stepId: step.stepId,
         title: step.title,

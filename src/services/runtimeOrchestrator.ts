@@ -477,7 +477,14 @@ export class RuntimeOrchestrator {
       for (const stage of template.stages) {
         const instance = stages.find((s) => s.template_stage_id === stage.stage_id);
         if (!instance) continue;
-        const stageProofs = proofs.filter((proof) => proof.stage_instance_id === instance.stage_instance_id);
+        const stageRequirementIds = new Set([
+          ...(stage.proof_requirements ?? []).map((requirement) => requirement.requirement_id),
+          ...(stage.checklist_items ?? []).map((item) => item.checklist_id),
+        ]);
+        const stageProofs = proofs.filter((proof) =>
+          proof.stage_instance_id === instance.stage_instance_id ||
+          (!proof.stage_instance_id && Boolean(proof.requirement_id) && stageRequirementIds.has(proof.requirement_id!)),
+        );
         let completedRequired = 0;
         let completedRecommended = 0;
         const stageMissing: string[] = [];
@@ -494,7 +501,17 @@ export class RuntimeOrchestrator {
           if (requirement.priority === 'recommended' && count >= (requirement.minimum_count ?? 1)) completedRecommended += 1;
         }
 
-        const requiredCount = (stage.proof_requirements ?? []).filter((r) => r.priority === 'required').length;
+        const blockingChecklistItems = (stage.checklist_items ?? []).filter((item) => item.blocks_stage_completion);
+        for (const item of blockingChecklistItems) {
+          const count = stageProofs.filter((proof) => proof.requirement_id === item.checklist_id).length;
+          if (count >= 1) completedRequired += 1;
+          else {
+            stageMissing.push(item.checklist_id);
+            missingRequired.push({ requirement_id: item.checklist_id, label: item.display_name, stage_id: stage.stage_id });
+          }
+        }
+
+        const requiredCount = (stage.proof_requirements ?? []).filter((r) => r.priority === 'required').length + blockingChecklistItems.length;
         const recommendedCount = (stage.proof_requirements ?? []).filter((r) => r.priority === 'recommended').length;
         const nextStatus = requiredCount > 0 && completedRequired >= requiredCount ? 'complete' : stageProofs.length > 0 ? 'in_progress' : instance.status;
         await workflowStageRepository.put({

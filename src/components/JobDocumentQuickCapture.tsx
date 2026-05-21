@@ -19,6 +19,15 @@ const DOCUMENT_TYPES: Array<{ value: JobDocumentType; label: string }> = [
   { value: 'other', label: 'Other' },
 ];
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('File read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function JobDocumentQuickCapture({
   job,
   stepId,
@@ -48,13 +57,14 @@ export function JobDocumentQuickCapture({
     setSaving(true);
     try {
       const file = input.file;
+      const localUri = file ? await readFileAsDataUrl(file) : undefined;
       await JobDocumentCaptureRuntime.captureDocument({
         jobId: job.id,
         title: DOCUMENT_TYPES.find((item) => item.value === documentType)?.label ?? 'Job document',
         documentType,
         sourceType: file ? 'file_upload' : 'manual_note',
         stepId,
-        localUri: file ? `siteproof://documents/${job.id}/${Date.now()}-${file.name}` : undefined,
+        localUri,
         fileName: file?.name,
         mimeType: file?.type,
         fileSize: file?.size,
