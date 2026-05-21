@@ -19,7 +19,7 @@ test('settings defaults keep UI/capture/export independently configurable', () =
 });
 
 test('i18n resolves English, Spanish, and safe fallback keys', () => {
-  assert.equal(translate('en', 'reports.reportTitle'), 'SiteProof Jobsite Proof Report');
+  assert.equal(translate('en', 'reports.reportTitle'), 'SiteProof Jobsite Proof Pro Report');
   assert.equal(translate('es', 'reports.reportTitle'), 'Reporte de Prueba de Obra SiteProof');
   assert.equal(translate('es', 'unknown.key'), 'unknown.key');
 });
@@ -141,8 +141,8 @@ test('export titles and filenames honor export language independently', () => {
     status: 'ACTIVE' as const,
     notes: '',
   };
-  assert.equal(packetTitle(ReportMode.CUSTOMER, 'es'), 'Paquete del cliente');
-  assert.match(buildExportFileName(job, ReportMode.CUSTOMER, 'es'), /^siteproof-customerpacket-grace_hopper-es-\d{8}-\d{6}\.pdf$/);
+  assert.equal(packetTitle(ReportMode.CUSTOMER, 'es'), 'Reporte del cliente');
+  assert.match(buildExportFileName(job, ReportMode.CUSTOMER, 'es'), /^siteproof-customerreport-grace_hopper-es-\d{8}-\d{6}\.pdf$/);
 });
 
 test('field-critical capture surfaces avoid known hardcoded English UI labels', () => {

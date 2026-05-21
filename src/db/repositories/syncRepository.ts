@@ -127,6 +127,7 @@ function getOperationPriority(op: SyncOperation): number {
   if (op.entity_type === 'media_asset' && op.operation_type === 'upload_media') return 40;
   if (op.entity_type === 'voice_note') return 50;
   if (op.entity_type === 'timeline_event') return 60;
+  if (op.entity_type === 'workflow_learning_event') return 65;
   if (op.entity_type === 'export_packet') return 70;
   return 100;
 }

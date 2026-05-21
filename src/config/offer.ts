@@ -1,31 +1,25 @@
 import { SITEPROOF_BRAND } from "./brand";
+import { SITEPROOF_LAUNCH_OFFER } from "../constants/siteProofOffer";
 
 export const SITEPROOF_OFFER = {
-  offerName: "SiteProof Yearly License",
-  billingModel: "yearly_recurring",
+  offerName: SITEPROOF_LAUNCH_OFFER.name,
+  billingModel: "one_time_launch_offer",
   buyerMessage:
-    "A yearly jobsite protection system that helps contractors document work, reduce disputes, and get paid faster.",
+    SITEPROOF_LAUNCH_OFFER.brandLine,
   inAppMessage:
-    "Your SiteProof yearly license helps your company document jobs, protect proof, reduce disputes, and get paid faster.",
+    SITEPROOF_LAUNCH_OFFER.tagline,
   websiteMessage:
-    "One missed change order, one delayed inspection, or one disputed invoice can cost more than a year of SiteProof.",
+    "One missed change order, one delayed inspection, or one disputed invoice can cost more than SiteProof.",
   valueFrame: [
     "Reduce lost documentation time",
     "Reduce office admin and report-building time",
     "Reduce missed change-order revenue",
     "Reduce inspection delays from missing proof",
     "Reduce payment disputes and customer arguments",
-    "Improve cash flow with faster proof packets",
+    "Improve cash flow with faster proof reports",
   ],
   appIncludedSummary: [
-    "Unlimited job documentation",
-    "Photo proof capture",
-    "Voice notes",
-    "GPS and timestamp records",
-    "Offline mode",
-    "Proof reports",
-    "Customer and inspection packets",
-    "Support and product updates",
+    ...SITEPROOF_LAUNCH_OFFER.included,
   ],
   roiPrinciple:
     "SiteProof should pay for itself through saved time, faster approvals, stronger documentation, fewer disputes, and recovered billable work.",
@@ -44,7 +38,7 @@ export const SITEPROOF_PLANS = [
       "Offline job documentation",
       "Photos, notes, GPS, and timestamps",
       "Basic proof reports",
-      "Customer completion packets",
+      "Customer completion reports",
       "Local/offline storage",
       "Yearly product updates",
     ],
@@ -78,7 +72,7 @@ export const SITEPROOF_PLANS = [
       "Company templates",
       "Manager review workflow",
       "Report standards",
-      "Inspector/customer packet modes",
+      "Inspector/customer report modes",
       "Implementation support",
       "Annual ROI review",
     ],

@@ -7,6 +7,9 @@ export interface Job {
   address: string;
   jobType: string;
   templateId?: string;
+  trade?: string;
+  specialty?: string;
+  tradePackId?: string;
   createdAt: number;
   updatedAt: number;
   scheduledDate?: number;

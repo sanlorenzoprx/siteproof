@@ -32,6 +32,7 @@ const ENTITY_STORE: Partial<Record<SyncOperation['entity_type'], { store: StoreN
   timeline_event: { store: 'timeline_events', idField: 'event_id' },
   export_packet: { store: 'export_packets', idField: 'export_id' },
   change_order_candidate: { store: 'change_order_candidates', idField: 'change_order_id' },
+  workflow_learning_event: { store: 'workflow_learning_events', idField: 'learning_event_id' },
 };
 
 class SyncRuntimeImpl {

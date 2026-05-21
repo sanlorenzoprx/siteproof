@@ -1,7 +1,7 @@
 import { STORE_NAMES, StoreName } from './schema';
 
 export const DB_NAME = 'siteproof_offline_db';
-export const DB_VERSION = 1;
+export const DB_VERSION = 3;
 
 export const KEY_PATHS: Record<StoreName, string> = {
   company_profiles: 'company_id',
@@ -15,6 +15,7 @@ export const KEY_PATHS: Record<StoreName, string> = {
   timeline_events: 'event_id',
   export_packets: 'export_id',
   change_order_candidates: 'change_order_id',
+  workflow_learning_events: 'learning_event_id',
   jurisdiction_profiles: 'jurisdiction_id',
   permit_requirements: 'permit_requirement_id',
   inspection_requirements: 'inspection_requirement_id',
@@ -34,7 +35,7 @@ const INDEXES: Record<StoreName, Array<{ name: string; keyPath: string | string[
     { name: 'company_id', keyPath: 'company_id' },
     { name: 'customer_id', keyPath: 'customer_id' },
     { name: 'status', keyPath: 'status' },
-    { name: 'trade', keyPath: 'trade' },
+    { name: 'trade_specialty', keyPath: 'trade_specialty' },
     { name: 'job_type', keyPath: 'job_type' },
     { name: 'template_id', keyPath: 'template_id' },
     { name: 'jobsite_zip', keyPath: 'jobsite_zip' },
@@ -43,7 +44,7 @@ const INDEXES: Record<StoreName, Array<{ name: string; keyPath: string | string[
   ],
   workflow_template_cache: [
     { name: 'template_id', keyPath: 'template_id' },
-    { name: 'trade', keyPath: 'trade' },
+    { name: 'trade_specialty', keyPath: 'trade_specialty' },
     { name: 'vertical', keyPath: 'vertical' },
     { name: 'job_type', keyPath: 'job_type' },
     { name: 'active_flag', keyPath: 'active_flag' },
@@ -98,6 +99,16 @@ const INDEXES: Record<StoreName, Array<{ name: string; keyPath: string | string[
     { name: 'source_proof_id', keyPath: 'source_proof_id' },
     { name: 'sync_state', keyPath: 'sync_state' },
   ],
+  workflow_learning_events: [
+    { name: 'job_id', keyPath: 'job_id' },
+    { name: 'pack_id', keyPath: 'pack_id' },
+    { name: 'trade', keyPath: 'trade' },
+    { name: 'specialty', keyPath: 'specialty' },
+    { name: 'step_id', keyPath: 'step_id' },
+    { name: 'action', keyPath: 'action' },
+    { name: 'sync_state', keyPath: 'sync_state' },
+    { name: 'created_at', keyPath: 'created_at' },
+  ],
   jurisdiction_profiles: [
     { name: 'zip', keyPath: 'zip' },
     { name: 'city', keyPath: 'city' },
@@ -106,12 +117,12 @@ const INDEXES: Record<StoreName, Array<{ name: string; keyPath: string | string[
     { name: 'confidence_level', keyPath: 'confidence_level' },
   ],
   permit_requirements: [
-    { name: 'trade', keyPath: 'trade' },
+    { name: 'trade_specialty', keyPath: 'trade_specialty' },
     { name: 'job_type', keyPath: 'job_type' },
     { name: 'jurisdiction_id', keyPath: 'jurisdiction_id' },
   ],
   inspection_requirements: [
-    { name: 'trade', keyPath: 'trade' },
+    { name: 'trade_specialty', keyPath: 'trade_specialty' },
     { name: 'job_type', keyPath: 'job_type' },
     { name: 'jurisdiction_id', keyPath: 'jurisdiction_id' },
   ],

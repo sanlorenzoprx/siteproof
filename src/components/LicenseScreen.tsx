@@ -4,6 +4,7 @@ import { ShieldCheck, Zap, ArrowLeft, CheckCircle2, Lock, Cloud } from 'lucide-r
 import { cn } from '../lib/utils';
 import { SITEPROOF_BRAND } from '../config/brand';
 import { SITEPROOF_OFFER } from '../config/offer';
+import { SITEPROOF_LAUNCH_OFFER } from '../constants/siteProofOffer';
 import { LicenseValueCard } from './LicenseValueCard';
 import { LicenseService, type LicenseState } from '../services/licenseService';
 import { LicenseApiClient } from '../services/licenseApiClient';
@@ -60,7 +61,7 @@ export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
         <div className="text-center space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
             <Lock size={12} />
-            {t('license.yearlyLicense')}
+            {SITEPROOF_LAUNCH_OFFER.trial.label}
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tighter uppercase italic">
             {licensed ? t('license.systemActive') : SITEPROOF_BRAND.appName}
@@ -73,9 +74,9 @@ export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
         <div className="bg-slate-900/50 backdrop-blur-3xl border border-white/10 rounded-[32px] p-8 md:p-12 space-y-8 relative overflow-hidden group">
           <div className="flex items-center justify-between relative">
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('license.status')}</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{SITEPROOF_LAUNCH_OFFER.name}</span>
               <p className={cn('text-2xl font-bold tracking-tight', licensed ? 'text-green-400' : license?.status === 'revoked' ? 'text-red-400' : 'text-blue-400')}>
-                {displayStatus(license, t)}
+                {licensed ? displayStatus(license, t) : `${SITEPROOF_LAUNCH_OFFER.price} ${SITEPROOF_LAUNCH_OFFER.priceQualifier}`}
               </p>
             </div>
             <div className="text-right space-y-1">
@@ -101,7 +102,7 @@ export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
                 {activating ? t('license.verifying') : t('license.activate')}
               </button>
               <button onClick={handlePurchase} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest">
-                {t('license.buy')}
+                {SITEPROOF_LAUNCH_OFFER.primaryCta}
               </button>
               {purchaseMessage && <p className="text-xs font-bold text-blue-200">{purchaseMessage}</p>}
             </div>
@@ -113,6 +114,21 @@ export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
           <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-4"><Cloud size={14} /> {t('license.cloudEntitled')}: {license?.cloudEntitled ? t('license.cloudIncluded') : t('license.cloudNotIncluded')}</div>
           <LicenseValueCard planId="core" status={licensed ? 'active' : license?.status === 'trial_expired' ? 'expired' : 'trial'} />
           <p className="mt-5 text-sm text-slate-400 font-bold leading-relaxed">{SITEPROOF_OFFER.roiPrinciple}</p>
+          <div className="mt-5 grid gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm font-black text-white">{SITEPROOF_LAUNCH_OFFER.cloudVault.includedYears} year Cloud Proof Vault included</p>
+              <p className="text-xs font-bold text-slate-400 mt-1">Renews at {SITEPROOF_LAUNCH_OFFER.cloudVault.renewalPrice} after the included year. {SITEPROOF_LAUNCH_OFFER.cloudVault.fairUseStorageLimit}.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm font-black text-white">{SITEPROOF_LAUNCH_OFFER.brandedReports.name} - {SITEPROOF_LAUNCH_OFFER.brandedReports.price} {SITEPROOF_LAUNCH_OFFER.brandedReports.priceQualifier}</p>
+              <p className="text-xs font-bold text-slate-400 mt-1">Request Branded Setup. Payment and setup tracking are TODOs, so no branded status is faked here.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm font-black text-white">{SITEPROOF_LAUNCH_OFFER.referral.title}</p>
+              <p className="text-xs font-bold text-slate-400 mt-1">{SITEPROOF_LAUNCH_OFFER.referral.rule}</p>
+              <p className="text-xs font-bold text-blue-200 mt-2">Share {SITEPROOF_LAUNCH_OFFER.domain}. Referral tracking TODO: activated referrals require real job Pro Report completion; paid referral rewards are active-user only and tracked separately.</p>
+            </div>
+          </div>
         </div>
 
         <button onClick={() => navigate('/')} className="w-full text-slate-500 py-2 text-sm font-bold hover:text-slate-300 transition-colors flex items-center justify-center gap-2">

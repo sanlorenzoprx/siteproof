@@ -123,7 +123,8 @@ export type SyncEntityType =
   | 'voice_note'
   | 'timeline_event'
   | 'export_packet'
-  | 'change_order_candidate';
+  | 'change_order_candidate'
+  | 'workflow_learning_event';
 
 export type SyncOperationType = 'create' | 'update' | 'delete' | 'upload_media' | 'upload_export' | 'resolve_conflict';
 export type SyncOperationStatus = 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
@@ -140,7 +141,9 @@ export interface Address {
 }
 
 export interface LicenseNumber {
-  trade: string;
+  trade_specialty: string;
+  /** @deprecated Use trade_specialty. */
+  trade?: string;
   license_number: string;
   state?: string;
   expires_at?: string | null;
@@ -182,7 +185,9 @@ export interface CompanyProfile extends TimestampFields, SyncFields {
   company_id: string;
   company_name: string;
   logo_uri?: string | null;
-  trade_types: string[];
+  trade_specialties: string[];
+  /** @deprecated Use trade_specialties. */
+  trade_types?: string[];
   license_numbers: LicenseNumber[];
   insurance_info?: InsuranceInfo | null;
   business_address?: Address | null;
@@ -211,7 +216,9 @@ export interface Job extends TimestampFields, SyncFields {
   customer_id?: string | null;
   job_title: string;
   job_type: string;
-  trade: string;
+  trade_specialty: string;
+  /** @deprecated Use trade_specialty. */
+  trade?: string;
   vertical?: string | null;
   status: JobStatus;
   priority?: 'low' | 'normal' | 'high' | 'emergency';
@@ -242,7 +249,9 @@ export interface WorkflowTemplateCache {
   template_id: string;
   template_version: string;
   template_status: 'draft' | 'active' | 'deprecated' | 'archived';
-  trade: string;
+  trade_specialty: string;
+  /** @deprecated Use trade_specialty. */
+  trade?: string;
   vertical: string;
   job_type: string;
   display_name: string;
@@ -393,6 +402,27 @@ export interface ChangeOrderCandidate extends TimestampFields, SyncFields {
   related_note_ids: string[];
 }
 
+export interface WorkflowLearningEvent extends TimestampFields, SyncFields {
+  learning_event_id: string;
+  job_id: string;
+  pack_id: string;
+  trade: string;
+  specialty: string;
+  step_id: string;
+  action:
+    | 'skip_once'
+    | 'hide_for_similar_jobs'
+    | 'restore_hidden_step'
+    | 'add_custom_step'
+    | 'rename_step'
+    | 'reorder_step'
+    | 'mark_not_needed'
+    | 'generate_anyway';
+  reason?: string | null;
+  applies_to_future_jobs: boolean;
+  metadata?: Record<string, unknown>;
+}
+
 export interface JurisdictionProfile {
   jurisdiction_id: string;
   zip: string;
@@ -418,7 +448,9 @@ export interface JurisdictionProfile {
 
 export interface PermitRequirement {
   permit_requirement_id: string;
-  trade: string;
+  trade_specialty: string;
+  /** @deprecated Use trade_specialty. */
+  trade?: string;
   job_type: string;
   jurisdiction_id: string;
   requirement_name: string;
@@ -435,7 +467,9 @@ export interface PermitRequirement {
 
 export interface InspectionRequirement {
   inspection_requirement_id: string;
-  trade: string;
+  trade_specialty: string;
+  /** @deprecated Use trade_specialty. */
+  trade?: string;
   job_type: string;
   jurisdiction_id: string;
   inspection_type: string;
@@ -487,6 +521,7 @@ export type StoreName =
   | 'timeline_events'
   | 'export_packets'
   | 'change_order_candidates'
+  | 'workflow_learning_events'
   | 'jurisdiction_profiles'
   | 'permit_requirements'
   | 'inspection_requirements'
@@ -505,6 +540,7 @@ export const STORE_NAMES: StoreName[] = [
   'timeline_events',
   'export_packets',
   'change_order_candidates',
+  'workflow_learning_events',
   'jurisdiction_profiles',
   'permit_requirements',
   'inspection_requirements',
