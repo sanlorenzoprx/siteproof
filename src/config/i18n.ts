@@ -85,6 +85,7 @@ export const i18n = {
           change_order_evidence: 'Focused proof report for scope changes, issues, deficiencies, and customer-requested changes.',
           photo_proof_timeline: 'Chronological proof narrative showing when evidence was captured across the job.',
           payment_final_handoff: 'Payment-focused handoff that summarizes completion proof, open items, signoff, and invoice readiness without claiming payment approval.',
+          office_internal_record: 'Internal documentation for admin, billing, job records, inspection history, and office review.',
         },
         sections: {
           summary: 'Summary',
@@ -204,6 +205,7 @@ export const i18n = {
         change_order_evidence:'Change Order Evidence Report',
         photo_proof_timeline:'Photo Proof Timeline',
         payment_final_handoff:'Payment Final Handoff Report',
+        office_internal_record:'Office / Internal Job Record',
         all_reports:'All Pro Reports',
       },
       customerPacket:'Customer Pro Report', customerPacketHelp:'Polished summary, final photos, and customer-friendly notes.',
@@ -421,6 +423,7 @@ export const i18n = {
           change_order_evidence: 'Reporte de prueba enfocado en cambios de alcance, problemas, deficiencias y cambios solicitados por el cliente.',
           photo_proof_timeline: 'Narrativa cronológica de prueba que muestra cuándo se capturó la evidencia durante el trabajo.',
           payment_final_handoff: 'Entrega enfocada en cobro que resume prueba de finalización, elementos abiertos, firma y preparación de factura sin afirmar aprobación de pago.',
+          office_internal_record: 'Documentación interna para administración, cobro, registros del trabajo, historial de inspección y revisión de oficina.',
         },
         sections: {
           summary: 'Resumen',
@@ -539,6 +542,7 @@ export const i18n = {
         change_order_evidence:'Informe de Evidencia de Orden de Cambio',
         photo_proof_timeline:'Cronología de Evidencia Fotográfica',
         payment_final_handoff:'Informe de Pago / Entrega Final',
+        office_internal_record:'Registro Interno / Oficina',
         all_reports:'Todos los Informes',
       },
       customerPacket:'Reporte del cliente', customerPacketHelp:'Resumen pulido, fotos finales y notas claras para el cliente.',

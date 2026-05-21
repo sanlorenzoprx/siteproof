@@ -426,6 +426,9 @@ export function renderAppReportIntoDocument(doc: jsPDF, context: ReportRenderCon
     case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
       renderPaymentFinalHandoffSections(layout, context);
       break;
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+      renderDailyJobProofSections(layout, context);
+      break;
     default:
       renderDailyJobProofSections(layout, context);
       break;

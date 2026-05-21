@@ -5,6 +5,8 @@ import { SiteProofDataService } from '../services/siteProofDataService';
 import { ProofCaptureService } from '../services/proofCaptureService';
 import { TemplateCatalogService } from '../services/templateCatalogService';
 import { AIService } from '../services/aiService';
+import { JobDocumentCaptureRuntime } from '../services/jobDocumentCaptureRuntime';
+import { JobDocumentType } from '../db/schema';
 
 import { cn } from '../lib/utils';
 import { MediaPipelineService } from '../services/mediaPipelineService';
@@ -23,6 +25,9 @@ export function CameraCapture() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const requirementId = searchParams.get('requirementId') || undefined;
   const stageId = searchParams.get('stageId') || undefined;
+  const documentMode = searchParams.get('document') === '1';
+  const documentType = (searchParams.get('documentType') || 'permit_document') as JobDocumentType;
+  const returnTab = searchParams.get('returnTab') || 'proof';
   const [category, setCategory] = useState(searchParams.get('category') || 'Photo');
   const [saving, setSaving] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number, accuracy?: number } | null>(null);
@@ -220,18 +225,33 @@ export function CameraCapture() {
       canvasRef.current?.toBlob(resolve, 'image/jpeg', 0.9)
     );
 
-    await ProofCaptureService.savePhoto({
-      jobId: id,
-      dataUrl,
-      blob: blob || undefined,
-      category,
-      requirementId,
-      stageId,
-      latitude: location?.lat,
-      longitude: location?.lng,
-      isIssue,
-      issueType: isIssue ? issueType : undefined,
-    });
+    if (documentMode) {
+      await JobDocumentCaptureRuntime.captureDocument({
+        jobId: id,
+        title: category,
+        documentType,
+        sourceType: 'camera_capture',
+        stepId: requirementId,
+        localUri: dataUrl,
+        fileName: `${category.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.jpg`,
+        mimeType: blob?.type || 'image/jpeg',
+        fileSize: blob?.size ?? dataUrl.length,
+        notes: 'Document saved as image. You can add a note later.',
+      });
+    } else {
+      await ProofCaptureService.savePhoto({
+        jobId: id,
+        dataUrl,
+        blob: blob || undefined,
+        category,
+        requirementId,
+        stageId,
+        latitude: location?.lat,
+        longitude: location?.lng,
+        isIssue,
+        issueType: isIssue ? issueType : undefined,
+      });
+    }
     // Visual feedback for burst
     const video = videoRef.current;
     if (video) {
@@ -249,23 +269,38 @@ export function CameraCapture() {
       canvasRef.current?.toBlob(resolve, 'image/jpeg', 0.9)
     );
 
-    await ProofCaptureService.savePhoto({
-      jobId: id,
-      dataUrl: capturedImage,
-      blob: blob || undefined,
-      category,
-      requirementId,
-      stageId,
-      latitude: location?.lat,
-      longitude: location?.lng,
-      isIssue,
-      issueType: isIssue ? issueType : undefined,
-    });
+    if (documentMode) {
+      await JobDocumentCaptureRuntime.captureDocument({
+        jobId: id,
+        title: category,
+        documentType,
+        sourceType: 'camera_capture',
+        stepId: requirementId,
+        localUri: capturedImage,
+        fileName: `${category.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.jpg`,
+        mimeType: blob?.type || 'image/jpeg',
+        fileSize: blob?.size ?? capturedImage.length,
+        notes: 'Document saved as image. You can add a note later.',
+      });
+    } else {
+      await ProofCaptureService.savePhoto({
+        jobId: id,
+        dataUrl: capturedImage,
+        blob: blob || undefined,
+        category,
+        requirementId,
+        stageId,
+        latitude: location?.lat,
+        longitude: location?.lng,
+        isIssue,
+        issueType: isIssue ? issueType : undefined,
+      });
+    }
     setSaving(false);
     
     // If we came from a specific checklist step, go back to checklist
     if (searchParams.get('category')) {
-      navigate(`/job/${id}?tab=proof`);
+      navigate(`/job/${id}?tab=${encodeURIComponent(returnTab)}`);
     } else {
       setCapturedImage(null);
     }

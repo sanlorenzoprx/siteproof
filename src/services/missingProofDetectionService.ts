@@ -39,7 +39,7 @@ export class MissingProofDetectionService {
       action: 'mark_not_needed',
       reason: reason ?? null,
       applies_to_future_jobs: false,
-      metadata: { source: 'missing_proof_detection' },
+      metadata: { source: 'missing_proof_detection', warning_action: 'step_marked_not_needed' },
     });
   }
 
@@ -54,7 +54,7 @@ export class MissingProofDetectionService {
       action: 'generate_anyway',
       reason: reason ?? null,
       applies_to_future_jobs: false,
-      metadata: { source: 'missing_proof_detection' },
+      metadata: { source: 'missing_proof_detection', warning_action: 'missing_proof_warning_ignored' },
     });
   }
 }

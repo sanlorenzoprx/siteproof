@@ -5,6 +5,7 @@ export enum SiteProofReportType {
   CHANGE_ORDER_EVIDENCE = 'change_order_evidence',
   PHOTO_PROOF_TIMELINE = 'photo_proof_timeline',
   PAYMENT_FINAL_HANDOFF = 'payment_final_handoff',
+  OFFICE_INTERNAL_RECORD = 'office_internal_record',
   ALL_REPORTS = 'all_reports',
 }
 
@@ -16,6 +17,7 @@ export const APP_REPORT_TYPES = [
   SiteProofReportType.CHANGE_ORDER_EVIDENCE,
   SiteProofReportType.PHOTO_PROOF_TIMELINE,
   SiteProofReportType.PAYMENT_FINAL_HANDOFF,
+  SiteProofReportType.OFFICE_INTERNAL_RECORD,
 ] as const;
 
 export const APP_REPORT_DROPDOWN_OPTIONS = [

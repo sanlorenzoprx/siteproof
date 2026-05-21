@@ -24,6 +24,8 @@ export function reportTypeToPacketType(reportType: SiteProofReportType): ExportP
       return 'photo_proof_timeline';
     case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
       return 'payment_final_handoff_report';
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+      return 'internal_record';
     case SiteProofReportType.ALL_REPORTS:
       return 'all_reports';
     default:

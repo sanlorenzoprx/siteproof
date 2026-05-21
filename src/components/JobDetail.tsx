@@ -43,6 +43,10 @@ import { TimelinePlayback } from './timeline/TimelinePlayback';
 import { LicenseService } from '../services/licenseService';
 import { SignaturePad } from './SignaturePad';
 import { SignatureRecord, SignatureService } from '../services/signatureService';
+import { JobDocumentQuickCapture } from './JobDocumentQuickCapture';
+import { MissingProofDetectionService, MissingProofWarning } from '../services/missingProofDetectionService';
+import { ProReportManifestBuilder } from '../services/proReportManifestBuilder';
+import { ProReportType } from '../templates/tradeTemplatePack.types';
 
 type DetailView = 'proof' | 'photos' | 'notes' | 'timeline' | 'export';
 
@@ -92,6 +96,27 @@ function priorityBadge(requirement: ProofRequirement, t: (key: string) => string
   return t('jobDetail.optional');
 }
 
+function toProReportType(reportType: SiteProofReportType): ProReportType {
+  switch (reportType) {
+    case SiteProofReportType.CUSTOMER_COMPLETION:
+      return 'customer_completion';
+    case SiteProofReportType.INSPECTION_READINESS:
+      return 'inspection_readiness';
+    case SiteProofReportType.CHANGE_ORDER_EVIDENCE:
+      return 'change_order_evidence';
+    case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
+      return 'payment_handoff';
+    case SiteProofReportType.PHOTO_PROOF_TIMELINE:
+      return 'photo_timeline';
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+      return 'office_internal_record';
+    case SiteProofReportType.ALL_REPORTS:
+      return 'all_pro_reports';
+    default:
+      return 'office_internal_record';
+  }
+}
+
 export function JobDetail() {
   const { settings, t } = useSettings();
   const { id } = useParams<{ id: string }>();
@@ -109,6 +134,11 @@ export function JobDetail() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [exportPackets, setExportPackets] = useState<ExportPacket[]>([]);
   const [signatures, setSignatures] = useState<SignatureRecord[]>([]);
+  const [documentCaptureSource, setDocumentCaptureSource] = useState<'setup' | 'checklist' | 'final' | null>(
+    searchParams.get('document') === 'setup' ? 'setup' : null,
+  );
+  const [missingProofWarnings, setMissingProofWarnings] = useState<MissingProofWarning[]>([]);
+  const [showMissingProofReview, setShowMissingProofReview] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -201,15 +231,25 @@ export function JobDetail() {
 
   if (!job || !template) return null;
 
-  async function handleGenerateSelectedReport() {
+  async function handleGenerateSelectedReport(skipMissingProofReview = false) {
     const licenseState = await LicenseService.getLicenseState();
     if (!LicenseService.canGenerateReport(licenseState)) {
       alert(t('license.trialEndedMessage'));
       navigate('/license');
       return;
     }
+    if (!skipMissingProofReview) {
+      const warnings = await MissingProofDetectionService.getWarnings(job!);
+      if (warnings.length > 0) {
+        setMissingProofWarnings(warnings.sort((a, b) => Number(b.required) - Number(a.required)));
+        setShowMissingProofReview(true);
+        setActiveView('export');
+        return;
+      }
+    }
     setGeneratingReport(true);
     try {
+      await ProReportManifestBuilder.build(job!, toProReportType(selectedReportType));
       const signatureDataUrl = signatures.find((signature) => signature.signerRole === 'customer')?.signatureDataUrl;
       if (selectedReportType === SiteProofReportType.ALL_REPORTS) {
         await PdfService.generateAllAppReports(job!, settings.exportLanguage, {}, signatureDataUrl);
@@ -224,6 +264,27 @@ export function JobDetail() {
     } finally {
       setGeneratingReport(false);
     }
+  }
+
+  function captureMissingProof(warning: MissingProofWarning) {
+    setShowMissingProofReview(false);
+    navigate(`/job/${job!.id}/camera?category=${encodeURIComponent(warning.title)}&requirementId=${encodeURIComponent(warning.stepId)}&returnTab=export`);
+  }
+
+  async function markWarningNotNeeded(warning: MissingProofWarning) {
+    await MissingProofDetectionService.markNotNeeded(job!, warning.stepId, 'Marked not needed during pre-report review.');
+    setMissingProofWarnings((current) => current.filter((item) => item.stepId !== warning.stepId));
+  }
+
+  async function generateAnywayFromReview() {
+    await Promise.all(
+      missingProofWarnings.map((warning) =>
+        MissingProofDetectionService.generateAnyway(job!, warning.stepId, 'Missing-proof warning ignored before Pro Report generation.'),
+      ),
+    );
+    setShowMissingProofReview(false);
+    setMissingProofWarnings([]);
+    await handleGenerateSelectedReport(true);
   }
 
   async function completeJob() {
@@ -329,6 +390,15 @@ export function JobDetail() {
               <QualityWarningsPanel groupedItems={readiness.grouped_warning_items} />
             ) : null}
 
+            {documentCaptureSource === 'setup' ? (
+              <JobDocumentQuickCapture
+                job={job}
+                source="setup"
+                onSaved={() => setDocumentCaptureSource(null)}
+                onClose={() => setDocumentCaptureSource(null)}
+              />
+            ) : null}
+
             <div className="flex gap-2 p-1.5 bg-slate-200/60 rounded-2xl w-fit overflow-x-auto no-scrollbar">
               {[
                 { id: 'proof', label: t('jobDetail.proof') },
@@ -352,6 +422,22 @@ export function JobDetail() {
 
             {activeView === 'proof' && (
               <section className="space-y-5">
+                {documentCaptureSource === 'checklist' ? (
+                  <JobDocumentQuickCapture
+                    job={job}
+                    source="checklist"
+                    stepId="permit_or_inspection_document"
+                    onSaved={() => setDocumentCaptureSource(null)}
+                    onClose={() => setDocumentCaptureSource(null)}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setDocumentCaptureSource('checklist')}
+                    className="w-full bg-blue-50 border border-blue-100 text-blue-700 p-5 rounded-[28px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
+                  >
+                    <FileText size={18} /> Add Permit / Inspection Document
+                  </button>
+                )}
                 {visibleStages.map((stage, index) => (
                   <WorkflowStageCard
                     key={stage.stage_id}
@@ -447,6 +533,14 @@ export function JobDetail() {
                     <p className="text-sm font-bold text-slate-400 max-w-xl mb-8">
                       {t('jobDetail.exportHelp')}
                     </p>
+                    <div className="mb-5">
+                      <JobDocumentQuickCapture
+                        job={job}
+                        source="final"
+                        stepId="final_document_check"
+                        onSaved={() => setDocumentCaptureSource(null)}
+                      />
+                    </div>
                     <div className="bg-white/5 border border-white/10 rounded-[28px] p-5 space-y-4">
                       <label className="block">
                         <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('jobDetail.reportType')}</span>
@@ -464,12 +558,40 @@ export function JobDetail() {
                       </label>
                       {inspectionReportBlocked ? (
                         <div className="rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-xs font-bold text-orange-100">
-                          {t('jobDetail.inspectionReportBlocked')}
+                          Missing proof will be reviewed before generation. You can capture it, mark it not needed, or generate anyway.
+                        </div>
+                      ) : null}
+                      {showMissingProofReview ? (
+                        <div className="rounded-[24px] border border-orange-400/30 bg-orange-500/10 p-4 space-y-3">
+                          <div>
+                            <h3 className="text-sm font-black text-orange-100">Missing-Proof Review</h3>
+                            <p className="text-xs font-bold text-orange-100/75">Required warnings appear first. You can still generate the Pro Report offline.</p>
+                          </div>
+                          <div className="space-y-2">
+                            {missingProofWarnings.map((warning) => (
+                              <div key={warning.stepId} className="rounded-2xl bg-slate-950/60 border border-white/10 p-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                  <div>
+                                    <div className="text-sm font-black text-white">{warning.title}</div>
+                                    <div className="text-[11px] font-bold text-slate-400">{warning.warning}</div>
+                                    <div className="mt-1 text-[9px] font-black uppercase tracking-widest text-orange-200">{warning.required ? 'Required' : 'Recommended'}</div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    <button onClick={() => captureMissingProof(warning)} className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest">Capture Missing Proof</button>
+                                    <button onClick={() => void markWarningNotNeeded(warning)} className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest">Mark Not Needed</button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <button onClick={() => void generateAnywayFromReview()} className="w-full min-h-12 rounded-2xl bg-white text-slate-950 text-xs font-black uppercase tracking-widest">
+                            Generate Anyway
+                          </button>
                         </div>
                       ) : null}
                       <button
-                        onClick={handleGenerateSelectedReport}
-                        disabled={generatingReport || inspectionReportBlocked}
+                        onClick={() => void handleGenerateSelectedReport()}
+                        disabled={generatingReport}
                         className="w-full min-h-14 bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:hover:bg-blue-600"
                       >
                         <Download size={18} /> {generatingReport ? t('jobDetail.generatingReport') : t('jobDetail.generateReport')}

@@ -31,6 +31,8 @@ function appReportLabel(reportKind: SiteProofReportType, language: SiteProofLang
         return 'CronologiaEvidenciaFotografica';
       case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
         return 'InformePagoEntregaFinal';
+      case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+        return 'InformeRegistroInternoOficina';
       case SiteProofReportType.ALL_REPORTS:
         return 'TodosLosInformes';
       default:
@@ -51,6 +53,8 @@ function appReportLabel(reportKind: SiteProofReportType, language: SiteProofLang
       return 'PhotoProofTimeline';
     case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
       return 'PaymentFinalHandoffReport';
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+      return 'OfficeInternalJobRecordProReport';
     case SiteProofReportType.ALL_REPORTS:
       return 'AllReports';
     default:
@@ -66,6 +70,7 @@ function reportNameParts(reportKind: ExportFileReportKind, language: SiteProofLa
     case SiteProofReportType.CHANGE_ORDER_EVIDENCE:
     case SiteProofReportType.PHOTO_PROOF_TIMELINE:
     case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
       return {
         label: appReportLabel(reportKind, language),
         title: translate(language, getReportDefinition(reportKind).titleKey),
