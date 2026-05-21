@@ -15,6 +15,8 @@ import {
   MoreVertical,
   Wrench,
   Languages,
+  Mail,
+  MessageSquare,
   ShieldCheck,
   Trash2,
   Zap,
@@ -47,6 +49,7 @@ import { JobDocumentQuickCapture } from './JobDocumentQuickCapture';
 import { MissingProofDetectionService, MissingProofWarning } from '../services/missingProofDetectionService';
 import { ProReportManifestBuilder } from '../services/proReportManifestBuilder';
 import { ProReportType } from '../templates/tradeTemplatePack.types';
+import { ReportShareService } from '../features/export/reportShareService';
 
 type DetailView = 'proof' | 'photos' | 'notes' | 'timeline' | 'export';
 
@@ -134,6 +137,7 @@ export function JobDetail() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [exportPackets, setExportPackets] = useState<ExportPacket[]>([]);
   const [signatures, setSignatures] = useState<SignatureRecord[]>([]);
+  const [shareRecipient, setShareRecipient] = useState('');
   const [documentCaptureSource, setDocumentCaptureSource] = useState<'setup' | 'checklist' | 'final' | null>(
     searchParams.get('document') === 'setup' ? 'setup' : null,
   );
@@ -285,6 +289,25 @@ export function JobDetail() {
     setShowMissingProofReview(false);
     setMissingProofWarnings([]);
     await handleGenerateSelectedReport(true);
+  }
+
+  async function sharePacket(packet: ExportPacket, channel: 'email' | 'sms') {
+    const recipient = shareRecipient.trim();
+    if (!recipient) {
+      alert(channel === 'email' ? 'Enter an email address first.' : 'Enter a phone number first.');
+      return;
+    }
+    const target = channel === 'email'
+      ? ReportShareService.buildEmailTarget(packet, job!, recipient)
+      : ReportShareService.buildSmsTarget(packet, job!, recipient);
+    if (!target) {
+      alert('This report does not have a share link yet. Create or sync a Cloud Proof Vault link before sending by email or SMS.');
+      return;
+    }
+    await ReportShareService.markShared(packet, target).catch((error) => console.warn('Report share status update failed:', error));
+    const nextExports = await ExportPacketService.getPacketHistory(job!.id);
+    setExportPackets(nextExports.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
+    window.location.href = target.href;
   }
 
   async function completeJob() {
@@ -612,17 +635,46 @@ export function JobDetail() {
                         <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">{t('jobDetail.history')}</h3>
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exportPackets.length} {t('jobDetail.savedLocallyCount')}</span>
                       </div>
+                      <label className="block mb-4">
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Email or SMS recipient</span>
+                        <input
+                          value={shareRecipient}
+                          onChange={(event) => setShareRecipient(event.target.value)}
+                          placeholder="email@example.com or phone number"
+                          className="w-full min-h-12 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-blue-400"
+                        />
+                      </label>
                       {exportPackets.length === 0 ? (
                         <p className="text-xs font-bold text-slate-500">{t('jobDetail.noPackets')}</p>
                       ) : (
                         <div className="space-y-3">
                           {exportPackets.slice(0, 5).map((packet) => (
-                            <div key={packet.export_id} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
+                            <div key={packet.export_id} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex flex-col gap-3">
                               <div>
                                 <div className="text-sm font-black text-white">{packet.title}</div>
                                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{format(new Date(packet.generated_at), 'MMM d, h:mm a')} • {packet.included_proof_ids.length} {t('jobDetail.proofItems')}</div>
                               </div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-green-300">{t('jobDetail.saved')}</span>
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-green-300">
+                                  {ReportShareService.canShareLink(packet) ? packet.share_status.replaceAll('_', ' ') : 'Saved locally - cloud link needed'}
+                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => void sharePacket(packet, 'email')}
+                                    disabled={!ReportShareService.canShareLink(packet)}
+                                    className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
+                                  >
+                                    <Mail size={14} /> Email Report
+                                  </button>
+                                  <button
+                                    onClick={() => void sharePacket(packet, 'sms')}
+                                    disabled={!ReportShareService.canShareLink(packet)}
+                                    className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
+                                  >
+                                    <MessageSquare size={14} /> SMS Link
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           ))}
                         </div>

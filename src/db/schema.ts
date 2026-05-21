@@ -110,7 +110,7 @@ export type ExportPacketType =
   | 'internal_record'
   | 'litigation_packet';
 
-export type ShareStatus = 'not_shared' | 'shared_link_created' | 'sent_email' | 'downloaded' | 'expired';
+export type ShareStatus = 'not_shared' | 'shared_link_created' | 'sent_email' | 'sent_sms' | 'downloaded' | 'expired';
 export type DeliveryStatus = 'not_sent' | 'queued' | 'sent' | 'opened' | 'downloaded' | 'failed';
 
 export type SyncEntityType =
