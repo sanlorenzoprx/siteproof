@@ -2,7 +2,7 @@
   "template_id": "generator_install_v1",
   "template_version": "1.0.0",
   "template_status": "active",
-  "trade": "electrical",
+  "trade_specialty": "electrical",
   "vertical": "generator_emergency_power",
   "job_type": "generator_install",
   "display_name": "Generator Install",
@@ -954,7 +954,7 @@
         {
           "checklist_id": "required_photos_reviewed",
           "display_name": "Required photos reviewed",
-          "description": "Confirm all required photos are captured before generating inspector packet.",
+          "description": "Confirm all required photos are captured before generating inspector report.",
           "priority": "required",
           "requires_note": false,
           "requires_signature": false,
@@ -968,8 +968,8 @@
             "es": "Fotos requeridas revisadas"
           },
           "description_i18n": {
-            "en": "Confirm all required photos are captured before generating inspector packet.",
-            "es": "Confirme que todas las fotos requeridas estén capturadas antes de generar el paquete para inspector."
+            "en": "Confirm all required photos are captured before generating inspector report.",
+            "es": "Confirme que todas las fotos requeridas estén capturadas antes de generar el reporte para inspector."
           }
         }
       ],
@@ -1089,7 +1089,7 @@
       "stage_id": "export_archive",
       "stage_key": "export_archive",
       "display_name": "Export / Archive",
-      "description": "Generate documentation packets and confirm local/offline archive status.",
+      "description": "Generate documentation reports and confirm local/offline archive status.",
       "sort_order": 60,
       "required": true,
       "can_skip": true,
@@ -1099,7 +1099,7 @@
       "checklist_items": [
         {
           "checklist_id": "customer_packet_generated",
-          "display_name": "Customer packet generated",
+          "display_name": "Customer report generated",
           "description": "Generate customer-facing completion documentation when appropriate.",
           "priority": "recommended",
           "requires_note": false,
@@ -1110,8 +1110,8 @@
             "internal_record"
           ],
           "display_name_i18n": {
-            "en": "Customer packet generated",
-            "es": "Paquete del cliente generado"
+            "en": "Customer report generated",
+            "es": "Reporte del cliente generado"
           },
           "description_i18n": {
             "en": "Generate customer-facing completion documentation when appropriate.",
@@ -1147,8 +1147,8 @@
         "es": "Exportar / Archivar"
       },
       "description_i18n": {
-        "en": "Generate documentation packets and confirm local/offline archive status.",
-        "es": "Genere paquetes de documentación y confirme el estado del archivo local/sin conexión."
+        "en": "Generate documentation reports and confirm local/offline archive status.",
+        "es": "Genere reportes de documentación y confirme el estado del archivo local/sin conexión."
       }
     }
   ],
@@ -1156,8 +1156,8 @@
     {
       "export_profile_id": "customer_packet_v1",
       "packet_type": "customer_packet",
-      "display_name": "Customer Packet",
-      "description": "Clean customer-facing completion packet.",
+      "display_name": "Customer Report",
+      "description": "Clean customer-facing completion report.",
       "default_enabled": true,
       "sections": [
         {
@@ -1204,8 +1204,8 @@
     {
       "export_profile_id": "inspector_packet_v1",
       "packet_type": "inspector_packet",
-      "display_name": "Inspector Packet",
-      "description": "Permit and inspection-ready documentation packet.",
+      "display_name": "Inspector Report",
+      "description": "Permit and inspection-ready documentation report.",
       "default_enabled": true,
       "sections": [
         {
@@ -1460,7 +1460,7 @@
       "rule_id": "required_proof_before_inspector_export",
       "rule_type": "missing_proof",
       "severity": "blocking",
-      "display_message": "Inspector packet requires all required inspector proof items before export.",
+      "display_message": "Inspector report requires all required inspector proof items before export.",
       "applies_to": [
         "inspector_packet"
       ],

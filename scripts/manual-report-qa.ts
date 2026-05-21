@@ -318,7 +318,7 @@ const fullAssembly: ExportAssembly = {
     company_id: 'qa-company',
     job_title: 'Generator install QA sample',
     job_type: 'Generator Install',
-    trade: 'electrical',
+    trade_specialty: 'electrical',
     status: 'active',
     template_id: 'generator_install_v1',
     template_version: '1.0.0',

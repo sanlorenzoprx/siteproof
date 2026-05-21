@@ -139,7 +139,7 @@ export class InspectionReadinessService {
             requirement_id: requirement.requirement_id,
             title: requirement.display_name,
             description: requirement.field_instruction,
-            recommended_action: requirement.capture_hint || 'Capture this required proof before generating the inspector packet.',
+            recommended_action: requirement.capture_hint || 'Capture this required proof before generating the inspector report.',
             created_at: nowIso(),
           };
           blockingItems.push(issue);

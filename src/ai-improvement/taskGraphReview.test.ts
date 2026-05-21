@@ -40,7 +40,7 @@ test('AI summary requests flag AI overreach and keep AI invisible', () => {
   assert.ok(result.implementationNotes.some((note) => note.includes('AI must stay invisible')));
 });
 
-test('trade-specific requests prefer template data', () => {
+test('specialty-specific requests prefer template data', () => {
   const result = evaluateTaskGraph({ request: 'Add generator install checklist with required photos.' });
   assert.ok(result.affectedModules.includes('workflow_templates'));
   assert.ok(result.affectedModules.includes('proof_objects'));

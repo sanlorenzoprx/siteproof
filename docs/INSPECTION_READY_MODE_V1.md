@@ -18,7 +18,7 @@ Inspection readiness is calculated from:
 - Workflow template proof requirements
 - Runtime workflow stage instances
 - Captured ProofObjects
-- Inspector packet export tags
+- Inspector report export tags
 - Required/recommended priority
 - GPS/timestamp requirements
 - Proof quality score
@@ -30,7 +30,7 @@ Job Detail now shows:
 - Inspection Ready score
 - Blocking missing proof grouped by stage
 - Warnings grouped by stage
-- Inspector Packet export blocking
+- Inspector Report export blocking
 - Guided capture links from missing proof items
 
 ## Guided capture

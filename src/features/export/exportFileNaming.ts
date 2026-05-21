@@ -73,15 +73,15 @@ function reportNameParts(reportKind: ExportFileReportKind, language: SiteProofLa
     case SiteProofReportType.ALL_REPORTS:
       return { label: appReportLabel(reportKind, language), title: translate(language, 'reports.allReports') };
     case ReportMode.CUSTOMER:
-      return { label: 'CustomerPacket', title: 'Customer Packet' };
+      return { label: 'CustomerReport', title: 'Customer Report' };
     case ReportMode.INSPECTOR:
-      return { label: 'InspectorPacket', title: 'Inspector Packet' };
+      return { label: 'InspectorReport', title: 'Inspector Report' };
     case ReportMode.WARRANTY:
-      return { label: 'WarrantyPacket', title: 'Warranty Documentation Packet' };
+      return { label: 'WarrantyReport', title: 'Warranty Documentation Report' };
     case ReportMode.DISPUTE:
-      return { label: 'DisputePacket', title: 'Dispute Packet' };
+      return { label: 'DisputeReport', title: 'Dispute Report' };
     case ReportMode.HANDOFF:
-      return { label: 'HandoffPacket', title: 'Crew Handoff Packet' };
+      return { label: 'HandoffReport', title: 'Crew Handoff Report' };
     default:
       return { label: 'InternalRecord', title: 'Internal Record' };
   }
@@ -103,11 +103,11 @@ export function packetTitle(reportKind: ExportFileReportKind, language: SiteProo
     case ReportMode.INSPECTOR:
       return translate(language, 'jobDetail.inspectorPacket');
     case ReportMode.WARRANTY:
-      return 'Warranty Documentation Packet';
+      return 'Warranty Documentation Report';
     case ReportMode.DISPUTE:
       return translate(language, 'jobDetail.disputePack');
     case ReportMode.HANDOFF:
-      return 'Crew Handoff Packet';
+      return 'Crew Handoff Report';
     default:
       return translate(language, 'jobDetail.internalRecord');
   }

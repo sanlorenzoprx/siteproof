@@ -11,8 +11,8 @@ This update replaces the previous Job Detail proof tab with a stage-first field 
 - Capture buttons route directly to camera or voice note flows with the requirement label.
 - Proof progress is based on runtime ProofObject completion, not only legacy photo categories.
 - Missing required proof appears as a clear field-friendly warning.
-- Export view now separates Customer Packet, Inspector Packet, Internal Record, and Dispute Pack.
-- Inspector Packet is blocked until required proof is complete.
+- Export view now separates Customer Report, Inspector Report, Internal Record, and Dispute Report.
+- Inspector Report is blocked until required proof is complete.
 - Removed field-user-facing language like protocol, sovereign data, and audit ledger from the primary job screen.
 
 ## Runtime flow

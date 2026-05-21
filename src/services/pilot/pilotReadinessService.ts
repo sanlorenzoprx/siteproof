@@ -128,7 +128,7 @@ export class PilotReadinessService {
         label: 'Export readiness',
         status: jobs.length > 0 ? 'pass' : 'warn',
         detail: jobs.length > 0 ? 'At least one job exists for export smoke testing.' : 'No jobs exist yet.',
-        action: jobs.length > 0 ? undefined : 'Create a sample generator install job and generate a customer packet.',
+        action: jobs.length > 0 ? undefined : 'Create a sample generator install job and generate a customer report.',
       },
     ];
 

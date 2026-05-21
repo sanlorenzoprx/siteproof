@@ -73,7 +73,7 @@ function assembly(proofBundles: ExportProofBundle[]): ExportAssembly {
       company_id: 'company-1',
       job_title: 'Generator',
       job_type: 'Generator Install',
-      trade: 'electrical',
+      trade_specialty: 'electrical',
       status: 'active',
       template_id: 'generator_install_v1',
       template_version: '1.0.0',

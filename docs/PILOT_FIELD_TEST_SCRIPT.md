@@ -36,11 +36,11 @@ Pass if material/issue/change-order fields are populated or the raw note is save
 
 ## Test 5 — Export
 
-1. Generate customer packet.
-2. Try inspector packet with missing proof.
+1. Generate customer report.
+2. Try inspector report with missing proof.
 3. Confirm inspector export blocks or warns correctly.
 
-Pass if customer packet generates and inspector packet respects readiness rules.
+Pass if customer report generates and inspector report respects readiness rules.
 
 ## Test 6 — Offline survival
 

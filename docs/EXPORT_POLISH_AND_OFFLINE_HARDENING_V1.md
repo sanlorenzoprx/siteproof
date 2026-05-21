@@ -2,11 +2,11 @@
 
 ## Added
 
-- Branded customer/inspector/internal/dispute packet file naming.
+- Branded customer/inspector/internal/dispute report file naming.
 - Export packet history records saved through the runtime export repository.
 - Cleaner PDF cover language by packet type.
 - Timeline section added to generated PDFs.
-- Inspector/customer packet labels added to PDF cover.
+- Inspector/customer report labels added to PDF cover.
 - Offline status service with online/offline listeners.
 - Offline banner for field crews.
 - PWA service worker registration.

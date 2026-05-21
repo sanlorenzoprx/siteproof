@@ -50,8 +50,8 @@ Before handing the app to a contractor:
 - [ ] Sample generator job can be created
 - [ ] Required photo can be captured
 - [ ] Voice note can be recorded
-- [ ] Customer packet can be generated
-- [ ] Inspector packet blocks when proof is missing
+- [ ] Customer report can be generated
+- [ ] Inspector report blocks when proof is missing
 - [ ] Timeline shows photo/note/export events
 - [ ] Airplane-mode reopen preserves job/media/notes
 - [ ] Sync queue displays pending operations clearly
@@ -71,12 +71,12 @@ Start with 1 to 3 friendly users and 1 workflow:
 Generator Install / Electrical Documentation
 ```
 
-Do not pilot all trades yet.
+Do not pilot all specialties yet.
 
 ## Pilot success signals
 
 - Crew can complete documentation without training-heavy support.
-- Customer/inspector packet looks professional enough to send.
+- Customer/inspector report looks professional enough to send.
 - App survives airplane-mode use.
 - Crew understands missing-proof warnings.
 - Timeline helps explain what happened on the job.

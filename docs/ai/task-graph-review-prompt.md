@@ -18,7 +18,7 @@ Convert the request into a dependency-aware plan that answers:
 - Domain/data schema work runs before UI or export work.
 - Export work depends on stable proof, media, workflow, and timeline data.
 - Sync work depends on durable offline storage and conflict-safe IDs.
-- Trade-specific behavior should become workflow template data before custom code.
+- Specialty-specific behavior should become workflow template data before custom code.
 - Bilingual requirements must be planned with the feature, not deferred to a later cleanup branch.
 - User-facing UI work must account for `uiLanguage`; capture work must preserve `captureLanguage`; export work must preserve `exportLanguage`.
 - AI should remain invisible to field users unless explicitly justified.
