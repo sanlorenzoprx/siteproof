@@ -5,6 +5,7 @@ export * from './workflowStageRepository';
 export * from './workflowLearningEventRepository';
 export * from './proofRepository';
 export * from './mediaRepository';
+export * from './jobDocumentsRepository';
 export * from './templateRepository';
 export * from './voiceNoteRepository';
 export * from './timelineRepository';

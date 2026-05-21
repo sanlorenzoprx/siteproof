@@ -1,7 +1,7 @@
 import { STORE_NAMES, StoreName } from './schema';
 
 export const DB_NAME = 'siteproof_offline_db';
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 
 export const KEY_PATHS: Record<StoreName, string> = {
   company_profiles: 'company_id',
@@ -11,6 +11,7 @@ export const KEY_PATHS: Record<StoreName, string> = {
   workflow_stage_instances: 'stage_instance_id',
   proof_objects: 'proof_id',
   media_assets: 'media_id',
+  job_documents: 'document_id',
   voice_notes: 'voice_note_id',
   timeline_events: 'event_id',
   export_packets: 'export_id',
@@ -74,6 +75,18 @@ const INDEXES: Record<StoreName, Array<{ name: string; keyPath: string | string[
     { name: 'job_id', keyPath: 'job_id' },
     { name: 'upload_state', keyPath: 'upload_state' },
     { name: 'sync_state', keyPath: 'sync_state' },
+    { name: 'created_at', keyPath: 'created_at' },
+  ],
+  job_documents: [
+    { name: 'job_id', keyPath: 'job_id' },
+    { name: 'workflow_step_id', keyPath: 'workflow_step_id' },
+    { name: 'proof_object_id', keyPath: 'proof_object_id' },
+    { name: 'media_asset_id', keyPath: 'media_asset_id' },
+    { name: 'document_type', keyPath: 'document_type' },
+    { name: 'document_sync_state', keyPath: 'document_sync_state' },
+    { name: 'sync_state', keyPath: 'sync_state' },
+    { name: 'report_tags', keyPath: 'report_tags', options: { multiEntry: true } },
+    { name: 'inspection_tags', keyPath: 'inspection_tags', options: { multiEntry: true } },
     { name: 'created_at', keyPath: 'created_at' },
   ],
   voice_notes: [

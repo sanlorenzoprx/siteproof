@@ -4,6 +4,7 @@ export type ProReportType =
   | "change_order_evidence"
   | "payment_handoff"
   | "photo_timeline"
+  | "office_internal_record"
   | "all_pro_reports";
 
 export type ProofType =
