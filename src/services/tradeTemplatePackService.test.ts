@@ -9,6 +9,17 @@ test("loads and validates all bundled trade template packs", () => {
   assert.deepEqual(TradeTemplatePackService.validateAllPacks(), { valid: true, errors: [] });
 });
 
+test("every bundled pack maps office internal job record as a first-class Pro Report", () => {
+  for (const pack of TradeTemplatePackService.getAllPacks()) {
+    const mapping = pack.reportMappings.find((item) => item.reportType === "office_internal_record");
+    assert.ok(mapping, `${pack.packId} is missing office_internal_record`);
+    assert.equal(mapping?.title, "Office / Internal Job Record Pro Report");
+    assert.equal(mapping?.includeDocuments, true);
+    assert.equal(mapping?.includeStructuredVoiceNotes, true);
+    assert.equal(mapping?.includeMissingProofWarnings, true);
+  }
+});
+
 test("every bundled pack includes an inspection proof section", () => {
   for (const pack of TradeTemplatePackService.getAllPacks()) {
     assert.ok(

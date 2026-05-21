@@ -28,6 +28,7 @@ const ENTITY_STORE: Partial<Record<SyncOperation['entity_type'], { store: StoreN
   workflow_stage_instance: { store: 'workflow_stage_instances', idField: 'stage_instance_id' },
   proof_object: { store: 'proof_objects', idField: 'proof_id' },
   media_asset: { store: 'media_assets', idField: 'media_id' },
+  job_document: { store: 'job_documents', idField: 'document_id' },
   voice_note: { store: 'voice_notes', idField: 'voice_note_id' },
   timeline_event: { store: 'timeline_events', idField: 'event_id' },
   export_packet: { store: 'export_packets', idField: 'export_id' },

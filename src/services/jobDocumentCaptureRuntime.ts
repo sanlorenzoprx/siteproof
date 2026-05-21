@@ -1,6 +1,5 @@
-import { mediaRepository } from '../db/repositories/mediaRepository';
-import { proofRepository } from '../db/repositories/proofRepository';
-import { ProofObject } from '../db/schema';
+import { JobDocument, JobDocumentSourceType, JobDocumentType } from '../db/schema';
+import { JobDocumentAdapter } from './jobDocumentAdapter';
 
 export class JobDocumentCaptureRuntime {
   static async captureDocument(input: {
@@ -10,42 +9,34 @@ export class JobDocumentCaptureRuntime {
     fileName?: string;
     mimeType?: string;
     fileSize?: number;
+    documentType?: JobDocumentType;
+    sourceType?: JobDocumentSourceType;
     stepId?: string;
     stageInstanceId?: string;
+    trade?: string;
+    specialty?: string;
+    jurisdictionId?: string;
     reportTags?: string[];
     inspectionTags?: string[];
     permitTags?: string[];
     notes?: string;
-  }): Promise<ProofObject> {
-    const proof = await proofRepository.createProof({
-      job_id: input.jobId,
-      stage_instance_id: input.stageInstanceId ?? null,
-      requirement_id: input.stepId ?? 'job_document',
-      proof_type: 'document',
+  }): Promise<JobDocument> {
+    return JobDocumentAdapter.create({
+      jobId: input.jobId,
+      workflowStepId: input.stepId,
+      documentType: input.documentType ?? (input.permitTags?.[0] as JobDocumentType | undefined) ?? 'permit_document',
+      sourceType: input.sourceType ?? (input.localUri ? 'camera_capture' : 'manual_note'),
       title: input.title,
-      description: input.notes ?? null,
-      required_flag: false,
-      priority: 'recommended',
-      inspection_tags: input.inspectionTags ?? ['inspection_document'],
-      permit_tags: input.permitTags ?? ['permit_document'],
-      export_tags: input.reportTags ?? ['inspection_readiness', 'office_ready'],
-      notes: input.notes ?? null,
-      metadata: { capture_runtime: 'job_document_capture', offline_first: true },
+      localUri: input.localUri,
+      fileName: input.fileName,
+      mimeType: input.mimeType,
+      fileSize: input.fileSize,
+      userNote: input.notes,
+      trade: input.trade,
+      specialty: input.specialty,
+      jurisdictionId: input.jurisdictionId,
+      reportTags: input.reportTags,
+      inspectionTags: input.inspectionTags,
     });
-
-    if (input.localUri) {
-      await mediaRepository.createMedia({
-        proof_id: proof.proof_id,
-        job_id: input.jobId,
-        local_uri: input.localUri,
-        mime_type: input.mimeType ?? 'application/octet-stream',
-        file_name: input.fileName ?? input.title,
-        file_size: input.fileSize ?? 0,
-        compression_state: 'not_needed',
-        upload_state: 'local_only',
-      });
-    }
-
-    return proof;
   }
 }

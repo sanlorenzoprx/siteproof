@@ -180,6 +180,9 @@ export function filterProofBundlesForReport(
     case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
       selected = candidates.filter(isPaymentRelevant);
       break;
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+      selected = candidates;
+      break;
     default:
       selected = candidates.filter((bundle) => hasExportTag(bundle, definition.proofFilterTags));
       break;

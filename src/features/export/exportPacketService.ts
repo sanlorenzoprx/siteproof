@@ -24,6 +24,8 @@ export function reportTypeToPacketType(reportType: SiteProofReportType): ExportP
       return 'photo_proof_timeline';
     case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
       return 'payment_final_handoff_report';
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+      return 'internal_record';
     case SiteProofReportType.ALL_REPORTS:
       return 'all_reports';
     default:
@@ -51,13 +53,13 @@ export class ExportPacketService {
    * Export v2: record packets from canonical runtime entities.
    * The included_proof_ids field now contains ProofObject IDs, not legacy photo/note IDs.
    */
-  static async recordGeneratedPacketFromAssembly(assembly: ExportAssembly, reportKind: ExportFileReportKind, manifest?: ExportIntegrityManifest, exportLanguage: SiteProofLanguage = 'en') {
+  static async recordGeneratedPacketFromAssembly(assembly: ExportAssembly, reportKind: ExportFileReportKind, manifest?: ExportIntegrityManifest, exportLanguage: SiteProofLanguage = 'en', localFileUri?: string) {
     const fileName = buildExportFileName(assembly.legacyJob, reportKind, exportLanguage);
     const exportPacket = await exportRepository.createExport({
       job_id: assembly.runtimeJob.job_id,
       packet_type: assembly.packetType,
       title: packetTitle(reportKind, exportLanguage),
-      local_file_uri: `siteproof://exports/${assembly.runtimeJob.job_id}/${fileName}`,
+      local_file_uri: localFileUri ?? `siteproof://exports/${assembly.runtimeJob.job_id}/${fileName}`,
       cloud_file_uri: null,
       included_proof_ids: assembly.selectedProofIds,
       included_sections: assembly.includedSections,
@@ -88,6 +90,7 @@ export class ExportPacketService {
     includedSections: string[],
     manifest?: ExportIntegrityManifest,
     exportLanguage: SiteProofLanguage = 'en',
+    localFileUri?: string,
   ) {
     const fileName = buildExportFileName(assembly.legacyJob, SiteProofReportType.ALL_REPORTS, exportLanguage);
     const uniqueProofIds = [...new Set(includedProofIds)];
@@ -95,7 +98,7 @@ export class ExportPacketService {
       job_id: assembly.runtimeJob.job_id,
       packet_type: 'all_reports',
       title: packetTitle(SiteProofReportType.ALL_REPORTS, exportLanguage),
-      local_file_uri: `siteproof://exports/${assembly.runtimeJob.job_id}/${fileName}`,
+      local_file_uri: localFileUri ?? `siteproof://exports/${assembly.runtimeJob.job_id}/${fileName}`,
       cloud_file_uri: null,
       included_proof_ids: uniqueProofIds,
       included_sections: includedSections,

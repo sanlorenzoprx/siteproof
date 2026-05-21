@@ -1,5 +1,5 @@
 import { BaseRepository } from './baseRepository';
-import { ExportPacket, ExportPacketType, baseSyncFields, baseTimestampFields, newId, nowIso } from '../schema';
+import { ExportPacket, ExportPacketType, ShareStatus, baseSyncFields, baseTimestampFields, newId, nowIso } from '../schema';
 
 export type CreateExportInput = Omit<ExportPacket, 'export_id' | 'created_at' | 'updated_at' | 'deleted_at' | 'sync_state' | 'local_version' | 'remote_version' | 'last_synced_at' | 'generated_at' | 'share_status' | 'sent_to'> & {
   generated_at?: string;
@@ -27,6 +27,17 @@ class ExportRepository extends BaseRepository<ExportPacket> {
 
   getByJob(jobId: string): Promise<ExportPacket[]> {
     return this.getByIndex('job_id', jobId);
+  }
+
+  async markShared(exportId: string, shareStatus: ShareStatus, recipient?: string): Promise<ExportPacket | undefined> {
+    const packet = await this.getById(exportId);
+    if (!packet) return undefined;
+    return this.put({
+      ...packet,
+      share_status: shareStatus,
+      sent_to: recipient ? [...new Set([...packet.sent_to, recipient])] : packet.sent_to,
+      delivery_status: shareStatus === 'sent_email' || shareStatus === 'sent_sms' ? 'queued' : packet.delivery_status,
+    });
   }
 }
 

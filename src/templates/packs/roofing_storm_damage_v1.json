@@ -490,6 +490,26 @@
       "includeMissingProofWarnings": false
     },
     {
+      "reportType": "office_internal_record",
+      "title": "Office / Internal Job Record Pro Report",
+      "includedReportTags": [
+        "office_ready",
+        "internal_record",
+        "inspection_readiness",
+        "customer_completion",
+        "change_order_evidence",
+        "payment_handoff"
+      ],
+      "includedInspectionTags": [
+        "permit",
+        "inspection_document",
+        "final_inspection"
+      ],
+      "includeDocuments": true,
+      "includeStructuredVoiceNotes": true,
+      "includeMissingProofWarnings": true
+    },
+    {
       "reportType": "all_pro_reports",
       "title": "All Pro Reports",
       "includedReportTags": [

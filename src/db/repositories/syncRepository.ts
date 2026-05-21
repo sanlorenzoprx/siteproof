@@ -124,6 +124,7 @@ function getOperationPriority(op: SyncOperation): number {
   if (op.entity_type === 'job') return 10;
   if (op.entity_type === 'workflow_stage_instance') return 20;
   if (op.entity_type === 'proof_object') return 30;
+  if (op.entity_type === 'job_document') return 35;
   if (op.entity_type === 'media_asset' && op.operation_type === 'upload_media') return 40;
   if (op.entity_type === 'voice_note') return 50;
   if (op.entity_type === 'timeline_event') return 60;

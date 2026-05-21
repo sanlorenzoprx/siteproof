@@ -110,7 +110,7 @@ export type ExportPacketType =
   | 'internal_record'
   | 'litigation_packet';
 
-export type ShareStatus = 'not_shared' | 'shared_link_created' | 'sent_email' | 'downloaded' | 'expired';
+export type ShareStatus = 'not_shared' | 'shared_link_created' | 'sent_email' | 'sent_sms' | 'downloaded' | 'expired';
 export type DeliveryStatus = 'not_sent' | 'queued' | 'sent' | 'opened' | 'downloaded' | 'failed';
 
 export type SyncEntityType =
@@ -124,6 +124,7 @@ export type SyncEntityType =
   | 'timeline_event'
   | 'export_packet'
   | 'change_order_candidate'
+  | 'job_document'
   | 'workflow_learning_event';
 
 export type SyncOperationType = 'create' | 'update' | 'delete' | 'upload_media' | 'upload_export' | 'resolve_conflict';
@@ -423,6 +424,48 @@ export interface WorkflowLearningEvent extends TimestampFields, SyncFields {
   metadata?: Record<string, unknown>;
 }
 
+export type JobDocumentType =
+  | 'permit_document'
+  | 'inspection_card'
+  | 'utility_approval'
+  | 'code_correction_notice'
+  | 'plan_page'
+  | 'engineer_letter'
+  | 'manufacturer_installation_instructions'
+  | 'ahj_notes'
+  | 'inspector_punch_list'
+  | 'customer_authorization'
+  | 'change_order_approval'
+  | 'other';
+
+export type JobDocumentSourceType = 'camera_capture' | 'file_upload' | 'manual_note';
+export type JobDocumentSyncState = 'local_only' | 'pending_sync' | 'synced' | 'sync_failed';
+
+export interface JobDocument extends TimestampFields, SyncFields {
+  document_id: string;
+  job_id: string;
+  workflow_step_id?: string | null;
+  proof_object_id?: string | null;
+  media_asset_id?: string | null;
+  document_type: JobDocumentType;
+  source_type: JobDocumentSourceType;
+  local_uri?: string | null;
+  file_name?: string | null;
+  mime_type?: string | null;
+  user_note?: string | null;
+  extracted_text?: string | null;
+  trade?: string | null;
+  specialty?: string | null;
+  jurisdiction_id?: string | null;
+  timestamp: string;
+  gps_latitude?: number | null;
+  gps_longitude?: number | null;
+  gps_accuracy?: number | null;
+  report_tags: string[];
+  inspection_tags: string[];
+  document_sync_state: JobDocumentSyncState;
+}
+
 export interface JurisdictionProfile {
   jurisdiction_id: string;
   zip: string;
@@ -517,6 +560,7 @@ export type StoreName =
   | 'workflow_stage_instances'
   | 'proof_objects'
   | 'media_assets'
+  | 'job_documents'
   | 'voice_notes'
   | 'timeline_events'
   | 'export_packets'
@@ -536,6 +580,7 @@ export const STORE_NAMES: StoreName[] = [
   'workflow_stage_instances',
   'proof_objects',
   'media_assets',
+  'job_documents',
   'voice_notes',
   'timeline_events',
   'export_packets',

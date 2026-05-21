@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { JobWorkflowService } from '../services/jobWorkflowService';
 import { TemplateCatalogService } from '../services/templateCatalogService';
 import { TradeTemplatePackService } from '../services/tradeTemplatePackService';
-import { ArrowLeft, Check, Info } from 'lucide-react';
+import { ArrowLeft, FileText, Info } from 'lucide-react';
 import { JobStatus } from '../types';
 import { VoiceDictation } from './VoiceDictation';
 import { useSettings } from '../contexts/SettingsContext';
@@ -28,8 +28,7 @@ export function CreateJob() {
     specialty: 'Generator Install'
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function createJob(openDocumentCapture: boolean) {
     if (!form.customerName || !form.address) return;
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
@@ -55,7 +54,12 @@ export function CreateJob() {
       status: 'ACTIVE' as JobStatus,
     });
     setLoading(false);
-    navigate(`/job/${newJob.id}`);
+    navigate(`/job/${newJob.id}${openDocumentCapture ? '?document=setup' : ''}`);
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createJob(false);
   };
 
   return (
@@ -190,6 +194,15 @@ export function CreateJob() {
             {t('jobs.createHelp')}
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => void createJob(true)}
+          disabled={loading}
+          className="w-full bg-white border border-blue-200 text-blue-700 py-5 rounded-[28px] text-sm font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <FileText size={18} /> Start Job + Add Permit / Inspection Document
+        </button>
 
         <button
           type="submit"

@@ -140,6 +140,22 @@ export const REPORT_DEFINITIONS: Record<(typeof APP_REPORT_TYPES)[number], Repor
     includeChecklist: false,
     includeTimeline: false,
   },
+  [SiteProofReportType.OFFICE_INTERNAL_RECORD]: {
+    type: SiteProofReportType.OFFICE_INTERNAL_RECORD,
+    titleKey: 'reports.officeInternalRecord',
+    fallbackTitle: 'Office / Internal Job Record Pro Report',
+    audience: 'office',
+    purpose: 'Internal documentation for admin, billing, job records, inspection history, and office review.',
+    sections: ['cover', 'summary', 'daily_work', 'checklist', 'photo_grid', 'voice_notes', 'timeline', 'open_items', 'integrity_manifest'],
+    proofFilter: 'timeline_all',
+    fallbackProofFilter: 'timeline_all',
+    proofFilterTags: ['office_ready', 'internal_record', 'inspection_readiness', 'customer_completion', 'change_order_evidence', 'payment_handoff'],
+    fallbackProofTags: ['internal_record'],
+    includeIntegrityManifest: true,
+    includeSignature: false,
+    includeChecklist: true,
+    includeTimeline: true,
+  },
 };
 
 export function getReportDefinition(reportType: SiteProofReportType): ReportDefinition {

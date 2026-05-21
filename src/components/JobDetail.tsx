@@ -15,6 +15,8 @@ import {
   MoreVertical,
   Wrench,
   Languages,
+  Mail,
+  MessageSquare,
   ShieldCheck,
   Trash2,
   Zap,
@@ -24,8 +26,8 @@ import { SiteProofDataService } from '../services/siteProofDataService';
 import { PdfService } from '../services/pdfService';
 import { APP_REPORT_TYPES, SiteProofReportType } from '../features/export/reportTypes';
 import { Job, JobPhoto, VoiceNote } from '../types';
-import { RuntimeSnapshot } from '../services/runtimeOrchestrator';
-import { ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
+import { RuntimeOrchestrator, RuntimeSnapshot } from '../services/runtimeOrchestrator';
+import { ChecklistItem, ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
 import { TemplateCatalogService } from '../services/templateCatalogService';
 import { cn } from '../lib/utils';
 import { ReportLanguageToggle } from './reports/ReportLanguageToggle';
@@ -38,11 +40,17 @@ import { ReadyForInspectionBanner } from './inspection/ReadyForInspectionBanner'
 import { InspectionIssue } from '../features/inspection/inspectionReadinessService';
 import { ExportPacketService } from '../features/export/exportPacketService';
 import { ExportPacket } from '../db/schema';
+import { proofRepository } from '../db/repositories/proofRepository';
 import { MediaPipelineService } from '../services/mediaPipelineService';
 import { TimelinePlayback } from './timeline/TimelinePlayback';
 import { LicenseService } from '../services/licenseService';
 import { SignaturePad } from './SignaturePad';
 import { SignatureRecord, SignatureService } from '../services/signatureService';
+import { JobDocumentQuickCapture } from './JobDocumentQuickCapture';
+import { MissingProofDetectionService, MissingProofWarning } from '../services/missingProofDetectionService';
+import { ProReportManifestBuilder } from '../services/proReportManifestBuilder';
+import { ProReportType } from '../templates/tradeTemplatePack.types';
+import { ReportShareService } from '../features/export/reportShareService';
 
 type DetailView = 'proof' | 'photos' | 'notes' | 'timeline' | 'export';
 
@@ -92,6 +100,27 @@ function priorityBadge(requirement: ProofRequirement, t: (key: string) => string
   return t('jobDetail.optional');
 }
 
+function toProReportType(reportType: SiteProofReportType): ProReportType {
+  switch (reportType) {
+    case SiteProofReportType.CUSTOMER_COMPLETION:
+      return 'customer_completion';
+    case SiteProofReportType.INSPECTION_READINESS:
+      return 'inspection_readiness';
+    case SiteProofReportType.CHANGE_ORDER_EVIDENCE:
+      return 'change_order_evidence';
+    case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
+      return 'payment_handoff';
+    case SiteProofReportType.PHOTO_PROOF_TIMELINE:
+      return 'photo_timeline';
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+      return 'office_internal_record';
+    case SiteProofReportType.ALL_REPORTS:
+      return 'all_pro_reports';
+    default:
+      return 'office_internal_record';
+  }
+}
+
 export function JobDetail() {
   const { settings, t } = useSettings();
   const { id } = useParams<{ id: string }>();
@@ -109,6 +138,12 @@ export function JobDetail() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [exportPackets, setExportPackets] = useState<ExportPacket[]>([]);
   const [signatures, setSignatures] = useState<SignatureRecord[]>([]);
+  const [shareRecipient, setShareRecipient] = useState('');
+  const [documentCaptureSource, setDocumentCaptureSource] = useState<'setup' | 'checklist' | 'final' | null>(
+    searchParams.get('document') === 'setup' ? 'setup' : null,
+  );
+  const [missingProofWarnings, setMissingProofWarnings] = useState<MissingProofWarning[]>([]);
+  const [showMissingProofReview, setShowMissingProofReview] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -201,15 +236,25 @@ export function JobDetail() {
 
   if (!job || !template) return null;
 
-  async function handleGenerateSelectedReport() {
+  async function handleGenerateSelectedReport(skipMissingProofReview = false) {
     const licenseState = await LicenseService.getLicenseState();
     if (!LicenseService.canGenerateReport(licenseState)) {
       alert(t('license.trialEndedMessage'));
       navigate('/license');
       return;
     }
+    if (!skipMissingProofReview) {
+      const warnings = await MissingProofDetectionService.getWarnings(job!);
+      if (warnings.length > 0) {
+        setMissingProofWarnings(warnings.sort((a, b) => Number(b.required) - Number(a.required)));
+        setShowMissingProofReview(true);
+        setActiveView('export');
+        return;
+      }
+    }
     setGeneratingReport(true);
     try {
+      await ProReportManifestBuilder.build(job!, toProReportType(selectedReportType));
       const signatureDataUrl = signatures.find((signature) => signature.signerRole === 'customer')?.signatureDataUrl;
       if (selectedReportType === SiteProofReportType.ALL_REPORTS) {
         await PdfService.generateAllAppReports(job!, settings.exportLanguage, {}, signatureDataUrl);
@@ -224,6 +269,68 @@ export function JobDetail() {
     } finally {
       setGeneratingReport(false);
     }
+  }
+
+  function captureMissingProof(warning: MissingProofWarning) {
+    setShowMissingProofReview(false);
+    navigate(`/job/${job!.id}/camera?category=${encodeURIComponent(warning.title)}&requirementId=${encodeURIComponent(warning.stepId)}&returnTab=export`);
+  }
+
+  async function markWarningNotNeeded(warning: MissingProofWarning) {
+    await MissingProofDetectionService.markNotNeeded(job!, warning.stepId, 'Marked not needed during pre-report review.');
+    setMissingProofWarnings((current) => current.filter((item) => item.stepId !== warning.stepId));
+  }
+
+  async function generateAnywayFromReview() {
+    await Promise.all(
+      missingProofWarnings.map((warning) =>
+        MissingProofDetectionService.generateAnyway(job!, warning.stepId, 'Missing-proof warning ignored before Pro Report generation.'),
+      ),
+    );
+    setShowMissingProofReview(false);
+    setMissingProofWarnings([]);
+    await handleGenerateSelectedReport(true);
+  }
+
+  async function sharePacket(packet: ExportPacket, channel: 'email' | 'sms') {
+    const recipient = shareRecipient.trim();
+    if (!recipient) {
+      alert(channel === 'email' ? 'Enter an email address first.' : 'Enter a phone number first.');
+      return;
+    }
+    const target = channel === 'email'
+      ? ReportShareService.buildEmailTarget(packet, job!, recipient)
+      : ReportShareService.buildSmsTarget(packet, job!, recipient);
+    if (!target) {
+      alert('This report does not have a share link yet. Create or sync a Cloud Proof Vault link before sending by email or SMS.');
+      return;
+    }
+    await ReportShareService.markShared(packet, target).catch((error) => console.warn('Report share status update failed:', error));
+    const nextExports = await ExportPacketService.getPacketHistory(job!.id);
+    setExportPackets(nextExports.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
+    window.location.href = target.href;
+  }
+
+  async function completeChecklistItem(stage: WorkflowStageTemplate, item: ChecklistItem) {
+    const runtimeStage = stageRuntimeByTemplateId.get(stage.stage_id);
+    await proofRepository.createProof({
+      job_id: job!.id,
+      stage_instance_id: runtimeStage?.stage_instance_id ?? null,
+      requirement_id: item.checklist_id,
+      proof_type: 'checklist_item',
+      title: item.display_name,
+      description: item.description,
+      required_flag: item.blocks_stage_completion,
+      priority: item.priority,
+      export_tags: item.export_tags,
+      notes: null,
+      metadata: {
+        checklist_item: true,
+        blocks_stage_completion: item.blocks_stage_completion,
+      },
+    });
+    const snapshot = await RuntimeOrchestrator.recomputeJobCompletion(job!.id);
+    setRuntimeSnapshot(snapshot);
   }
 
   async function completeJob() {
@@ -329,6 +436,15 @@ export function JobDetail() {
               <QualityWarningsPanel groupedItems={readiness.grouped_warning_items} />
             ) : null}
 
+            {documentCaptureSource === 'setup' ? (
+              <JobDocumentQuickCapture
+                job={job}
+                source="setup"
+                onSaved={() => setDocumentCaptureSource(null)}
+                onClose={() => setDocumentCaptureSource(null)}
+              />
+            ) : null}
+
             <div className="flex gap-2 p-1.5 bg-slate-200/60 rounded-2xl w-fit overflow-x-auto no-scrollbar">
               {[
                 { id: 'proof', label: t('jobDetail.proof') },
@@ -352,6 +468,22 @@ export function JobDetail() {
 
             {activeView === 'proof' && (
               <section className="space-y-5">
+                {documentCaptureSource === 'checklist' ? (
+                  <JobDocumentQuickCapture
+                    job={job}
+                    source="checklist"
+                    stepId="permit_or_inspection_document"
+                    onSaved={() => setDocumentCaptureSource(null)}
+                    onClose={() => setDocumentCaptureSource(null)}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setDocumentCaptureSource('checklist')}
+                    className="w-full bg-blue-50 border border-blue-100 text-blue-700 p-5 rounded-[28px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
+                  >
+                    <FileText size={18} /> Add Permit / Inspection Document
+                  </button>
+                )}
                 {visibleStages.map((stage, index) => (
                   <WorkflowStageCard
                     key={stage.stage_id}
@@ -363,6 +495,7 @@ export function JobDetail() {
                     expanded={expandedStages[stage.stage_id] ?? false}
                     onToggle={() => setExpandedStages((current) => ({ ...current, [stage.stage_id]: !(current[stage.stage_id] ?? false) }))}
                     onCapture={(requirement) => navigate(requirementCapturePath(job.id, requirement, stage.stage_id))}
+                    onCompleteChecklistItem={(item) => void completeChecklistItem(stage, item)}
                     t={t}
                   />
                 ))}
@@ -447,6 +580,14 @@ export function JobDetail() {
                     <p className="text-sm font-bold text-slate-400 max-w-xl mb-8">
                       {t('jobDetail.exportHelp')}
                     </p>
+                    <div className="mb-5">
+                      <JobDocumentQuickCapture
+                        job={job}
+                        source="final"
+                        stepId="final_document_check"
+                        onSaved={() => setDocumentCaptureSource(null)}
+                      />
+                    </div>
                     <div className="bg-white/5 border border-white/10 rounded-[28px] p-5 space-y-4">
                       <label className="block">
                         <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('jobDetail.reportType')}</span>
@@ -464,12 +605,40 @@ export function JobDetail() {
                       </label>
                       {inspectionReportBlocked ? (
                         <div className="rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-xs font-bold text-orange-100">
-                          {t('jobDetail.inspectionReportBlocked')}
+                          Missing proof will be reviewed before generation. You can capture it, mark it not needed, or generate anyway.
+                        </div>
+                      ) : null}
+                      {showMissingProofReview ? (
+                        <div className="rounded-[24px] border border-orange-400/30 bg-orange-500/10 p-4 space-y-3">
+                          <div>
+                            <h3 className="text-sm font-black text-orange-100">Missing-Proof Review</h3>
+                            <p className="text-xs font-bold text-orange-100/75">Required warnings appear first. You can still generate the Pro Report offline.</p>
+                          </div>
+                          <div className="space-y-2">
+                            {missingProofWarnings.map((warning) => (
+                              <div key={warning.stepId} className="rounded-2xl bg-slate-950/60 border border-white/10 p-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                  <div>
+                                    <div className="text-sm font-black text-white">{warning.title}</div>
+                                    <div className="text-[11px] font-bold text-slate-400">{warning.warning}</div>
+                                    <div className="mt-1 text-[9px] font-black uppercase tracking-widest text-orange-200">{warning.required ? 'Required' : 'Recommended'}</div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    <button onClick={() => captureMissingProof(warning)} className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest">Capture Missing Proof</button>
+                                    <button onClick={() => void markWarningNotNeeded(warning)} className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest">Mark Not Needed</button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <button onClick={() => void generateAnywayFromReview()} className="w-full min-h-12 rounded-2xl bg-white text-slate-950 text-xs font-black uppercase tracking-widest">
+                            Generate Anyway
+                          </button>
                         </div>
                       ) : null}
                       <button
-                        onClick={handleGenerateSelectedReport}
-                        disabled={generatingReport || inspectionReportBlocked}
+                        onClick={() => void handleGenerateSelectedReport()}
+                        disabled={generatingReport}
                         className="w-full min-h-14 bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:hover:bg-blue-600"
                       >
                         <Download size={18} /> {generatingReport ? t('jobDetail.generatingReport') : t('jobDetail.generateReport')}
@@ -490,17 +659,56 @@ export function JobDetail() {
                         <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">{t('jobDetail.history')}</h3>
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exportPackets.length} {t('jobDetail.savedLocallyCount')}</span>
                       </div>
+                      <label className="block mb-4">
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Email or SMS recipient</span>
+                        <input
+                          value={shareRecipient}
+                          onChange={(event) => setShareRecipient(event.target.value)}
+                          placeholder="email@example.com or phone number"
+                          className="w-full min-h-12 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-blue-400"
+                        />
+                      </label>
                       {exportPackets.length === 0 ? (
                         <p className="text-xs font-bold text-slate-500">{t('jobDetail.noPackets')}</p>
                       ) : (
                         <div className="space-y-3">
                           {exportPackets.slice(0, 5).map((packet) => (
-                            <div key={packet.export_id} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
+                            <div key={packet.export_id} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex flex-col gap-3">
                               <div>
                                 <div className="text-sm font-black text-white">{packet.title}</div>
                                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{format(new Date(packet.generated_at), 'MMM d, h:mm a')} • {packet.included_proof_ids.length} {t('jobDetail.proofItems')}</div>
                               </div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-green-300">{t('jobDetail.saved')}</span>
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-green-300">
+                                  {ReportShareService.canShareLink(packet) ? packet.share_status.replaceAll('_', ' ') : 'Saved locally - cloud link needed'}
+                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  {packet.local_file_uri.startsWith('data:') ? (
+                                    <a
+                                      href={packet.local_file_uri}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="px-3 py-2 rounded-xl bg-white text-slate-950 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
+                                    >
+                                      <FileText size={14} /> Open Local Report
+                                    </a>
+                                  ) : null}
+                                  <button
+                                    onClick={() => void sharePacket(packet, 'email')}
+                                    disabled={!ReportShareService.canShareLink(packet)}
+                                    className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
+                                  >
+                                    <Mail size={14} /> Email Report
+                                  </button>
+                                  <button
+                                    onClick={() => void sharePacket(packet, 'sms')}
+                                    disabled={!ReportShareService.canShareLink(packet)}
+                                    className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
+                                  >
+                                    <MessageSquare size={14} /> SMS Link
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -597,6 +805,7 @@ function WorkflowStageCard({
   expanded,
   onToggle,
   onCapture,
+  onCompleteChecklistItem,
   t,
 }: {
   key?: React.Key;
@@ -608,6 +817,7 @@ function WorkflowStageCard({
   expanded: boolean;
   onToggle: () => void;
   onCapture: (requirement: ProofRequirement) => void;
+  onCompleteChecklistItem: (item: ChecklistItem) => void;
   t: (key: string) => string;
 }) {
   const required = stage.proof_requirements.filter((requirement) => requirement.priority === 'required');
@@ -695,15 +905,25 @@ function WorkflowStageCard({
             <div className="mt-4 bg-slate-50 border border-slate-100 rounded-3xl p-4">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">{t('jobDetail.checklist')}</div>
               <div className="space-y-2">
-                {stage.checklist_items.map((item) => (
-                  <div key={item.checklist_id} className="flex items-start gap-3 text-xs font-bold text-slate-600">
-                    <Circle size={14} className="mt-0.5 text-slate-300" />
+                {stage.checklist_items.map((item) => {
+                  const done = (proofByRequirement.get(item.checklist_id) ?? 0) > 0;
+                  return (
+                  <button
+                    key={item.checklist_id}
+                    type="button"
+                    onClick={() => !done && onCompleteChecklistItem(item)}
+                    className={cn(
+                      'w-full text-left flex items-start gap-3 text-xs font-bold rounded-2xl p-3 transition-all',
+                      done ? 'bg-green-50 text-slate-600' : 'bg-white text-slate-600 hover:bg-slate-100',
+                    )}
+                  >
+                    {done ? <CheckCircle size={14} className="mt-0.5 text-green-600" /> : <Circle size={14} className="mt-0.5 text-slate-300" />}
                     <div>
                       <span className="text-slate-900">{item.display_name}</span>
                       <p className="text-slate-500 font-semibold mt-0.5">{item.description}</p>
                     </div>
-                  </div>
-                ))}
+                  </button>
+                );})}
               </div>
             </div>
           )}
