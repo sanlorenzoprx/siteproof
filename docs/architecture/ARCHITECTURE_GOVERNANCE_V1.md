@@ -51,7 +51,7 @@ Exit criteria:
 
 ### Phase 3 — Workflow Intelligence
 
-Purpose: make SiteProof trade-aware instead of generic job software.
+Purpose: make SiteProof specialty-aware instead of generic job software.
 
 Required primitives:
 - `WorkflowStageInstance`

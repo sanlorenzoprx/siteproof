@@ -6,7 +6,7 @@ export interface TemplateOption {
   templateId: string;
   displayName: string;
   jobType: string;
-  trade: string;
+  tradeSpecialty: string;
   vertical: string;
   description: string;
 }
@@ -71,7 +71,7 @@ export class TemplateCatalogService {
       templateId: template.template_id,
       displayName: this.localizeText(template.display_name, template.display_name_i18n, language),
       jobType: this.localizeText(template.display_name, template.display_name_i18n, language),
-      trade: template.trade,
+      tradeSpecialty: template.trade_specialty ?? template.trade,
       vertical: template.vertical,
       description: this.localizeText(template.description, template.description_i18n, language),
     }));

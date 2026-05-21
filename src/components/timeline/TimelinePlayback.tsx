@@ -145,7 +145,7 @@ export function TimelinePlayback({ jobId }: { jobId: string }) {
             <Clock size={13} /> Timeline Playback
           </div>
           <h2 className="text-3xl md:text-4xl font-black tracking-tight">Replay the job from arrival to export.</h2>
-          <p className="mt-3 text-sm font-bold text-slate-300 max-w-2xl">Chronological proof, notes, issues, GPS, and generated packets in one field-ready job story.</p>
+          <p className="mt-3 text-sm font-bold text-slate-300 max-w-2xl">Chronological proof, notes, issues, GPS, and generated reports in one field-ready job story.</p>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-7">
             <SummaryStat label="Events" value={String(timeline.summary.itemCount)} />

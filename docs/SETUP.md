@@ -55,7 +55,7 @@ SITEPROOF_AI_API_URL=http://localhost:8787 npm run ai:cloudflare-smoke
 3. Create one sample job.
 4. Capture one required photo.
 5. Record one voice note.
-6. Generate a customer packet.
+6. Generate a customer report.
 7. Turn on airplane mode.
 8. Reopen the app and confirm the job, media, note, and packet remain available.
 

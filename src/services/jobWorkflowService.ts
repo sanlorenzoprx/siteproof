@@ -1,6 +1,7 @@
 import { Job, JobStatus } from '../types';
 import { SiteProofDataService } from './siteProofDataService';
 import { TemplateCatalogService } from './templateCatalogService';
+import { TradeTemplatePackService } from './tradeTemplatePackService';
 import { SettingsService } from './settingsService';
 
 export interface CreateFieldJobInput {
@@ -8,6 +9,9 @@ export interface CreateFieldJobInput {
   address: string;
   jobType?: string;
   templateId?: string;
+  trade?: string;
+  specialty?: string;
+  tradePackId?: string;
   technicianName?: string;
   technicianRole?: string;
   quotedAmount?: number;
@@ -34,6 +38,9 @@ export class JobWorkflowService {
   static async createJob(input: CreateFieldJobInput): Promise<Job> {
     const templateId = TemplateCatalogService.normalizeTemplateId(input.templateId);
     const template = TemplateCatalogService.getTemplate(templateId);
+    const tradePack = input.tradePackId
+      ? TradeTemplatePackService.getPack(input.tradePackId)
+      : TradeTemplatePackService.findPack(input.trade, input.specialty);
     const settings = await SettingsService.getSettings();
     const job: Job = {
       id: crypto.randomUUID(),
@@ -41,6 +48,9 @@ export class JobWorkflowService {
       address: input.address.trim(),
       jobType: input.jobType || template.display_name,
       templateId,
+      trade: input.trade ?? tradePack.trade,
+      specialty: input.specialty ?? tradePack.specialty,
+      tradePackId: tradePack.packId,
       technicianName: input.technicianName,
       technicianRole: input.technicianRole,
       quotedAmount: input.quotedAmount,

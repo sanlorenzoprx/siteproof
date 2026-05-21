@@ -20,7 +20,7 @@ const job = await jobRepository.createJob({
   company_id: 'local-company',
   job_title: 'Generator Install - Main St',
   job_type: 'generator_install',
-  trade: 'electrical',
+  trade_specialty: 'electrical',
   template_id: 'generator_install_v1',
   template_version: '1.0.0',
 });

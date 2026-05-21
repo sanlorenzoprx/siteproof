@@ -81,6 +81,7 @@ export class PdfService {
     job: Job,
     exportLanguage: SiteProofLanguage = 'en',
     options: ReportFilterOptions = {},
+    signatureDataUrl?: string,
   ): Promise<void> {
     const { ExportAssembler } = await import('../features/export/exportAssembler');
     const business = await SiteProofDataService.getBusinessProfile();
@@ -112,7 +113,7 @@ export class PdfService {
         business,
         user,
         integrityManifest,
-        signatureDataUrl: undefined,
+        signatureDataUrl,
         narrative: buildLocalReportNarrative(assembly, definition, exportLanguage),
       }, assemblies.length > 1);
     }

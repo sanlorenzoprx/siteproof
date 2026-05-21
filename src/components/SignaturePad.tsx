@@ -1,90 +1,121 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Eraser, PenLine, Save } from 'lucide-react';
+import { SignatureRecord, SignatureService } from '../services/signatureService';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface SignaturePadProps {
-  onSave: (dataUrl: string) => void;
-  onClear: () => void;
+  jobId: string;
+  onSaved: (record: SignatureRecord) => void;
 }
 
-export function SignaturePad({ onSave, onClear }: SignaturePadProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+export function SignaturePad({ jobId, onSaved }: SignaturePadProps) {
+  const { settings, t } = useSettings();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawing = useRef(false);
+  const [signerName, setSignerName] = useState('');
+  const [signerRole, setSignerRole] = useState<SignatureRecord['signerRole']>('customer');
+  const consentText = SignatureService.consentText(settings.exportLanguage);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#111827';
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
+    context.lineWidth = 3;
+    context.lineCap = 'round';
+    context.strokeStyle = '#0f172a';
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
   }, []);
 
-  const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
+  function point(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.MouseEvent).clientY;
-
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top
+      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
     };
-  };
+  }
 
-  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDrawing(true);
-    const { x, y } = getCoordinates(e);
-    const ctx = canvasRef.current?.getContext('2d');
-    ctx?.beginPath();
-    ctx?.moveTo(x, y);
-  };
+  function start(event: React.PointerEvent<HTMLCanvasElement>) {
+    const context = canvasRef.current?.getContext('2d');
+    if (!context) return;
+    drawing.current = true;
+    const next = point(event);
+    context.beginPath();
+    context.moveTo(next.x, next.y);
+  }
 
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawing) return;
-    const { x, y } = getCoordinates(e);
-    const ctx = canvasRef.current?.getContext('2d');
-    ctx?.lineTo(x, y);
-    ctx?.stroke();
-  };
+  function move(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawing.current) return;
+    const context = canvasRef.current?.getContext('2d');
+    if (!context) return;
+    const next = point(event);
+    context.lineTo(next.x, next.y);
+    context.stroke();
+  }
 
-  const endDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const saveSignature = () => {
+  function clear() {
     const canvas = canvasRef.current;
-    if (canvas) onSave(canvas.toDataURL('image/png'));
-  };
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
-  const clear = () => {
+  async function save() {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    ctx?.clearRect(0, 0, canvas!.width, canvas!.height);
-    onClear();
-  };
+    if (!canvas) return;
+    const record = await SignatureService.save({
+      jobId,
+      signerName: signerName.trim() || undefined,
+      signerRole,
+      signatureDataUrl: canvas.toDataURL('image/png'),
+      consentText,
+      reportTypes: ['customer_completion', 'payment_final_handoff'],
+    });
+    onSaved(record);
+  }
 
   return (
-    <div className="border border-slate-300 rounded-3xl p-4 bg-white">
-      <p className="text-sm text-slate-500 mb-3 font-medium">Sign below to acknowledge work completion</p>
+    <div className="bg-white/5 border border-white/10 rounded-[28px] p-5 space-y-4">
+      <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300">
+        <PenLine size={16} /> {t('jobDetail.captureSignoff')}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input
+          value={signerName}
+          onChange={(event) => setSignerName(event.target.value)}
+          placeholder={t('signature.signerName')}
+          className="min-h-12 rounded-2xl border border-white/10 bg-slate-950 px-4 text-sm font-bold text-white outline-none focus:border-blue-400"
+        />
+        <select
+          value={signerRole}
+          onChange={(event) => setSignerRole(event.target.value as SignatureRecord['signerRole'])}
+          className="min-h-12 rounded-2xl border border-white/10 bg-slate-950 px-4 text-sm font-bold text-white outline-none focus:border-blue-400"
+        >
+          {(['customer', 'contractor', 'crew', 'manager', 'other'] as const).map((role) => (
+            <option key={role} value={role}>{t(`signature.roles.${role}`)}</option>
+          ))}
+        </select>
+      </div>
       <canvas
         ref={canvasRef}
-        width={600}
+        width={720}
         height={220}
-        className="border border-slate-200 rounded-2xl touch-none w-full bg-slate-50"
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={endDrawing}
-        onMouseLeave={endDrawing}
-        onTouchStart={startDrawing}
-        onTouchMove={draw}
-        onTouchEnd={endDrawing}
+        onPointerDown={start}
+        onPointerMove={move}
+        onPointerUp={() => { drawing.current = false; }}
+        onPointerLeave={() => { drawing.current = false; }}
+        className="w-full h-36 rounded-2xl bg-white touch-none"
       />
-      <div className="flex gap-3 mt-4">
-        <button onClick={clear} className="flex-1 py-4 border border-slate-200 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Clear</button>
-        <button onClick={saveSignature} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20">Save Signature</button>
+      <p className="text-xs font-bold text-slate-400">{consentText}</p>
+      <div className="flex gap-3">
+        <button onClick={clear} className="flex-1 min-h-12 rounded-2xl bg-white/10 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+          <Eraser size={16} /> {t('signature.clear')}
+        </button>
+        <button onClick={save} className="flex-1 min-h-12 rounded-2xl bg-blue-600 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+          <Save size={16} /> {t('signature.save')}
+        </button>
       </div>
     </div>
   );

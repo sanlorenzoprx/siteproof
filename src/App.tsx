@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { SiteProofDataService } from './services/siteProofDataService';
-import { License } from './types';
 import { Layout } from './components/Layout';
 import { JobList } from './components/JobList';
 import { Dashboard } from './components/Dashboard';
@@ -21,9 +20,31 @@ import { RuntimeOrchestrator } from './services/runtimeOrchestrator';
 import { SyncRuntime } from './services/sync/syncRuntime';
 import { CloudService } from './services/cloudService';
 import { SITEPROOF_BRAND } from './config/brand';
+import { LicenseService, type LicenseState } from './services/licenseService';
+
+function LicenseBanner({ license }: { license: LicenseState | null }) {
+  if (!license || license.status === 'licensed') return null;
+  const days = LicenseService.getDaysRemaining(license);
+  const text = license.status === 'trial_active'
+    ? `Trial active - ${days} days remaining`
+    : license.status === 'trial_expired'
+      ? 'Trial expired - Activate to continue creating reports'
+      : license.status === 'offline_grace'
+        ? `Offline grace - verify within ${days} days`
+        : license.status === 'license_pending_verification'
+          ? 'License saved - verification will complete when internet is available'
+          : license.status === 'revoked'
+            ? 'License revoked - contact support'
+            : 'License required';
+  return (
+    <button onClick={() => window.location.assign('/license')} className="w-full bg-slate-900 text-white text-xs font-black uppercase tracking-widest py-2">
+      {text}
+    </button>
+  );
+}
 
 export default function App() {
-  const [license, setLicense] = useState<License | null>(null);
+  const [license, setLicense] = useState<LicenseState | null>(null);
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -35,19 +56,8 @@ export default function App() {
       SyncRuntime.initialize();
       SyncRuntime.startAutoSync();
 
-      // 1. License Check
-      let currentLicense = await SiteProofDataService.getLicense();
-      if (!currentLicense) {
-        const trialDays = 30;
-        currentLicense = {
-          id: 'app_license',
-          installedAt: Date.now(),
-          licenseKey: null,
-          isActivated: false,
-          expiresAt: Date.now() + trialDays * 24 * 60 * 60 * 1000
-        };
-        await SiteProofDataService.saveLicense(currentLicense);
-      }
+      // 1. Local-first license check
+      const currentLicense = await LicenseService.getState();
       setLicense(currentLicense);
 
       // 2. Onboarding Check
@@ -59,21 +69,18 @@ export default function App() {
     init();
   }, [navigate]);
 
-  const isExpired = license && !license.isActivated && license.expiresAt && Date.now() > license.expiresAt;
-
   if (loading || isOnboarded === null) return <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-white font-bold tracking-tighter text-2xl italic">{SITEPROOF_BRAND.appName.toUpperCase()}...</div>;
 
   return (
     <>
+    <LicenseBanner license={license} />
     <OfflineStatusBanner />
     <AnimatePresence mode="wait">
       <Routes>
         <Route path="/onboarding" element={<Onboarding onComplete={() => setIsOnboarded(true)} />} />
         <Route path="/license" element={<LicenseScreen license={license} onUpdate={setLicense} />} />
         
-        {isExpired ? (
-          <Route path="*" element={<Navigate to="/license" replace />} />
-        ) : !isOnboarded ? (
+        {!isOnboarded ? (
           <Route path="*" element={<Navigate to="/onboarding" replace />} />
         ) : (
           <Route element={<Layout />}>

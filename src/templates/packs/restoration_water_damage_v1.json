@@ -1,0 +1,524 @@
+{
+  "packId": "restoration_water_damage_v1",
+  "version": "1.0.0",
+  "trade": "Restoration",
+  "specialty": "Water Damage",
+  "displayName": "Water Damage Restoration",
+  "description": "Guided proof checklist for water damage restoration.",
+  "jurisdictionDefaults": [
+    "generic_us"
+  ],
+  "stages": [
+    {
+      "stageId": "job_setup",
+      "title": "Job Setup",
+      "order": 10,
+      "stageType": "job_setup",
+      "steps": [
+        {
+          "stepId": "authorization_or_claim_document",
+          "title": "Authorization / claim document",
+          "plainLanguagePrompt": "Attach authorization, claim, or inspection document when available.",
+          "proofTypes": [
+            "document",
+            "photo"
+          ],
+          "beforeAfterMode": "any",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "document",
+            "office_ready"
+          ],
+          "inspectionTags": [
+            "authorization"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Authorization or claim document is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true
+        }
+      ]
+    },
+    {
+      "stageId": "before_proof",
+      "title": "Before Proof",
+      "order": 20,
+      "stageType": "before_proof",
+      "steps": [
+        {
+          "stepId": "affected_area_before",
+          "title": "Affected area",
+          "plainLanguagePrompt": "Capture affected rooms, visible damage, source area, and contents before mitigation.",
+          "proofTypes": [
+            "photo"
+          ],
+          "beforeAfterMode": "before",
+          "required": true,
+          "canIgnore": false,
+          "reportTags": [
+            "before",
+            "water_damage",
+            "customer_completion"
+          ],
+          "inspectionTags": [
+            "affected_area"
+          ],
+          "changeOrderSignals": [
+            "scope_expansion"
+          ],
+          "missingProofWarning": "Affected-area before proof is missing.",
+          "allowPhoto": true
+        },
+        {
+          "stepId": "moisture_readings_before",
+          "title": "Moisture readings",
+          "plainLanguagePrompt": "Capture moisture readings or meter photos before drying begins.",
+          "proofTypes": [
+            "photo",
+            "measurement"
+          ],
+          "beforeAfterMode": "before",
+          "required": true,
+          "canIgnore": false,
+          "reportTags": [
+            "moisture_readings",
+            "inspection_readiness"
+          ],
+          "inspectionTags": [
+            "moisture"
+          ],
+          "changeOrderSignals": [
+            "hidden_moisture"
+          ],
+          "missingProofWarning": "Moisture reading proof is missing.",
+          "allowPhoto": true
+        }
+      ]
+    },
+    {
+      "stageId": "during_proof",
+      "title": "During Proof",
+      "order": 30,
+      "stageType": "during_proof",
+      "steps": [
+        {
+          "stepId": "equipment_and_demo",
+          "title": "Equipment / demo detail",
+          "plainLanguagePrompt": "Capture drying equipment, containment, demolition, or exposed affected material.",
+          "proofTypes": [
+            "photo"
+          ],
+          "beforeAfterMode": "during",
+          "required": true,
+          "canIgnore": false,
+          "reportTags": [
+            "equipment",
+            "change_order_evidence",
+            "inspection_readiness"
+          ],
+          "inspectionTags": [
+            "mitigation"
+          ],
+          "changeOrderSignals": [
+            "additional_demo"
+          ],
+          "missingProofWarning": "Equipment or demo detail proof is missing.",
+          "allowPhoto": true
+        }
+      ]
+    },
+    {
+      "stageId": "after_proof",
+      "title": "After Proof",
+      "order": 40,
+      "stageType": "after_proof",
+      "steps": [
+        {
+          "stepId": "final_dry_standard",
+          "title": "Final dry proof",
+          "plainLanguagePrompt": "Capture final readings, dry standard, cleaned area, or completion status.",
+          "proofTypes": [
+            "photo",
+            "measurement",
+            "manual_note"
+          ],
+          "beforeAfterMode": "after",
+          "required": true,
+          "canIgnore": false,
+          "reportTags": [
+            "final",
+            "dry_standard",
+            "customer_completion",
+            "payment_handoff"
+          ],
+          "inspectionTags": [
+            "dry_standard"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Final dry proof is missing.",
+          "allowPhoto": true,
+          "allowManualNote": true
+        }
+      ]
+    },
+    {
+      "stageId": "inspection_proof",
+      "title": "Inspection Proof",
+      "order": 50,
+      "stageType": "inspection_proof",
+      "steps": [
+        {
+          "stepId": "inspection_restoration_overview",
+          "title": "Inspection overview",
+          "plainLanguagePrompt": "Capture inspection-ready overview of affected areas and completion status.",
+          "proofTypes": [
+            "photo"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": true,
+          "canIgnore": false,
+          "reportTags": [
+            "inspection_readiness"
+          ],
+          "inspectionTags": [
+            "final_inspection"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Inspection overview proof is missing.",
+          "allowPhoto": true
+        },
+        {
+          "stepId": "permit_document",
+          "title": "Permit document",
+          "plainLanguagePrompt": "Attach or photograph the permit document when available.",
+          "proofTypes": [
+            "document",
+            "photo",
+            "manual_note"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "inspection_readiness",
+            "permit_document"
+          ],
+          "inspectionTags": [
+            "permit"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Permit document is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true,
+          "allowManualNote": true
+        },
+        {
+          "stepId": "inspection_card",
+          "title": "Inspection card",
+          "plainLanguagePrompt": "Attach or photograph the inspection card when posted or provided.",
+          "proofTypes": [
+            "document",
+            "photo",
+            "manual_note"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "inspection_readiness",
+            "inspection_card"
+          ],
+          "inspectionTags": [
+            "inspection_card"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Inspection card is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true,
+          "allowManualNote": true
+        },
+        {
+          "stepId": "utility_approval",
+          "title": "Utility approval if relevant",
+          "plainLanguagePrompt": "Attach utility approval, disconnect/reconnect approval, or service release if relevant to this job.",
+          "proofTypes": [
+            "document",
+            "photo",
+            "manual_note"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "inspection_readiness",
+            "utility_approval"
+          ],
+          "inspectionTags": [
+            "utility_approval"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Utility approval if relevant is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true,
+          "allowManualNote": true
+        },
+        {
+          "stepId": "correction_notice",
+          "title": "Correction notice if present",
+          "plainLanguagePrompt": "Attach any correction notice, failed inspection note, or reinspection requirement if present.",
+          "proofTypes": [
+            "document",
+            "photo",
+            "manual_note"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "inspection_readiness",
+            "correction_notice"
+          ],
+          "inspectionTags": [
+            "correction_notice"
+          ],
+          "changeOrderSignals": [
+            "inspection_correction"
+          ],
+          "missingProofWarning": "Correction notice if present is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true,
+          "allowManualNote": true
+        },
+        {
+          "stepId": "plan_page",
+          "title": "Plan page if relevant",
+          "plainLanguagePrompt": "Attach the relevant plan page, drawing, or marked scope page if it applies to this job.",
+          "proofTypes": [
+            "document",
+            "photo",
+            "manual_note"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "inspection_readiness",
+            "plan_page"
+          ],
+          "inspectionTags": [
+            "plan_page"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Plan page if relevant is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true,
+          "allowManualNote": true
+        },
+        {
+          "stepId": "manufacturer_instructions",
+          "title": "Manufacturer installation instructions if relevant",
+          "plainLanguagePrompt": "Attach the manufacturer installation instructions, spec page, or equipment instructions if relevant.",
+          "proofTypes": [
+            "document",
+            "photo",
+            "manual_note"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "inspection_readiness",
+            "manufacturer_instructions"
+          ],
+          "inspectionTags": [
+            "manufacturer_instructions"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Manufacturer installation instructions if relevant is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true,
+          "allowManualNote": true
+        },
+        {
+          "stepId": "ahj_notes",
+          "title": "AHJ notes if present",
+          "plainLanguagePrompt": "Add AHJ, permit office, utility, or inspector notes if present.",
+          "proofTypes": [
+            "document",
+            "photo",
+            "manual_note"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "inspection_readiness",
+            "ahj_notes"
+          ],
+          "inspectionTags": [
+            "ahj_notes"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "AHJ notes if present is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true,
+          "allowManualNote": true
+        },
+        {
+          "stepId": "inspector_punch_list",
+          "title": "Inspector punch list if present",
+          "plainLanguagePrompt": "Attach the inspector punch list or open item list if present.",
+          "proofTypes": [
+            "document",
+            "photo",
+            "manual_note"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": false,
+          "recommended": true,
+          "canIgnore": true,
+          "reportTags": [
+            "inspection_readiness",
+            "inspector_punch_list"
+          ],
+          "inspectionTags": [
+            "punch_list"
+          ],
+          "changeOrderSignals": [
+            "inspection_correction"
+          ],
+          "missingProofWarning": "Inspector punch list if present is not attached.",
+          "allowDocumentAttach": true,
+          "allowPhoto": true,
+          "allowManualNote": true
+        },
+        {
+          "stepId": "final_completion_proof",
+          "title": "Final completion proof",
+          "plainLanguagePrompt": "Capture final completion proof showing the work is complete and ready for customer, office, inspection, or payment review.",
+          "proofTypes": [
+            "photo"
+          ],
+          "beforeAfterMode": "inspection",
+          "required": true,
+          "recommended": false,
+          "canIgnore": false,
+          "reportTags": [
+            "inspection_readiness",
+            "final_completion",
+            "payment_handoff"
+          ],
+          "inspectionTags": [
+            "final_completion"
+          ],
+          "changeOrderSignals": [],
+          "missingProofWarning": "Final completion proof is not attached.",
+          "allowDocumentAttach": false,
+          "allowPhoto": true,
+          "allowManualNote": false
+        }
+      ]
+    }
+  ],
+  "reportMappings": [
+    {
+      "reportType": "customer_completion",
+      "title": "Customer Completion Pro Report",
+      "includedReportTags": [
+        "customer_completion",
+        "final"
+      ],
+      "includedInspectionTags": [],
+      "includeDocuments": true,
+      "includeStructuredVoiceNotes": true,
+      "includeMissingProofWarnings": false
+    },
+    {
+      "reportType": "inspection_readiness",
+      "title": "Inspection Readiness Pro Report",
+      "includedReportTags": [
+        "inspection_readiness",
+        "moisture_readings"
+      ],
+      "includedInspectionTags": [
+        "final_inspection",
+        "moisture"
+      ],
+      "includeDocuments": true,
+      "includeStructuredVoiceNotes": true,
+      "includeMissingProofWarnings": true
+    },
+    {
+      "reportType": "change_order_evidence",
+      "title": "Change-Order Evidence Pro Report",
+      "includedReportTags": [
+        "change_order_evidence"
+      ],
+      "includedInspectionTags": [],
+      "includeDocuments": true,
+      "includeStructuredVoiceNotes": true,
+      "includeMissingProofWarnings": true
+    },
+    {
+      "reportType": "payment_handoff",
+      "title": "Payment Final Handoff Pro Report",
+      "includedReportTags": [
+        "payment_handoff",
+        "customer_completion"
+      ],
+      "includedInspectionTags": [],
+      "includeDocuments": true,
+      "includeStructuredVoiceNotes": true,
+      "includeMissingProofWarnings": true
+    },
+    {
+      "reportType": "photo_timeline",
+      "title": "Photo Proof Timeline Pro Report",
+      "includedReportTags": [
+        "before",
+        "equipment",
+        "final"
+      ],
+      "includedInspectionTags": [
+        "affected_area"
+      ],
+      "includeDocuments": false,
+      "includeStructuredVoiceNotes": false,
+      "includeMissingProofWarnings": false
+    },
+    {
+      "reportType": "all_pro_reports",
+      "title": "All Pro Reports",
+      "includedReportTags": [
+        "customer_completion",
+        "inspection_readiness",
+        "change_order_evidence",
+        "payment_handoff"
+      ],
+      "includedInspectionTags": [
+        "final_inspection"
+      ],
+      "includeDocuments": true,
+      "includeStructuredVoiceNotes": true,
+      "includeMissingProofWarnings": true
+    }
+  ],
+  "learningPolicy": {
+    "allowSkipOnce": true,
+    "allowHideForSimilarJobs": true,
+    "allowRestoreHiddenStep": true,
+    "allowCustomSteps": true,
+    "allowReorder": true,
+    "syncLearningEvents": false,
+    "requiresHumanReviewForPackUpdates": true
+  }
+}

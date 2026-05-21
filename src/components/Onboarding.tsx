@@ -87,7 +87,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     () => parseQuickJob(quickJobText, selectedTemplateId, settings.uiLanguage),
     [quickJobText, selectedTemplateId, settings.uiLanguage],
   );
-  const tradeOptions = useMemo(
+  const specialtyOptions = useMemo(
     () => TemplateCatalogService.getTemplateOptions(settings.uiLanguage),
     [settings.uiLanguage],
   );
@@ -114,7 +114,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
       await SiteProofDataService.saveBusinessProfile(business);
       await SiteProofDataService.saveUserProfile(user);
-      await AppSettingsService.setValue('primary_trade_template_id', selectedTemplateId);
+      await AppSettingsService.setValue('primary_trade_specialty_template_id', selectedTemplateId);
       await AppSettingsService.setValue('onboarding_completed_at', new Date().toISOString());
 
       const job = await JobWorkflowService.createJob({
@@ -271,7 +271,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
             {step === 3 && (
               <motion.div
-                key="trade"
+                key="trade-specialty"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -291,7 +291,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
 
                 <div className="grid gap-3">
-                  {tradeOptions.map((option) => {
+                  {specialtyOptions.map((option) => {
                     const active = selectedTemplateId === option.templateId;
                     return (
                       <button

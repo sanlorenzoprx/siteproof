@@ -1,6 +1,6 @@
 # SiteProof Template Generation Prompt v1
 
-Draft a SiteProof workflow template for the specified trade or job type.
+Draft a SiteProof workflow template for the specified specialty or job type.
 
 SiteProof templates should reduce missed documentation, speed field capture, and improve export packets.
 
@@ -39,7 +39,7 @@ Rules:
 Return:
 
 - template name
-- trade/job type
+- specialty/job type
 - workflow stages
 - required proof list
 - optional proof list

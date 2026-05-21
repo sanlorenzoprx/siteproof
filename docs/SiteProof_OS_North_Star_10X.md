@@ -6,17 +6,17 @@ remove friction from field work faster than competitors.
 
 Most construction software becomes:
 
-* bloated  
-* slow  
-* office-centric  
-* form-heavy  
+* bloated
+* slow
+* office-centric
+* form-heavy
 * subscription-heavy
 
 Your advantage is:
 
-* field-first  
-* offline-first  
-* proof-first  
+* field-first
+* offline-first
+* proof-first
 * speed-first
 
 Below is how I would turn each feature into a true 10x experience that steals adoption from incumbents.
@@ -29,8 +29,8 @@ Below is how I would turn each feature into a true 10x experience that steals ad
 
 Current:
 
-* Create job  
-* Status  
+* Create job
+* Status
 * Customer info
 
 Good start — but not enough to feel magical.
@@ -43,9 +43,9 @@ Contractors hate typing.
 
 Allow:
 
-* voice-created jobs  
-* scan business card  
-* paste address  
+* voice-created jobs
+* scan business card
+* paste address
 * pull GPS automatically
 
 Example:
@@ -54,9 +54,9 @@ Example:
 
 Boom:
 
-* customer  
-* address  
-* job type  
+* customer
+* address
+* job type
 * timestamp
 
 auto-created.
@@ -69,16 +69,16 @@ This is HUGE.
 
 Templates for:
 
-* generator install  
-* panel upgrade  
-* EV charger  
-* solar battery  
+* generator install
+* panel upgrade
+* EV charger
+* solar battery
 * restoration
 
 Each template preloads:
 
-* required photos  
-* checklist  
+* required photos
+* checklist
 * report sections
 
 This dramatically reduces thinking.
@@ -89,15 +89,15 @@ This dramatically reduces thinking.
 
 Field workers constantly bounce between:
 
-* truck  
-* site  
-* customer  
+* truck
+* site
+* customer
 * supply house
 
 You should reopen instantly into:
 
-* last active job  
-* last photo category  
+* last active job
+* last photo category
 * last workflow state
 
 No navigation hunting.
@@ -110,9 +110,9 @@ Avoid dropdown complexity.
 
 Use:
 
-* Active  
-* Waiting  
-* Inspection  
+* Active
+* Waiting
+* Inspection
 * Complete
 
 With large colored pills.
@@ -133,8 +133,8 @@ Most competitors fail here.
 
 Your app should feel:
 
-* faster than native camera  
-* instant save  
+* faster than native camera
+* instant save
 * no processing delay
 
 This matters enormously psychologically.
@@ -145,17 +145,17 @@ This matters enormously psychologically.
 
 Every photo automatically stamped with:
 
-* timestamp  
-* GPS  
-* company logo  
+* timestamp
+* GPS
+* company logo
 * job name
 
 No toggle needed.
 
 This creates:
 
-* proof  
-* professionalism  
+* proof
+* professionalism
 * legal defensibility
 
 Automatically.
@@ -174,11 +174,11 @@ Guide users:
 
 Generator Install:
 
-1. Meter  
-2. Panel  
-3. Transfer switch  
-4. Fuel line  
-5. Concrete pad  
+1. Meter
+2. Panel
+3. Transfer switch
+4. Fuel line
+5. Concrete pad
 6. Final install
 
 This reduces missed documentation dramatically.
@@ -189,9 +189,9 @@ This reduces missed documentation dramatically.
 
 One button:
 
-* captures  
-* categorizes  
-* timestamps  
+* captures
+* categorizes
+* timestamps
 * stores rapidly
 
 For inspectors or walkthroughs.
@@ -204,9 +204,9 @@ Massive time saver.
 
 Simple ML can detect:
 
-* blurry  
-* dark  
-* duplicate  
+* blurry
+* dark
+* duplicate
 * finger covering lens
 
 And instantly prompt retake.
@@ -233,8 +233,8 @@ Sequence all photos and notes chronologically.
 
 This becomes:
 
-* legal evidence  
-* insurance proof  
+* legal evidence
+* insurance proof
 * inspection proof
 
 Very powerful.
@@ -247,7 +247,7 @@ Critical.
 
 Store:
 
-* last known GPS  
+* last known GPS
 * signal-independent location data
 
 Storm/outage environments require this.
@@ -258,8 +258,8 @@ Storm/outage environments require this.
 
 Simple map:
 
-* jobs nearby  
-* completed jobs  
+* jobs nearby
+* completed jobs
 * crew history
 
 Contractors LOVE visual geography.
@@ -276,12 +276,12 @@ This can become a killer differentiator.
 
 NOT:
 
-* open screen  
-* press start  
-* stop  
+* open screen
+* press start
+* stop
 * save
 
-Instead:  
+Instead:
 Hold mic button → speak → auto-save.
 
 Done.
@@ -298,9 +298,9 @@ Convert:
 
 into:
 
-* Materials  
-* Issue  
-* Change order  
+* Materials
+* Issue
+* Change order
 * Customer request
 
 Automatically.
@@ -315,10 +315,10 @@ Massive opportunity.
 
 Especially:
 
-* English  
+* English
 * Spanish
 
-For:  
+For:
 Puerto Rico crews and Florida contractors.
 
 Very strategic.
@@ -349,24 +349,24 @@ Do NOT generate ugly PDFs.
 
 Make them:
 
-* branded  
-* visual  
-* photo-first  
-* clean typography  
+* branded
+* visual
+* photo-first
+* clean typography
 * inspector-friendly
 
 People judge software quality by exports.
 
 ---
 
-### **B. One-Tap Customer Packet**
+### **B. One-Tap Customer Report**
 
 Generate:
 
-* summary  
-* photos  
-* signatures  
-* notes  
+* summary
+* photos
+* signatures
+* notes
 * install checklist
 
 in one action.
@@ -377,9 +377,9 @@ in one action.
 
 Generate specialized exports:
 
-* inspector packet  
-* insurance proof  
-* customer completion  
+* inspector report
+* insurance proof
+* customer completion
 * warranty documentation
 
 Huge differentiator.
@@ -390,8 +390,8 @@ Huge differentiator.
 
 Links back to:
 
-* cloud job  
-* live gallery  
+* cloud job
+* live gallery
 * future updates
 
 Makes system feel enterprise-grade.
@@ -416,8 +416,8 @@ Banner:
 
 This resonates HARD with:
 
-* generators  
-* restoration  
+* generators
+* restoration
 * emergency power
 
 ---
@@ -428,8 +428,8 @@ Users must TRUST sync.
 
 Show:
 
-* synced  
-* pending  
+* synced
+* pending
 * backed up
 
 VERY clearly.
@@ -468,12 +468,12 @@ Just work silently.
 
 This is HUGE value.
 
-Lose phone?  
+Lose phone?
 New phone restores:
 
-* jobs  
-* photos  
-* reports  
+* jobs
+* photos
+* reports
 * notes
 
 This alone can justify payment.
@@ -484,9 +484,9 @@ This alone can justify payment.
 
 Instant:
 
-* customer  
-* office  
-* inspector  
+* customer
+* office
+* inspector
 * insurance adjuster
 
 sharing.
@@ -505,8 +505,8 @@ Do NOT require entering emails repeatedly.
 
 Remember:
 
-* customer  
-* office  
+* customer
+* office
 * inspector
 
 ---
@@ -529,8 +529,8 @@ Professionalism matters.
 
 Show:
 
-* sent  
-* opened  
+* sent
+* opened
 * downloaded
 
 Contractors LOVE proof.
@@ -561,8 +561,8 @@ Before/after slider.
 
 Very powerful for:
 
-* roofing  
-* restoration  
+* roofing
+* restoration
 * generators
 
 ---
@@ -571,8 +571,8 @@ Very powerful for:
 
 Search:
 
-* “panel”  
-* “meter”  
+* “panel”
+* “meter”
 * “fuel line”
 
 using local ML tags.
@@ -603,7 +603,7 @@ One tap accept.
 
 Photos automatically placed into:
 
-* correct report sections  
+* correct report sections
 * correct order
 
 Massive time savings.
@@ -648,9 +648,9 @@ Real-time visibility.
 
 ### **C. Crew Roles**
 
-* tech  
-* foreman  
-* office  
+* tech
+* foreman
+* office
 * inspector
 
 Simple permissions.
@@ -667,7 +667,7 @@ Potential killer feature.
 
 Generate:
 
-* code-specific checklists  
+* code-specific checklists
 * required documentation prompts
 
 ---
@@ -684,8 +684,8 @@ Huge professionalism boost.
 
 Missing:
 
-* transfer switch photo  
-* permit image  
+* transfer switch photo
+* permit image
 * grounding shot
 
 Warn before report generation.
@@ -702,8 +702,8 @@ Careful — avoid overbuilding.
 
 Customer only sees:
 
-* progress  
-* completion  
+* progress
+* completion
 * reports
 
 No clutter.
@@ -714,8 +714,8 @@ No clutter.
 
 Store:
 
-* install proof  
-* manuals  
+* install proof
+* manuals
 * serial numbers
 
 Customers LOVE this.
@@ -732,8 +732,8 @@ Do NOT build enterprise dashboards first.
 
 Show:
 
-* hours saved  
-* reports generated  
+* hours saved
+* reports generated
 * disputes prevented
 
 This reinforces value psychologically.
@@ -744,8 +744,8 @@ This reinforces value psychologically.
 
 Detect:
 
-* repeated missing photos  
-* failed inspections  
+* repeated missing photos
+* failed inspections
 * common workflow gaps
 
 Very valuable operationally.
@@ -784,8 +784,8 @@ This is BIG.
 
 Detect phrases:
 
-* “extra trenching”  
-* “unexpected conduit”  
+* “extra trenching”
+* “unexpected conduit”
 * “customer requested”
 
 Potentially identify billable work automatically.
@@ -798,8 +798,8 @@ That could become a massive differentiator later.
 
 DO NOT become:
 
-* ServiceTitan  
-* Procore  
+* ServiceTitan
+* Procore
 * Jobber
 
 Become:
@@ -810,10 +810,9 @@ That positioning is MUCH stronger.
 
 Especially for:
 
-* emergency power  
-* electrical  
-* restoration  
+* emergency power
+* electrical
+* restoration
 * infrastructure crews
 
 That is where your market share opportunity lives.
-

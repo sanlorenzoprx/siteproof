@@ -144,7 +144,7 @@ const MODULE_KEYWORDS: Record<SiteProofModule, string[]> = {
   export_engine: ['export', 'pdf', 'report', 'packet', 'inspector', 'insurance'],
   ai_summaries: ['ai', 'summary', 'summaries', 'narrative', 'label'],
   missing_proof_detection: ['missing', 'required', 'warning', 'red flag', 'inspection readiness'],
-  customer_packets: ['customer packet', 'handoff', 'signoff'],
+  customer_packets: ['customer report', 'handoff', 'signoff'],
   inspection_packets: ['inspection', 'permit', 'inspector'],
   settings: ['settings', 'company logo', 'brand', 'offer'],
   ui_shell: ['ui', 'ux', 'screen', 'button', 'navigation'],
@@ -186,7 +186,7 @@ export function inferAffectedModules(request: string, explicitModules: SiteProof
 function buildFeatureTask(module: SiteProofModule, id: string, dependsOn: string[]): TaskNode {
   const metadata: Record<SiteProofModule, { title: string; description: string; risk: 'low' | 'medium' | 'high' }> = {
     jobs: { title: 'Implement job changes', description: 'Update job behavior using shared domain primitives.', risk: 'medium' },
-    workflow_templates: { title: 'Model workflow changes as template data', description: 'Represent trade-specific behavior through reusable workflow templates first.', risk: 'medium' },
+    workflow_templates: { title: 'Model workflow changes as template data', description: 'Represent specialty-specific behavior through reusable workflow templates first.', risk: 'medium' },
     proof_objects: { title: 'Implement proof object changes', description: 'Update canonical proof behavior after schema assumptions are confirmed.', risk: 'high' },
     media_capture: { title: 'Implement media capture changes', description: 'Update media capture behavior while preserving durable proof data.', risk: 'medium' },
     voice_notes: { title: 'Implement voice note changes', description: 'Update voice-note handling and extracted metadata.', risk: 'medium' },
@@ -196,8 +196,8 @@ function buildFeatureTask(module: SiteProofModule, id: string, dependsOn: string
     export_engine: { title: 'Polish export/report generation', description: 'Improve export output after proof data contracts are stable.', risk: 'medium' },
     ai_summaries: { title: 'Implement AI summary support', description: 'Add internal AI assistance without increasing field-user workflow complexity.', risk: 'medium' },
     missing_proof_detection: { title: 'Add missing-proof detection rules', description: 'Detect missing required proof before downstream review/export.', risk: 'medium' },
-    customer_packets: { title: 'Implement customer packet changes', description: 'Update customer-facing packet assembly.', risk: 'medium' },
-    inspection_packets: { title: 'Implement inspection packet changes', description: 'Update inspection-oriented packet assembly.', risk: 'medium' },
+    customer_packets: { title: 'Implement customer report changes', description: 'Update customer-facing report assembly.', risk: 'medium' },
+    inspection_packets: { title: 'Implement inspection report changes', description: 'Update inspection-oriented report assembly.', risk: 'medium' },
     settings: { title: 'Implement settings changes', description: 'Update internal configuration behavior.', risk: 'low' },
     ui_shell: { title: 'Implement UI shell changes', description: 'Update user-facing navigation or screen behavior after domain decisions.', risk: 'medium' },
     testing: { title: 'Expand requested test coverage', description: 'Add requested tests for the affected behavior.', risk: 'low' },
@@ -467,7 +467,7 @@ function inferRealGoal(request: string, affectedModules: SiteProofModule[]): str
     return 'Add useful AI assistance without making the field workflow more complex.';
   }
   if (affectedModules.includes('workflow_templates')) {
-    return 'Extend reusable workflow behavior without creating trade-specific code paths.';
+    return 'Extend reusable workflow behavior without creating specialty-specific code paths.';
   }
   return `Deliver the request safely while preserving SiteProof's field-first, offline-first, proof-first architecture: ${request.trim()}`;
 }
@@ -570,7 +570,7 @@ function buildExecutionSequence(tasks: TaskNode[], parallelGroups: ParallelTaskG
 
 function buildImplementationNotes(affectedModules: SiteProofModule[], riskFlags: RiskFlag[]): string[] {
   const notes = ['Keep proof data as the source of truth for export, timeline, and missing-proof behavior.'];
-  if (affectedModules.includes('workflow_templates')) notes.push('Prefer workflow template data over trade-specific custom UI or code paths.');
+  if (affectedModules.includes('workflow_templates')) notes.push('Prefer workflow template data over specialty-specific custom UI or code paths.');
   if (affectedModules.includes('ai_summaries')) notes.push('AI must stay invisible: support summaries, detection, and reporting without adding field-user complexity.');
   if (riskFlags.some((risk) => risk.category === 'scope_creep')) notes.push('Defer office-heavy features unless they are required for proof-of-work MVP stability.');
   return notes;

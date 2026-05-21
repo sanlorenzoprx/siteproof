@@ -28,8 +28,8 @@ Look for:
 - missing proof manifest
 - weak job narrative
 - duplicated sections
-- excessive technical language for customer packet
-- insufficient technical detail for inspector packet
+- excessive technical language for customer report
+- insufficient technical detail for inspector report
 - no clear completion state
 
 Return:

@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { JobWorkflowService } from '../services/jobWorkflowService';
 import { TemplateCatalogService } from '../services/templateCatalogService';
+import { TradeTemplatePackService } from '../services/tradeTemplatePackService';
 import { ArrowLeft, Check, Info } from 'lucide-react';
 import { JobStatus } from '../types';
 import { VoiceDictation } from './VoiceDictation';
 import { useSettings } from '../contexts/SettingsContext';
+import { LicenseService } from '../services/licenseService';
 
 export function CreateJob() {
   const { settings, t } = useSettings();
@@ -20,12 +22,21 @@ export function CreateJob() {
     quotedAmount: '',
     scheduledDate: '',
     notes: '',
-    templateId: 'generator_install_v1'
+    templateId: 'generator_install_v1',
+    tradePackId: 'generator_install_v1',
+    trade: 'Electrical',
+    specialty: 'Generator Install'
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerName || !form.address) return;
+    const license = await LicenseService.getLicenseState();
+    if (!LicenseService.canCreateJob(license)) {
+      alert(t('license.trialEndedMessage'));
+      navigate('/license');
+      return;
+    }
     
     setLoading(true);
     const newJob = await JobWorkflowService.createJob({
@@ -38,6 +49,9 @@ export function CreateJob() {
       scheduledDate: form.scheduledDate ? new Date(form.scheduledDate).getTime() : undefined,
       notes: form.notes,
       templateId: form.templateId,
+      tradePackId: form.tradePackId,
+      trade: form.trade,
+      specialty: form.specialty,
       status: 'ACTIVE' as JobStatus,
     });
     setLoading(false);
@@ -97,6 +111,34 @@ export function CreateJob() {
               </select>
             </div>
 
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Trade / specialty</label>
+              <select
+                value={form.tradePackId}
+                onChange={e => {
+                  const pack = TradeTemplatePackService.getPack(e.target.value);
+                  setForm({
+                    ...form,
+                    tradePackId: pack.packId,
+                    trade: pack.trade,
+                    specialty: pack.specialty,
+                    jobType: pack.displayName,
+                  });
+                }}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer">
+                {TradeTemplatePackService.getOptions().map((option) => (
+                  <option key={option.packId} value={option.packId}>{option.trade} - {option.specialty}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 p-5 rounded-3xl border border-amber-100 space-y-2">
+            <p className="text-sm font-black text-amber-950">SiteProof guides your crew step by step, showing exactly what proof to capture for your trade before, during, and after the job.</p>
+            <p className="text-xs font-bold text-amber-900">This job has required proof steps. SiteProof will help you capture the photos, notes, timestamps, and inspection evidence needed for this trade.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.quoteAmount')}</label>
               <input type="number" value={form.quotedAmount}

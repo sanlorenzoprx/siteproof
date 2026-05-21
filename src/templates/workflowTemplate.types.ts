@@ -8,7 +8,7 @@
 
 export type TemplateStatus = 'draft' | 'active' | 'deprecated' | 'archived';
 
-export type Trade =
+export type TradeSpecialty =
   | 'electrical'
   | 'generator_emergency_power'
   | 'plumbing'
@@ -113,7 +113,9 @@ export interface WorkflowTemplate {
   template_id: string;
   template_version: string;
   template_status: TemplateStatus;
-  trade: Trade;
+  trade_specialty: TradeSpecialty;
+  /** @deprecated Use trade_specialty. Kept optional for older cached template payloads. */
+  trade?: TradeSpecialty;
   vertical: string;
   job_type: string;
   display_name: string;

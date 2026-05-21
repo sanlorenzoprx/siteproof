@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useSettings } from '../contexts/SettingsContext';
+import { LicenseService } from '../services/licenseService';
 
 export function JobList() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -42,9 +43,25 @@ export function JobList() {
 
   const handleQuickLaunch = async () => {
     if (!quickInput.trim()) return;
+    const license = await LicenseService.getLicenseState();
+    if (!LicenseService.canCreateJob(license)) {
+      alert(t('license.trialEndedMessage'));
+      navigate('/license');
+      return;
+    }
     
     const newJob = await JobWorkflowService.createFromQuickStart(quickInput);
     navigate(`/job/${newJob.id}`);
+  };
+
+  const startJob = async () => {
+    const license = await LicenseService.getLicenseState();
+    if (!LicenseService.canCreateJob(license)) {
+      alert(t('license.trialEndedMessage'));
+      navigate('/license');
+      return;
+    }
+    navigate('/create');
   };
 
   const filteredJobs = jobs.filter(j => 
@@ -60,7 +77,7 @@ export function JobList() {
           <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">{t('jobs.tagline')}</p>
         </div>
         <button
-          onClick={() => navigate('/create')}
+          onClick={startJob}
           className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-5 rounded-[30px] font-black uppercase italic tracking-widest text-sm shadow-2xl shadow-blue-500/30 active:scale-95 transition-all"
         >
           <Plus size={20} className="stroke-[3px]" /> {t('jobs.startJob')}
@@ -128,7 +145,7 @@ export function JobList() {
             {t('jobs.firstJobPrompt')}
           </p>
           <button
-            onClick={() => navigate('/create')}
+            onClick={startJob}
             className="mt-10 bg-blue-600 text-white px-12 py-5 rounded-[30px] text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95"
           >
             + {t('jobs.startFirstJob')}

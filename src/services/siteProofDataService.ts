@@ -36,7 +36,7 @@ async function runtimeJobToUiJob(job: RuntimeJob): Promise<Job> {
     id: job.job_id,
     customerName: customer?.name || job.job_title || 'Field Job',
     address: runtimeAddressToString(job),
-    jobType: job.job_type || job.trade || 'Field Job',
+    jobType: job.job_type || job.trade_specialty || job.trade || 'Field Job',
     templateId: job.template_id,
     createdAt: Date.parse(job.created_at) || Date.now(),
     updatedAt: Date.parse(job.updated_at) || Date.now(),
