@@ -11,6 +11,26 @@ import { JobDocumentType } from '../db/schema';
 import { cn } from '../lib/utils';
 import { MediaPipelineService } from '../services/mediaPipelineService';
 import { useSettings } from '../contexts/SettingsContext';
+import {
+  CaptureErrorCode,
+  CaptureMode,
+  CaptureIssueType,
+  buildPhotoContextTranscript,
+  buildPhotoDescriptionTranscript,
+  classifyCameraError,
+  formatCaptureGpsStatus,
+  getIssueTypeOptions,
+  getInitialCaptureMode,
+  getPrimaryCaptureLabelKey,
+  getReadyStatusKey,
+  getUseCaptureLabelKey,
+} from './cameraCaptureModel';
+
+const modeDefaultCategoryKey: Record<CaptureMode, string> = {
+  photo: 'capture.photoEvidenceCategory',
+  video: 'capture.videoEvidenceCategory',
+  document: 'capture.documentEvidenceCategory',
+};
 
 export function CameraCapture() {
   const { settings, t } = useSettings();
@@ -26,14 +46,20 @@ export function CameraCapture() {
   const requirementId = searchParams.get('requirementId') || undefined;
   const stageId = searchParams.get('stageId') || undefined;
   const documentMode = searchParams.get('document') === '1';
+  const initialCaptureMode = getInitialCaptureMode(documentMode);
   const documentType = (searchParams.get('documentType') || 'permit_document') as JobDocumentType;
   const returnTab = searchParams.get('returnTab') || 'proof';
-  const [category, setCategory] = useState(searchParams.get('category') || 'Photo');
+  const [captureMode, setCaptureMode] = useState<CaptureMode>(initialCaptureMode);
+  const [category, setCategory] = useState(searchParams.get('category') || t('capture.modePhoto'));
+  const [description, setDescription] = useState('');
+  const [captureError, setCaptureError] = useState<CaptureErrorCode | null>(null);
+  const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number, accuracy?: number } | null>(null);
   const [burstMode, setBurstMode] = useState(false);
   const [isIssue, setIsIssue] = useState(searchParams.get('category') === 'Change Order' || searchParams.get('category') === 'Deficiency');
-  const [issueType, setIssueType] = useState<'SAFETY' | 'DEFICIENCY' | 'CHANGE_ORDER' | 'BLOCKED'>(
+  const [issueType, setIssueType] = useState<CaptureIssueType>(
     searchParams.get('category') === 'Change Order' ? 'CHANGE_ORDER' : 'DEFICIENCY'
   );
   const [jobName, setJobName] = useState('Jobsite');
@@ -44,8 +70,131 @@ export function CameraCapture() {
   const [voiceTimer, setVoiceTimer] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const [isRecordingDescription, setIsRecordingDescription] = useState(false);
+  const [descriptionTimer, setDescriptionTimer] = useState(0);
+  const [isTranscribingDescription, setIsTranscribingDescription] = useState(false);
+  const [descriptionVoiceText, setDescriptionVoiceText] = useState('');
+  const [descriptionAudioBlob, setDescriptionAudioBlob] = useState<Blob | null>(null);
+  const [descriptionRecorder, setDescriptionRecorder] = useState<MediaRecorder | null>(null);
+  const descriptionAudioChunksRef = useRef<Blob[]>([]);
+  const [captureFeedback, setCaptureFeedback] = useState(false);
 
   const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId, settings.uiLanguage);
+  const hasRequirementContext = Boolean(requirementId || searchParams.get('category'));
+
+  function getModeDefaultCategory(mode: CaptureMode) {
+    return t(modeDefaultCategoryKey[mode]);
+  }
+
+  function getModeContextLabel() {
+    if (captureMode === 'photo') return t('capture.capturingPhotoFor');
+    if (captureMode === 'document') return t('capture.capturingDocumentFor');
+    return t('capture.capturingVideoFor');
+  }
+
+  function getModePurposeText() {
+    if (captureMode === 'photo') return t('capture.photoPurpose');
+    if (captureMode === 'document') return t('capture.documentPurpose');
+    return t('capture.videoPurpose');
+  }
+
+  function getCaptureErrorMessage(code: CaptureErrorCode) {
+    switch (code) {
+      case 'camera_permission_denied':
+        return t('capture.cameraPermissionDenied');
+      case 'camera_unavailable':
+        return t('capture.cameraUnavailable');
+      case 'video_unsupported':
+        return t('capture.videoUnsupported');
+      case 'save_failed':
+        return t('capture.saveFailed');
+      case 'description_save_failed':
+        return t('capture.descriptionSaveFailed');
+      default:
+        return t('capture.genericCaptureError');
+    }
+  }
+
+  function clearCapturedMedia() {
+    if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
+    setCapturedImage(null);
+    setRecordedVideoUrl(null);
+    setDescription('');
+    setDescriptionVoiceText('');
+    setDescriptionAudioBlob(null);
+    setIsRecordingVideo(false);
+  }
+
+  function getSupportedAudioMimeType() {
+    if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+    if (MediaRecorder.isTypeSupported('audio/ogg')) return 'audio/ogg';
+    return 'audio/mp4';
+  }
+
+  function playCaptureClick() {
+    try {
+      const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextConstructor) return;
+      const audioContext = new AudioContextConstructor();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(360, audioContext.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.55, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.1);
+      window.setTimeout(() => void audioContext.close(), 160);
+    } catch (error) {
+      console.warn('capture_click_unavailable', error);
+    }
+  }
+
+  function runCaptureFeedback() {
+    playCaptureClick();
+    setCaptureFeedback(true);
+    window.setTimeout(() => setCaptureFeedback(false), 180);
+  }
+
+  function selectCaptureMode(mode: CaptureMode) {
+    clearCapturedMedia();
+    setCaptureMode(mode);
+    setCaptureError(mode === 'video' ? 'video_unsupported' : null);
+    if (mode !== 'photo') setBurstMode(false);
+    if (!hasRequirementContext) setCategory(getModeDefaultCategory(mode));
+  }
+
+  function CaptureModeSelector() {
+    const modes: Array<{ key: CaptureMode; label: string }> = [
+      { key: 'photo', label: t('capture.modePhoto') },
+      { key: 'video', label: t('capture.modeVideo') },
+      { key: 'document', label: t('capture.modeDocument') },
+    ];
+
+    return (
+      <div className="grid grid-cols-3 gap-2" role="tablist" aria-label={t('capture.modeSelectorLabel')}>
+        {modes.map((mode) => (
+          <button
+            key={mode.key}
+            type="button"
+            onClick={() => selectCaptureMode(mode.key)}
+            className={cn(
+              'py-3 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all',
+              captureMode === mode.key
+                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-white/5 border-white/10 text-white/60'
+            )}
+            aria-pressed={captureMode === mode.key}
+          >
+            {mode.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   useEffect(() => {
     async function loadJob() {
@@ -97,9 +246,8 @@ export function CameraCapture() {
         setStream(s);
         if (videoRef.current) videoRef.current.srcObject = s;
       } catch (err) {
-        console.error('Camera access denied', err);
-        alert(t('capture.cameraError'));
-        navigate(`/job/${id}`);
+        console.error('camera_start_failed', err);
+        setCaptureError(classifyCameraError(err));
       }
     }
 
@@ -114,6 +262,12 @@ export function CameraCapture() {
   }, [facingMode, id, navigate]);
 
   useEffect(() => {
+    return () => {
+      if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
+    };
+  }, [recordedVideoUrl]);
+
+  useEffect(() => {
     let interval: any;
     if (isRecordingVoice) {
       interval = setInterval(() => setVoiceTimer(t => t + 1), 1000);
@@ -122,6 +276,16 @@ export function CameraCapture() {
     }
     return () => clearInterval(interval);
   }, [isRecordingVoice]);
+
+  useEffect(() => {
+    let interval: any;
+    if (isRecordingDescription) {
+      interval = setInterval(() => setDescriptionTimer((current) => current + 1), 1000);
+    } else {
+      setDescriptionTimer(0);
+    }
+    return () => clearInterval(interval);
+  }, [isRecordingDescription]);
 
   async function toggleVoiceRecording() {
     if (isRecordingVoice) {
@@ -133,11 +297,7 @@ export function CameraCapture() {
       try {
         const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
-          ? 'audio/webm' 
-          : MediaRecorder.isTypeSupported('audio/ogg')
-            ? 'audio/ogg'
-            : 'audio/mp4';
+        const mimeType = getSupportedAudioMimeType();
 
         const recorder = new MediaRecorder(audioStream, { mimeType });
         audioChunksRef.current = [];
@@ -157,12 +317,12 @@ export function CameraCapture() {
           reader.onloadend = async () => {
             const result = reader.result as string;
             const base64Audio = result.split(',')[1];
-            const text = await AIService.transcribeAudio(base64Audio);
+            const text = await AIService.transcribeAudio(base64Audio, settings.captureLanguage, mimeType);
             
             if (id && text && text !== '(Unintelligible)') {
               await ProofCaptureService.saveVoiceNote({
                 jobId: id,
-                transcribedText: `[Photo context: ${category}] ${text}`,
+                transcribedText: buildPhotoContextTranscript(category, text, t),
                 audioBlob,
                 category,
                 requirementId,
@@ -184,7 +344,68 @@ export function CameraCapture() {
     }
   }
 
+  async function toggleDescriptionRecording() {
+    if (isRecordingDescription) {
+      if (descriptionRecorder && descriptionRecorder.state !== 'inactive') {
+        descriptionRecorder.stop();
+      }
+      setIsRecordingDescription(false);
+      return;
+    }
+
+    try {
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = getSupportedAudioMimeType();
+      const recorder = new MediaRecorder(audioStream, { mimeType });
+      descriptionAudioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) descriptionAudioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(descriptionAudioChunksRef.current, { type: mimeType });
+        audioStream.getTracks().forEach((track) => track.stop());
+        if (audioBlob.size < 100) return;
+
+        setIsTranscribingDescription(true);
+        try {
+          const result = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => resolve(String(reader.result || ''));
+          });
+          const base64Audio = result.split(',')[1] || '';
+          const text = await AIService.transcribeAudio(base64Audio, settings.captureLanguage, mimeType);
+          const cleanText = text.trim();
+          if (cleanText && !/unintelligible|unavailable/i.test(cleanText)) {
+            setDescription((current) => [current.trim(), cleanText].filter(Boolean).join('\n'));
+            setDescriptionVoiceText(cleanText);
+            setDescriptionAudioBlob(audioBlob);
+          }
+        } catch (err) {
+          console.error('description_transcription_failed', err);
+          setCaptureError('description_save_failed');
+        } finally {
+          setIsTranscribingDescription(false);
+        }
+      };
+
+      recorder.start();
+      setDescriptionRecorder(recorder);
+      setIsRecordingDescription(true);
+    } catch (err) {
+      console.error("Microphone access denied", err);
+      alert(t('capture.microphoneRequired'));
+    }
+  }
+
   function takePhoto() {
+    if (captureMode === 'video') {
+      setCaptureError('video_unsupported');
+      return;
+    }
+
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -207,10 +428,11 @@ export function CameraCapture() {
         });
 
         const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        runCaptureFeedback();
         setCapturedImage(dataUrl);
 
-        // 3. Burst Mode (10X Improvement D)
-        if (burstMode) {
+        // Burst mode bypasses captions by design and stays photo-only for Phase 9.
+        if (burstMode && captureMode === 'photo') {
           saveDirectly(dataUrl);
         }
       }
@@ -225,33 +447,18 @@ export function CameraCapture() {
       canvasRef.current?.toBlob(resolve, 'image/jpeg', 0.9)
     );
 
-    if (documentMode) {
-      await JobDocumentCaptureRuntime.captureDocument({
-        jobId: id,
-        title: category,
-        documentType,
-        sourceType: 'camera_capture',
-        stepId: requirementId,
-        localUri: dataUrl,
-        fileName: `${category.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.jpg`,
-        mimeType: blob?.type || 'image/jpeg',
-        fileSize: blob?.size ?? dataUrl.length,
-        notes: 'Document saved as image. You can add a note later.',
-      });
-    } else {
-      await ProofCaptureService.savePhoto({
-        jobId: id,
-        dataUrl,
-        blob: blob || undefined,
-        category,
-        requirementId,
-        stageId,
-        latitude: location?.lat,
-        longitude: location?.lng,
-        isIssue,
-        issueType: isIssue ? issueType : undefined,
-      });
-    }
+    await ProofCaptureService.savePhoto({
+      jobId: id,
+      dataUrl,
+      blob: blob || undefined,
+      category,
+      requirementId,
+      stageId,
+      latitude: location?.lat,
+      longitude: location?.lng,
+      isIssue,
+      issueType: isIssue ? issueType : undefined,
+    });
     // Visual feedback for burst
     const video = videoRef.current;
     if (video) {
@@ -261,49 +468,86 @@ export function CameraCapture() {
     setCapturedImage(null);
   }
 
-  async function handleSave() {
+  async function saveCapture(notes: string) {
     if (!id || !capturedImage || !canvasRef.current) return;
     setSaving(true);
+    setCaptureError(null);
 
-    const blob = await new Promise<Blob | null>(resolve => 
-      canvasRef.current?.toBlob(resolve, 'image/jpeg', 0.9)
-    );
+    try {
+      const blob = await new Promise<Blob | null>(resolve =>
+        canvasRef.current?.toBlob(resolve, 'image/jpeg', 0.9)
+      );
 
-    if (documentMode) {
-      await JobDocumentCaptureRuntime.captureDocument({
-        jobId: id,
-        title: category,
-        documentType,
-        sourceType: 'camera_capture',
-        stepId: requirementId,
-        localUri: capturedImage,
-        fileName: `${category.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.jpg`,
-        mimeType: blob?.type || 'image/jpeg',
-        fileSize: blob?.size ?? capturedImage.length,
-        notes: 'Document saved as image. You can add a note later.',
-      });
-    } else {
-      await ProofCaptureService.savePhoto({
-        jobId: id,
-        dataUrl: capturedImage,
-        blob: blob || undefined,
-        category,
-        requirementId,
-        stageId,
-        latitude: location?.lat,
-        longitude: location?.lng,
-        isIssue,
-        issueType: isIssue ? issueType : undefined,
-      });
+      if (captureMode === 'document') {
+        await JobDocumentCaptureRuntime.captureDocument({
+          jobId: id,
+          title: category,
+          documentType,
+          sourceType: 'camera_capture',
+          stepId: requirementId,
+          localUri: capturedImage,
+          fileName: `${category.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.jpg`,
+          mimeType: blob?.type || 'image/jpeg',
+          fileSize: blob?.size ?? capturedImage.length,
+          notes: notes.trim() || undefined,
+        });
+      } else {
+        await ProofCaptureService.savePhoto({
+          jobId: id,
+          dataUrl: capturedImage,
+          blob: blob || undefined,
+          category,
+          requirementId,
+          stageId,
+          latitude: location?.lat,
+          longitude: location?.lng,
+          notes: notes.trim() || undefined,
+          isIssue,
+          issueType: isIssue ? issueType : undefined,
+        });
+      }
+
+      if (descriptionVoiceText.trim()) {
+        await ProofCaptureService.saveVoiceNote({
+          jobId: id,
+          transcribedText: buildPhotoDescriptionTranscript(category, descriptionVoiceText.trim(), t),
+          audioBlob: descriptionAudioBlob || undefined,
+          category,
+          requirementId,
+          stageId,
+          isIssue: captureMode === 'photo' ? isIssue : false,
+          isChangeOrder: captureMode === 'photo' && issueType === 'CHANGE_ORDER',
+        });
+      }
+
+      // If we came from a specific checklist step, go back to checklist
+      if (searchParams.get('category')) {
+        navigate(`/job/${id}?tab=${encodeURIComponent(returnTab)}`);
+      } else {
+        clearCapturedMedia();
+      }
+    } catch (err) {
+      console.error('capture_save_failed', err);
+      setCaptureError('save_failed');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    
-    // If we came from a specific checklist step, go back to checklist
-    if (searchParams.get('category')) {
-      navigate(`/job/${id}?tab=${encodeURIComponent(returnTab)}`);
-    } else {
-      setCapturedImage(null);
+  }
+
+  function handlePrimaryCapture() {
+    if (captureMode === 'video') {
+      setCaptureError('video_unsupported');
+      return;
     }
+    takePhoto();
+  }
+
+  async function handleSave() {
+    await saveCapture(description);
+  }
+
+  async function handleSkipDescription() {
+    await saveCapture('');
   }
 
   return (
@@ -318,27 +562,34 @@ export function CameraCapture() {
         </button>
         
         <div className="flex gap-2">
-          <button 
-            onClick={() => setBurstMode(!burstMode)}
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
-              burstMode 
-                ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/40" 
-                : "bg-black/20 border-white/10 text-white/50"
-            )}
-          >
-            <Zap size={14} className={burstMode ? "fill-white" : ""} />
-            {t('capture.burst')} {burstMode ? t('capture.on') : t('capture.off')}
-          </button>
+          {captureMode === 'photo' && (
+            <button
+              onClick={() => setBurstMode(!burstMode)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
+                burstMode
+                  ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/40"
+                  : "bg-black/20 border-white/10 text-white/50"
+              )}
+            >
+              <Zap size={14} className={burstMode ? "fill-white" : ""} />
+              {t('capture.burst')} {burstMode ? t('capture.on') : t('capture.off')}
+            </button>
+          )}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-black/20 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-widest border border-white/10">
             <MapPin size={14} className={location ? "text-green-400" : "text-slate-400"} />
-            {location ? `GPS Locked${location.accuracy ? ` ±${Math.round(location.accuracy)}m` : ''}` : t('capture.locating')}
+            {formatCaptureGpsStatus(location, t)}
           </div>
         </div>
       </div>
 
       {/* Viewport */}
-      <div className="flex-1 relative flex items-center justify-center bg-slate-900">
+      <div
+        className={cn(
+          "flex-1 relative flex items-center justify-center bg-slate-900 transition-transform duration-150",
+          captureFeedback && "scale-[0.8]"
+        )}
+      >
         {!capturedImage ? (
           <video 
             ref={videoRef} 
@@ -352,11 +603,15 @@ export function CameraCapture() {
             className="w-full h-full object-cover" 
           />
         )}
+        {captureFeedback && (
+          <div className="absolute inset-0 z-20 bg-white/45" />
+        )}
         <canvas ref={canvasRef} className="hidden" />
         {!capturedImage && (
           <div className="absolute left-4 right-4 bottom-4 bg-black/45 backdrop-blur-md border border-white/10 rounded-3xl p-4 text-white">
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200 mb-1">{t('capture.capturingProofFor')}</div>
-            <div className="text-lg font-black leading-tight">{category}</div>
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200 mb-1">{getModeContextLabel()}</div>
+            <div className="text-lg font-black leading-tight">{captureMode === 'video' ? getModeDefaultCategory('video') : category}</div>
+            <div className="text-xs text-white/75 font-bold mt-1">{getModePurposeText()}</div>
             {captureHint && <div className="text-xs text-white/70 font-semibold mt-1 leading-relaxed">{captureHint}</div>}
           </div>
         )}
@@ -364,8 +619,24 @@ export function CameraCapture() {
 
       {/* Bottom Controls */}
       <div className="bg-slate-900/90 backdrop-blur-xl border-t border-white/5 p-6 space-y-6">
+        <CaptureModeSelector />
+        {captureError && (
+          <div className="rounded-2xl border border-red-400/30 bg-red-500/15 p-4 text-sm font-bold text-red-100">
+            {getCaptureErrorMessage(captureError)}
+            {(captureError === 'camera_permission_denied' || captureError === 'camera_unavailable') && (
+              <button
+                type="button"
+                onClick={() => navigate(`/job/${id}`)}
+                className="mt-3 w-full rounded-xl bg-white/10 px-4 py-3 text-white"
+              >
+                {t('capture.openJobWithoutCamera')}
+              </button>
+            )}
+          </div>
+        )}
         {!capturedImage ? (
           <>
+            {captureMode !== 'video' && (
             <div className="overflow-x-auto no-scrollbar">
               <div className="flex gap-2 min-w-max">
                 {categories.map(cat => (
@@ -384,8 +655,16 @@ export function CameraCapture() {
                 ))}
               </div>
             </div>
+            )}
 
-            <div className="flex items-center justify-center gap-12">
+            {captureMode === 'video' && (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm font-bold text-white/75 space-y-2">
+                <div>{t('capture.videoPurpose')}</div>
+                <div className="text-red-100">{t('capture.videoUnsupported')}</div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-center gap-4">
               <button 
                 onClick={toggleVoiceRecording}
                 className={cn(
@@ -396,13 +675,16 @@ export function CameraCapture() {
                 <Mic size={20} />
                 {isRecordingVoice && <span className="text-[8px] font-black">{voiceTimer}s</span>}
               </button>
-              <button 
-                onClick={takePhoto}
-                className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-[0_0_0_4px_rgba(255,255,255,0.2)] active:scale-90 transition-transform"
+              <button
+                onClick={handlePrimaryCapture}
+                disabled={captureMode === 'video'}
+                className={cn(
+                  "min-h-20 flex-1 bg-white rounded-2xl flex items-center justify-center gap-3 px-5 shadow-[0_0_0_4px_rgba(255,255,255,0.2)] active:scale-95 transition-transform text-slate-900 font-black uppercase tracking-widest border-4 border-blue-300",
+                  captureMode === 'video' && "opacity-60"
+                )}
               >
-                <div className="w-16 h-16 bg-white border-2 border-slate-900 rounded-full flex items-center justify-center">
-                  <Camera className="text-slate-900" size={32} />
-                </div>
+                <Camera className="text-slate-900" size={28} />
+                <span className="text-sm">{t(getPrimaryCaptureLabelKey(captureMode, isRecordingVideo))}</span>
               </button>
               <button onClick={() => setFacingMode((current) => current === 'environment' ? 'user' : 'environment')} className="text-white/50 p-2" aria-label={t('capture.switchCamera')}>
                 <RefreshCw size={24} />
@@ -412,11 +694,11 @@ export function CameraCapture() {
         ) : (
           <div className="space-y-6">
             <div className="flex items-center justify-between text-white">
-              <span className="text-sm font-bold uppercase tracking-widest text-white/50">{t('capture.captureContext')}</span>
+              <span className="text-sm font-bold uppercase tracking-widest text-white/50">{t(getReadyStatusKey(captureMode))}</span>
               <span className="bg-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase italic tracking-tight">{category}</span>
             </div>
 
-            {/* Issue Tagging UI (10X Upgrade) */}
+            {captureMode === 'photo' && (
             <div className="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -436,27 +718,72 @@ export function CameraCapture() {
 
               {isIssue && (
                 <div className="pt-4 border-t border-white/5 grid grid-cols-2 gap-2">
-                  {(['SAFETY', 'DEFICIENCY', 'CHANGE_ORDER', 'BLOCKED'] as const).map(type => (
+                  {getIssueTypeOptions(t).map((type) => (
                     <button
-                      key={type}
-                      onClick={() => setIssueType(type)}
+                      key={type.value}
+                      onClick={() => setIssueType(type.value)}
                       className={cn(
                         "py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border",
-                        issueType === type 
+                        issueType === type.value
                           ? "bg-orange-500 border-orange-500 text-white" 
                           : "bg-white/5 border-white/10 text-white/40"
                       )}
                     >
-                      {type.replace('_', ' ')}
+                      {type.label}
                     </button>
                   ))}
                 </div>
               )}
             </div>
+            )}
+
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="block text-xs font-black uppercase tracking-widest text-white/60">
+                  {t('capture.descriptionLabel')}
+                </label>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/45">
+                  {settings.captureLanguage === 'es' ? t('common.spanish') : t('common.english')}
+                </span>
+              </div>
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder={t('capture.descriptionPlaceholder')}
+                className="w-full min-h-24 rounded-2xl bg-white/10 border border-white/10 text-white placeholder:text-white/35 p-4 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={toggleDescriptionRecording}
+                disabled={isTranscribingDescription}
+                className={cn(
+                  "mt-3 w-full min-h-12 rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
+                  isRecordingDescription
+                    ? "bg-red-500 border-red-500 text-white animate-pulse"
+                    : "bg-white/5 border-white/10 text-white"
+                )}
+              >
+                {isTranscribingDescription ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <Mic size={18} />
+                )}
+                {isTranscribingDescription
+                  ? t('capture.transcribingDescription')
+                  : isRecordingDescription
+                    ? `${t('capture.stopDescriptionRecording')} ${descriptionTimer}s`
+                    : t('capture.dictateDescription')}
+              </button>
+              {descriptionVoiceText && (
+                <div className="mt-2 text-xs font-bold text-green-200">
+                  {t('capture.descriptionAudioReady')}
+                </div>
+              )}
+            </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => setCapturedImage(null)}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <button
+                onClick={clearCapturedMedia}
                 className="py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-colors"
               >
                 {t('capture.retake')}
@@ -464,16 +791,24 @@ export function CameraCapture() {
               <button 
                 onClick={handleSave}
                 disabled={saving}
-                className="py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl shadow-blue-600/30 hover:bg-blue-500 transition-colors flex items-center justify-center gap-2"
+                className="py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl shadow-blue-600/30 hover:bg-blue-500 transition-colors flex items-center justify-center gap-2 sm:col-span-2"
               >
                 {saving ? (
                   <Loader2 className="animate-spin" size={20} />
                 ) : (
                   <>
                     <Check size={20} />
-                    {t('capture.savePhoto')}
+                    <span>{t('capture.saveToJob')}</span>
+                    <span className="text-white/70">({t(getUseCaptureLabelKey(captureMode))})</span>
                   </>
                 )}
+              </button>
+              <button
+                onClick={handleSkipDescription}
+                disabled={saving}
+                className="py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-colors sm:col-span-3"
+              >
+                {t('capture.skipDescription')}
               </button>
             </div>
           </div>

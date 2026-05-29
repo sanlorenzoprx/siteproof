@@ -295,14 +295,14 @@ export function JobDetail() {
   async function sharePacket(packet: ExportPacket, channel: 'email' | 'sms') {
     const recipient = shareRecipient.trim();
     if (!recipient) {
-      alert(channel === 'email' ? 'Enter an email address first.' : 'Enter a phone number first.');
+      alert(channel === 'email' ? t('jobDetail.emailRecipientFirst') : t('jobDetail.phoneRecipientFirst'));
       return;
     }
     const target = channel === 'email'
       ? ReportShareService.buildEmailTarget(packet, job!, recipient)
       : ReportShareService.buildSmsTarget(packet, job!, recipient);
     if (!target) {
-      alert('This report does not have a share link yet. Create or sync a Cloud Proof Vault link before sending by email or SMS.');
+      alert(t('jobDetail.shareLinkMissing'));
       return;
     }
     await ReportShareService.markShared(packet, target).catch((error) => console.warn('Report share status update failed:', error));
@@ -392,7 +392,7 @@ export function JobDetail() {
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => navigate(`/job/${job.id}/camera?category=${encodeURIComponent(currentStage?.display_name ?? 'General Photo')}`)}
+              onClick={() => navigate(`/job/${job.id}/camera?category=${encodeURIComponent(currentStage?.display_name ?? t('jobDetail.generalPhoto'))}`)}
               className="bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all flex items-center gap-2"
             >
               <Camera size={18} /> {t('jobDetail.takePhoto')}
@@ -481,7 +481,7 @@ export function JobDetail() {
                     onClick={() => setDocumentCaptureSource('checklist')}
                     className="w-full bg-blue-50 border border-blue-100 text-blue-700 p-5 rounded-[28px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
                   >
-                    <FileText size={18} /> Add Permit / Inspection Document
+                    <FileText size={18} /> {t('jobDetail.documentCapture.addPermitInspection')}
                   </button>
                 )}
                 {visibleStages.map((stage, index) => (
@@ -605,14 +605,14 @@ export function JobDetail() {
                       </label>
                       {inspectionReportBlocked ? (
                         <div className="rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-xs font-bold text-orange-100">
-                          Missing proof will be reviewed before generation. You can capture it, mark it not needed, or generate anyway.
+                          {t('jobDetail.missingProofReviewNotice')}
                         </div>
                       ) : null}
                       {showMissingProofReview ? (
                         <div className="rounded-[24px] border border-orange-400/30 bg-orange-500/10 p-4 space-y-3">
                           <div>
-                            <h3 className="text-sm font-black text-orange-100">Missing-Proof Review</h3>
-                            <p className="text-xs font-bold text-orange-100/75">Required warnings appear first. You can still generate the Pro Report offline.</p>
+                            <h3 className="text-sm font-black text-orange-100">{t('jobDetail.missingProofReview')}</h3>
+                            <p className="text-xs font-bold text-orange-100/75">{t('jobDetail.missingProofReviewHelp')}</p>
                           </div>
                           <div className="space-y-2">
                             {missingProofWarnings.map((warning) => (
@@ -621,18 +621,18 @@ export function JobDetail() {
                                   <div>
                                     <div className="text-sm font-black text-white">{warning.title}</div>
                                     <div className="text-[11px] font-bold text-slate-400">{warning.warning}</div>
-                                    <div className="mt-1 text-[9px] font-black uppercase tracking-widest text-orange-200">{warning.required ? 'Required' : 'Recommended'}</div>
+                                    <div className="mt-1 text-[9px] font-black uppercase tracking-widest text-orange-200">{warning.required ? t('jobDetail.required') : t('jobDetail.recommended')}</div>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
-                                    <button onClick={() => captureMissingProof(warning)} className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest">Capture Missing Proof</button>
-                                    <button onClick={() => void markWarningNotNeeded(warning)} className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest">Mark Not Needed</button>
+                                    <button onClick={() => captureMissingProof(warning)} className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest">{t('jobDetail.captureMissingProof')}</button>
+                                    <button onClick={() => void markWarningNotNeeded(warning)} className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest">{t('jobDetail.markNotNeeded')}</button>
                                   </div>
                                 </div>
                               </div>
                             ))}
                           </div>
                           <button onClick={() => void generateAnywayFromReview()} className="w-full min-h-12 rounded-2xl bg-white text-slate-950 text-xs font-black uppercase tracking-widest">
-                            Generate Anyway
+                            {t('jobDetail.generateAnyway')}
                           </button>
                         </div>
                       ) : null}
@@ -660,11 +660,11 @@ export function JobDetail() {
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exportPackets.length} {t('jobDetail.savedLocallyCount')}</span>
                       </div>
                       <label className="block mb-4">
-                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Email or SMS recipient</span>
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('jobDetail.emailSmsRecipient')}</span>
                         <input
                           value={shareRecipient}
                           onChange={(event) => setShareRecipient(event.target.value)}
-                          placeholder="email@example.com or phone number"
+                          placeholder={t('jobDetail.emailSmsPlaceholder')}
                           className="w-full min-h-12 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-blue-400"
                         />
                       </label>
@@ -680,7 +680,7 @@ export function JobDetail() {
                               </div>
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-green-300">
-                                  {ReportShareService.canShareLink(packet) ? packet.share_status.replaceAll('_', ' ') : 'Saved locally - cloud link needed'}
+                                  {ReportShareService.canShareLink(packet) ? packet.share_status.replaceAll('_', ' ') : t('jobDetail.savedLocallyCloudNeeded')}
                                 </span>
                                 <div className="flex flex-wrap gap-2">
                                   {packet.local_file_uri.startsWith('data:') ? (
@@ -690,7 +690,7 @@ export function JobDetail() {
                                       rel="noreferrer"
                                       className="px-3 py-2 rounded-xl bg-white text-slate-950 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
                                     >
-                                      <FileText size={14} /> Open Local Report
+                                      <FileText size={14} /> {t('jobDetail.openLocalReport')}
                                     </a>
                                   ) : null}
                                   <button
@@ -698,14 +698,14 @@ export function JobDetail() {
                                     disabled={!ReportShareService.canShareLink(packet)}
                                     className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
                                   >
-                                    <Mail size={14} /> Email Report
+                                    <Mail size={14} /> {t('jobDetail.emailReport')}
                                   </button>
                                   <button
                                     onClick={() => void sharePacket(packet, 'sms')}
                                     disabled={!ReportShareService.canShareLink(packet)}
                                     className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
                                   >
-                                    <MessageSquare size={14} /> SMS Link
+                                    <MessageSquare size={14} /> {t('jobDetail.smsLink')}
                                   </button>
                                 </div>
                               </div>
@@ -727,7 +727,7 @@ export function JobDetail() {
                 <ShieldCheck size={15} className="text-blue-500" /> {t('jobDetail.jobSummary')}
               </h3>
               <div className="space-y-5">
-                <SummaryRow label={t('jobDetail.currentStage')} value={currentStage?.display_name ?? 'Ready'} />
+                <SummaryRow label={t('jobDetail.currentStage')} value={currentStage?.display_name ?? t('jobDetail.ready')} />
                 <SummaryRow label={t('jobDetail.photos')} value={String(photos.length)} />
                 <SummaryRow label={t('jobDetail.voiceNotes')} value={String(voiceNotes.length)} />
                 <SummaryRow label={t('jobDetail.timelineEvents')} value={String(1 + photos.length + voiceNotes.length + exportPackets.length)} />
@@ -850,7 +850,7 @@ function WorkflowStageCard({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="hidden sm:block text-xs font-black text-slate-400 uppercase tracking-widest">
-            {completedRequired}/{required.length} required
+            {completedRequired}/{required.length} {t('jobDetail.requiredCount')}
           </span>
           {expanded ? <ChevronDown size={22} className="text-slate-400" /> : <ChevronRight size={22} className="text-slate-400" />}
         </div>

@@ -5,18 +5,19 @@ import { JobDocumentType } from '../db/schema';
 import { Job } from '../types';
 import { JobDocumentCaptureRuntime } from '../services/jobDocumentCaptureRuntime';
 import { cn } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 
-const DOCUMENT_TYPES: Array<{ value: JobDocumentType; label: string }> = [
-  { value: 'permit_document', label: 'Permit document' },
-  { value: 'inspection_card', label: 'Inspection card' },
-  { value: 'utility_approval', label: 'Utility approval' },
-  { value: 'code_correction_notice', label: 'Correction notice' },
-  { value: 'plan_page', label: 'Plan page' },
-  { value: 'manufacturer_installation_instructions', label: 'Manufacturer instructions' },
-  { value: 'ahj_notes', label: 'AHJ notes' },
-  { value: 'inspector_punch_list', label: 'Inspector punch list' },
-  { value: 'change_order_approval', label: 'Change order approval' },
-  { value: 'other', label: 'Other' },
+const DOCUMENT_TYPES: Array<{ value: JobDocumentType; labelKey: string }> = [
+  { value: 'permit_document', labelKey: 'jobDetail.documentCapture.types.permit_document' },
+  { value: 'inspection_card', labelKey: 'jobDetail.documentCapture.types.inspection_card' },
+  { value: 'utility_approval', labelKey: 'jobDetail.documentCapture.types.utility_approval' },
+  { value: 'code_correction_notice', labelKey: 'jobDetail.documentCapture.types.code_correction_notice' },
+  { value: 'plan_page', labelKey: 'jobDetail.documentCapture.types.plan_page' },
+  { value: 'manufacturer_installation_instructions', labelKey: 'jobDetail.documentCapture.types.manufacturer_installation_instructions' },
+  { value: 'ahj_notes', labelKey: 'jobDetail.documentCapture.types.ahj_notes' },
+  { value: 'inspector_punch_list', labelKey: 'jobDetail.documentCapture.types.inspector_punch_list' },
+  { value: 'change_order_approval', labelKey: 'jobDetail.documentCapture.types.change_order_approval' },
+  { value: 'other', labelKey: 'jobDetail.documentCapture.types.other' },
 ];
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -41,6 +42,7 @@ export function JobDocumentQuickCapture({
   onSaved?: () => void;
   onClose?: () => void;
 }) {
+  const { t } = useSettings();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [documentType, setDocumentType] = useState<JobDocumentType>('permit_document');
@@ -48,10 +50,10 @@ export function JobDocumentQuickCapture({
   const [saving, setSaving] = useState(false);
 
   const help = source === 'setup'
-    ? 'Have a permit, inspection card, plan page, or approval document? Add it now and SiteProof will organize it with this job.'
+    ? t('jobDetail.documentCapture.setupHelp')
     : source === 'checklist'
-      ? 'Add any permit, inspection card, plan page, correction notice, or approval document connected to this job.'
-      : 'Final document check. Add any permit, inspection, approval, punch list, or change order document before generating your Pro Reports.';
+      ? t('jobDetail.documentCapture.checklistHelp')
+      : t('jobDetail.documentCapture.finalHelp');
 
   async function saveDocument(input: { file?: File; manualOnly?: boolean }) {
     setSaving(true);
@@ -60,7 +62,7 @@ export function JobDocumentQuickCapture({
       const localUri = file ? await readFileAsDataUrl(file) : undefined;
       await JobDocumentCaptureRuntime.captureDocument({
         jobId: job.id,
-        title: DOCUMENT_TYPES.find((item) => item.value === documentType)?.label ?? 'Job document',
+        title: t(DOCUMENT_TYPES.find((item) => item.value === documentType)?.labelKey ?? 'jobDetail.documentCapture.jobDocument'),
         documentType,
         sourceType: file ? 'file_upload' : 'manual_note',
         stepId,
@@ -68,7 +70,7 @@ export function JobDocumentQuickCapture({
         fileName: file?.name,
         mimeType: file?.type,
         fileSize: file?.size,
-        notes: note || (file ? 'Document saved as image/file. You can add a note later.' : 'Document saved as manual note.'),
+        notes: note || (file ? t('jobDetail.documentCapture.savedImageFileNote') : t('jobDetail.documentCapture.savedManualNote')),
         trade: job.trade,
         specialty: job.specialty,
       });
@@ -83,7 +85,7 @@ export function JobDocumentQuickCapture({
     const params = new URLSearchParams({
       document: '1',
       documentType,
-      category: DOCUMENT_TYPES.find((item) => item.value === documentType)?.label ?? 'Permit / Inspection Document',
+      category: t(DOCUMENT_TYPES.find((item) => item.value === documentType)?.labelKey ?? 'jobDetail.documentCapture.permitInspectionDocument'),
       returnTab: source === 'final' ? 'export' : 'proof',
     });
     if (stepId) params.set('requirementId', stepId);
@@ -94,12 +96,12 @@ export function JobDocumentQuickCapture({
     <section className="bg-blue-50 border border-blue-100 rounded-[28px] p-5 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-black text-blue-950 uppercase tracking-tight">Add Permit / Inspection Document</h3>
+          <h3 className="font-black text-blue-950 uppercase tracking-tight">{t('jobDetail.documentCapture.addPermitInspection')}</h3>
           <p className="text-xs font-bold text-blue-800/80 mt-1">{help}</p>
-          <p className="text-[11px] font-bold text-blue-700 mt-2">Take a picture. SiteProof organizes it with the job.</p>
+          <p className="text-[11px] font-bold text-blue-700 mt-2">{t('jobDetail.documentCapture.takePictureHelp')}</p>
         </div>
         {onClose ? (
-          <button onClick={onClose} className="p-2 rounded-xl bg-white/70 text-blue-700 hover:bg-white" aria-label="Close document capture">
+          <button onClick={onClose} className="p-2 rounded-xl bg-white/70 text-blue-700 hover:bg-white" aria-label={t('jobDetail.documentCapture.close')}>
             <X size={18} />
           </button>
         ) : null}
@@ -115,7 +117,7 @@ export function JobDocumentQuickCapture({
               documentType === item.value ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-blue-100 text-blue-800',
             )}
           >
-            {item.label}
+            {t(item.labelKey)}
           </button>
         ))}
       </div>
@@ -124,7 +126,7 @@ export function JobDocumentQuickCapture({
         rows={2}
         value={note}
         onChange={(event) => setNote(event.target.value)}
-        placeholder="Optional note"
+        placeholder={t('jobDetail.documentCapture.optionalNote')}
         className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-400"
       />
 
@@ -142,21 +144,21 @@ export function JobDocumentQuickCapture({
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button onClick={takePhoto} className="min-h-12 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-          <Camera size={17} /> Take Photo
+          <Camera size={17} /> {t('jobDetail.takePhoto')}
         </button>
         <button onClick={() => fileInputRef.current?.click()} className="min-h-12 bg-white text-blue-700 border border-blue-100 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-          <FileUp size={17} /> Upload
+          <FileUp size={17} /> {t('jobDetail.documentCapture.upload')}
         </button>
         <button
           onClick={() => void saveDocument({ manualOnly: true })}
           disabled={saving}
           className="min-h-12 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <Save size={17} /> {saving ? 'Saving...' : 'Add Note'}
+          <Save size={17} /> {saving ? t('jobDetail.documentCapture.saving') : t('jobDetail.documentCapture.addNote')}
         </button>
       </div>
 
-      <p className="text-[11px] font-bold text-blue-700">Document saved as image. You can add a note now or keep moving.</p>
+      <p className="text-[11px] font-bold text-blue-700">{t('jobDetail.documentCapture.savedImageHelp')}</p>
     </section>
   );
 }

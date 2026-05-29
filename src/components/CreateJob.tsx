@@ -116,7 +116,7 @@ export function CreateJob() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Trade / specialty</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.tradeSpecialty')}</label>
               <select
                 value={form.tradePackId}
                 onChange={e => {
@@ -138,8 +138,8 @@ export function CreateJob() {
           </div>
 
           <div className="bg-amber-50 p-5 rounded-3xl border border-amber-100 space-y-2">
-            <p className="text-sm font-black text-amber-950">SiteProof guides your crew step by step, showing exactly what proof to capture for your trade before, during, and after the job.</p>
-            <p className="text-xs font-bold text-amber-900">This job has required proof steps. SiteProof will help you capture the photos, notes, timestamps, and inspection evidence needed for this trade.</p>
+            <p className="text-sm font-black text-amber-950">{t('jobs.workflowGuide')}</p>
+            <p className="text-xs font-bold text-amber-900">{t('jobs.requiredProofHelp')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -201,7 +201,7 @@ export function CreateJob() {
           disabled={loading}
           className="w-full bg-white border border-blue-200 text-blue-700 py-5 rounded-[28px] text-sm font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          <FileText size={18} /> Start Job + Add Permit / Inspection Document
+          <FileText size={18} /> {t('jobs.startJobWithDocument')}
         </button>
 
         <button
@@ -209,7 +209,7 @@ export function CreateJob() {
           disabled={loading}
           className="w-full bg-blue-600 text-white py-6 rounded-[30px] text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
         >
-          {loading ? "{t('jobs.starting')}" : "{t('jobs.startJob')} →"}
+          {loading ? t('jobs.starting') : t('jobs.startJobCta')}
         </button>
       </form>
     </div>

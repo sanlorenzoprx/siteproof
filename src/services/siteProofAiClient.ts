@@ -36,10 +36,11 @@ export class SiteProofAiClient {
     return response.taglines ?? [];
   }
 
-  static async transcribeAudio(audioBase64: string, mimeType = 'audio/webm'): Promise<string> {
+  static async transcribeAudio(audioBase64: string, mimeType = 'audio/webm', language?: 'en' | 'es'): Promise<string> {
     const response = await postAi<{ transcript?: string }>('/api/ai/transcribe', {
       audioBase64,
       mimeType,
+      language,
     });
     return response.transcript?.trim() || '';
   }

@@ -34,14 +34,14 @@ export class AIService {
   /**
    * Transcribes audio through the backend AI API boundary.
    */
-  static async transcribeAudio(audioBase64: string): Promise<string> {
+  static async transcribeAudio(audioBase64: string, language?: SiteProofLanguage, mimeType = 'audio/webm'): Promise<string> {
     if (!audioBase64 || audioBase64.length < 10) {
       console.warn('AIService: No audio data provided for transcription.');
       return '';
     }
 
     try {
-      return await SiteProofAiClient.transcribeAudio(audioBase64);
+      return await SiteProofAiClient.transcribeAudio(audioBase64, mimeType, language);
     } catch (error) {
       console.error('Transcription error:', error);
       await AiTaskQueueService.enqueue('transcribe_audio', error).catch(() => undefined);
