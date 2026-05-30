@@ -5,6 +5,7 @@ import { TradeTemplatePackService } from './tradeTemplatePackService';
 import { SettingsService } from './settingsService';
 
 export interface CreateFieldJobInput {
+  mode?: Job['mode'];
   customerName: string;
   address: string;
   jobType?: string;
@@ -44,6 +45,7 @@ export class JobWorkflowService {
     const settings = await SettingsService.getSettings();
     const job: Job = {
       id: crypto.randomUUID(),
+      mode: input.mode ?? 'approved',
       customerName: input.customerName.trim(),
       address: input.address.trim(),
       jobType: input.jobType || template.display_name,
@@ -72,12 +74,19 @@ export class JobWorkflowService {
 
   static async createFromQuickStart(input: string): Promise<Job> {
     const parsed = parseQuickJobText(input);
-    return this.createJob({ ...parsed, status: 'ACTIVE' });
+    return this.createJob({ ...parsed, mode: 'approved', status: 'ACTIVE' });
   }
 
   static async completeJob(job: Job): Promise<Job> {
     const updated: Job = { ...job, status: 'COMPLETED', updatedAt: Date.now(), syncStatus: 'PENDING' };
     await SiteProofDataService.saveJob(updated);
+    return updated;
+  }
+
+  static async convertBidToApprovedJob(job: Job): Promise<Job> {
+    const updated: Job = { ...job, mode: 'approved', status: 'ACTIVE', updatedAt: Date.now(), syncStatus: 'PENDING' };
+    await SiteProofDataService.saveJob(updated);
+    await SiteProofDataService.setLastActiveJobId(updated.id);
     return updated;
   }
 }

@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
+  Briefcase,
   Camera,
   CheckCircle,
   ChevronDown,
@@ -51,6 +52,8 @@ import { MissingProofDetectionService, MissingProofWarning } from '../services/m
 import { ProReportManifestBuilder } from '../services/proReportManifestBuilder';
 import { ProReportType } from '../templates/tradeTemplatePack.types';
 import { ReportShareService } from '../features/export/reportShareService';
+import { JobWorkflowService } from '../services/jobWorkflowService';
+import { HintCard } from './HintCard';
 
 type DetailView = 'proof' | 'photos' | 'notes' | 'timeline' | 'export';
 
@@ -339,6 +342,12 @@ export function JobDetail() {
     navigate('/');
   }
 
+  async function convertBidToApprovedJob() {
+    if (!job) return;
+    const updated = await JobWorkflowService.convertBidToApprovedJob(job);
+    setJob(updated);
+  }
+
   const currentStage = visibleStages.find((stage) => {
     const runtime = stageRuntimeByTemplateId.get(stage.stage_id);
     return runtime?.status !== 'complete';
@@ -346,6 +355,8 @@ export function JobDetail() {
   const reportOptions = [...APP_REPORT_TYPES, SiteProofReportType.ALL_REPORTS] as const;
   const inspectionReportBlocked = selectedReportType === SiteProofReportType.INSPECTION_READINESS
     && (readiness?.blocking_items.length ?? missingRequired.length) > 0;
+  const isSimpleMode = settings.uxMode === 'simple';
+  const isBid = job.mode === 'bid';
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28">
@@ -371,6 +382,11 @@ export function JobDetail() {
                 )}>
                   {job.status}
                 </span>
+                {isBid && (
+                  <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-widest">
+                    {t('jobDetail.bidWorkspace')}
+                  </span>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5 text-xs font-bold text-slate-500">
                 <span className="flex items-center gap-1.5"><MapPin size={14} className="text-blue-500" />{job.address}</span>
@@ -422,6 +438,40 @@ export function JobDetail() {
       <div className="max-w-7xl mx-auto p-5 md:p-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <main className="lg:col-span-8 space-y-6">
+            {isSimpleMode && (
+              <section className="bg-white rounded-[32px] border border-slate-200 p-5 shadow-sm space-y-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">{isBid ? t('jobDetail.bidWorkspace') : t('jobDetail.whatAdd')}</p>
+                  <h2 className="text-2xl font-black text-slate-950">{job.customerName}</h2>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <button onClick={() => navigate(`/job/${job.id}/camera?mode=photo`)} className="min-h-20 rounded-2xl bg-blue-600 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><Camera size={18} />{t('capture.modePhoto')}</button>
+                  <button onClick={() => navigate(`/job/${job.id}/camera?document=1`)} className="min-h-20 rounded-2xl bg-white border border-slate-200 text-slate-800 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><FileText size={18} />{t('capture.modeDocument')}</button>
+                  <button onClick={() => navigate(`/job/${job.id}/voice`)} className="min-h-20 rounded-2xl bg-white border border-slate-200 text-slate-800 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><Mic size={18} />{t('jobDetail.notes')}</button>
+                  <button onClick={() => navigate(`/job/${job.id}/camera?mode=video`)} className="min-h-20 rounded-2xl bg-white border border-slate-200 text-slate-800 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><Camera size={18} />{t('capture.modeVideo')}</button>
+                </div>
+                {isBid ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button onClick={() => setActiveView('export')} className="rounded-2xl bg-slate-900 px-4 py-4 text-white text-xs font-black uppercase tracking-widest">{t('jobDetail.createInternalBidReport')}</button>
+                    <button onClick={() => setActiveView('export')} className="rounded-2xl bg-amber-50 px-4 py-4 text-amber-800 text-xs font-black uppercase tracking-widest">{t('jobDetail.createCustomerBidReport')}</button>
+                    <button onClick={() => void convertBidToApprovedJob()} className="rounded-2xl bg-blue-600 px-4 py-4 text-white text-xs font-black uppercase tracking-widest">{t('jobDetail.convertApprovedJob')}</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setActiveView('export')} className="w-full rounded-2xl bg-slate-900 px-5 py-4 text-white text-xs font-black uppercase tracking-widest">{t('jobDetail.generatePacket')}</button>
+                )}
+              </section>
+            )}
+            {isBid && (
+              <HintCard
+                hint={{
+                  hintId: 'bid-privacy-default',
+                  screen: 'jobDetail',
+                  type: 'privacy',
+                  textKey: 'hints.bidPrivacy',
+                  maxShows: 8,
+                }}
+              />
+            )}
             <InspectionReadyCard readiness={readiness} />
 
             {readiness?.blocking_items.length ? (

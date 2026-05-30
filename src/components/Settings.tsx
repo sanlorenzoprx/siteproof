@@ -14,7 +14,7 @@ import { CloudUpsellCard } from './cloud/CloudUpsellCard';
 import { useSettings } from '../contexts/SettingsContext';
 
 export function Settings() {
-  const { t } = useSettings();
+  const { settings, updateSettings, t } = useSettings();
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
@@ -86,6 +86,60 @@ export function Settings() {
 
       <div className="space-y-6">
         <LanguageSettingsPanel />
+        <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="bg-green-600/10 p-2 rounded-lg">
+              <Smartphone className="text-green-600" size={20} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">{t('settingsDetail.fieldExperience')}</h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.uxMode')}</span>
+              <select value={settings.uxMode} onChange={(event) => void updateSettings({ uxMode: event.target.value as typeof settings.uxMode })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold">
+                <option value="simple">{t('settingsDetail.simpleMode')}</option>
+                <option value="advanced">{t('settingsDetail.advancedMode')}</option>
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.hints')}</span>
+              <select value={settings.hintMode} onChange={(event) => void updateSettings({ hintMode: event.target.value as typeof settings.hintMode })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold">
+                <option value="guided">{t('settingsDetail.guided')}</option>
+                <option value="minimal">{t('settingsDetail.minimal')}</option>
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.theme')}</span>
+              <select value={settings.themeMode} onChange={(event) => void updateSettings({ themeMode: event.target.value as typeof settings.themeMode })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold">
+                <option value="light">{t('settingsDetail.light')}</option>
+                <option value="dark">{t('settingsDetail.dark')}</option>
+                <option value="system">{t('settingsDetail.system')}</option>
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.textSize')}</span>
+              <select value={settings.textSize} onChange={(event) => void updateSettings({ textSize: event.target.value as typeof settings.textSize })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold">
+                <option value="small">{t('settingsDetail.textSmall')}</option>
+                <option value="normal">{t('settingsDetail.textNormal')}</option>
+                <option value="large">{t('settingsDetail.textLarge')}</option>
+                <option value="xl">{t('settingsDetail.textXl')}</option>
+                <option value="xxl">{t('settingsDetail.textXxl')}</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+              {t('settingsDetail.voiceHelp')}
+              <input type="checkbox" checked={settings.voiceHelpEnabled} onChange={(event) => void updateSettings({ voiceHelpEnabled: event.target.checked })} />
+            </label>
+            <label className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+              {t('settingsDetail.alwaysShowProofHints')}
+              <input type="checkbox" checked={settings.alwaysShowProofHints} onChange={(event) => void updateSettings({ alwaysShowProofHints: event.target.checked })} />
+            </label>
+          </div>
+        </section>
         {/* Business & Identity Section */}
         <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6">
            <div className="flex items-center gap-3 mb-2">

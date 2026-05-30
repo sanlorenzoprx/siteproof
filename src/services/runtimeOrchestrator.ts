@@ -191,6 +191,7 @@ export class RuntimeOrchestrator {
     const runtimeJob: RuntimeJob = {
       ...(existing ?? {}),
       job_id: legacyJob.id,
+      mode: legacyJob.mode ?? existing?.mode ?? 'approved',
       company_id: DEFAULT_COMPANY_ID,
       customer_id: customerId,
       job_title: legacyJob.customerName || legacyJob.jobType || 'Field Job',

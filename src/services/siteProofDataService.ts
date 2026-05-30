@@ -34,6 +34,7 @@ async function runtimeJobToUiJob(job: RuntimeJob): Promise<Job> {
   const customer = job.customer_id ? await customerRepository.getById(job.customer_id) : undefined;
   return {
     id: job.job_id,
+    mode: job.mode ?? 'approved',
     customerName: customer?.name || job.job_title || 'Field Job',
     address: runtimeAddressToString(job),
     jobType: job.job_type || job.trade_specialty || job.trade || 'Field Job',

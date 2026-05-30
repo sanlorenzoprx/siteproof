@@ -213,6 +213,7 @@ export interface Customer extends TimestampFields, SyncFields {
 
 export interface Job extends TimestampFields, SyncFields {
   job_id: string;
+  mode?: 'bid' | 'approved';
   company_id: string;
   customer_id?: string | null;
   job_title: string;

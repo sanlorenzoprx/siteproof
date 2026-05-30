@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+:root[data-text-size="small"] {
+  font-size: 14px;
+}
+
+:root[data-text-size="normal"] {
+  font-size: 16px;
+}
+
+:root[data-text-size="large"] {
+  font-size: 18px;
+}
+
+:root[data-text-size="xl"] {
+  font-size: 20px;
+}
+
+:root[data-text-size="xxl"] {
+  font-size: 22px;
+}
+
+:root[data-theme-mode="dark"] body {
+  background: #020617;
+}

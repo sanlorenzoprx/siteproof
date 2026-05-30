@@ -11,6 +11,8 @@ import { JobDocumentType } from '../db/schema';
 import { cn } from '../lib/utils';
 import { MediaPipelineService } from '../services/mediaPipelineService';
 import { useSettings } from '../contexts/SettingsContext';
+import { HintCard } from './HintCard';
+import { HintService } from '../services/hintService';
 import {
   CaptureErrorCode,
   CaptureMode,
@@ -78,6 +80,9 @@ export function CameraCapture() {
   const [descriptionRecorder, setDescriptionRecorder] = useState<MediaRecorder | null>(null);
   const descriptionAudioChunksRef = useRef<Blob[]>([]);
   const [captureFeedback, setCaptureFeedback] = useState(false);
+  const [showAdvancedCapture, setShowAdvancedCapture] = useState(settings.uxMode === 'advanced');
+  const [showVoiceTuningHint, setShowVoiceTuningHint] = useState(false);
+  const [descriptionTranscriptionIssue, setDescriptionTranscriptionIssue] = useState(false);
 
   const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId, settings.uiLanguage);
   const hasRequirementContext = Boolean(requirementId || searchParams.get('category'));
@@ -287,6 +292,36 @@ export function CameraCapture() {
     return () => clearInterval(interval);
   }, [isRecordingDescription]);
 
+  useEffect(() => {
+    let mounted = true;
+    if (!capturedImage || captureMode === 'video') {
+      setShowVoiceTuningHint(false);
+      return;
+    }
+
+    async function loadVoiceTuningHint() {
+      if (descriptionTranscriptionIssue) {
+        if (mounted) setShowVoiceTuningHint(true);
+        return;
+      }
+      const shouldShow = await HintService.shouldShow({
+        hintId: 'voice-tuning-capture',
+        screen: 'camera',
+        type: 'learning',
+        textKey: 'hints.voiceTuningBody',
+        maxShows: 3,
+      }, settings);
+      if (!mounted) return;
+      setShowVoiceTuningHint(shouldShow);
+      if (shouldShow) void HintService.markShown('voice-tuning-capture');
+    }
+
+    void loadVoiceTuningHint();
+    return () => {
+      mounted = false;
+    };
+  }, [capturedImage, captureMode, descriptionTranscriptionIssue, settings.hintMode]);
+
   async function toggleVoiceRecording() {
     if (isRecordingVoice) {
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -382,9 +417,13 @@ export function CameraCapture() {
             setDescription((current) => [current.trim(), cleanText].filter(Boolean).join('\n'));
             setDescriptionVoiceText(cleanText);
             setDescriptionAudioBlob(audioBlob);
+            setDescriptionTranscriptionIssue(false);
+          } else {
+            setDescriptionTranscriptionIssue(true);
           }
         } catch (err) {
           console.error('description_transcription_failed', err);
+          setDescriptionTranscriptionIssue(true);
           setCaptureError('description_save_failed');
         } finally {
           setIsTranscribingDescription(false);
@@ -562,7 +601,7 @@ export function CameraCapture() {
         </button>
         
         <div className="flex gap-2">
-          {captureMode === 'photo' && (
+          {captureMode === 'photo' && showAdvancedCapture && (
             <button
               onClick={() => setBurstMode(!burstMode)}
               className={cn(
@@ -620,6 +659,17 @@ export function CameraCapture() {
       {/* Bottom Controls */}
       <div className="bg-slate-900/90 backdrop-blur-xl border-t border-white/5 p-6 space-y-6">
         <CaptureModeSelector />
+        {settings.uxMode === 'simple' && (
+          <HintCard
+            hint={{
+              hintId: 'capture-caption',
+              screen: 'camera',
+              type: 'learning',
+              textKey: 'hints.captureCaption',
+              maxShows: 3,
+            }}
+          />
+        )}
         {captureError && (
           <div className="rounded-2xl border border-red-400/30 bg-red-500/15 p-4 text-sm font-bold text-red-100">
             {getCaptureErrorMessage(captureError)}
@@ -636,7 +686,7 @@ export function CameraCapture() {
         )}
         {!capturedImage ? (
           <>
-            {captureMode !== 'video' && (
+            {captureMode !== 'video' && showAdvancedCapture && (
             <div className="overflow-x-auto no-scrollbar">
               <div className="flex gap-2 min-w-max">
                 {categories.map(cat => (
@@ -665,6 +715,7 @@ export function CameraCapture() {
             )}
 
             <div className="flex items-center justify-center gap-4">
+              {showAdvancedCapture && (
               <button 
                 onClick={toggleVoiceRecording}
                 className={cn(
@@ -675,6 +726,7 @@ export function CameraCapture() {
                 <Mic size={20} />
                 {isRecordingVoice && <span className="text-[8px] font-black">{voiceTimer}s</span>}
               </button>
+              )}
               <button
                 onClick={handlePrimaryCapture}
                 disabled={captureMode === 'video'}
@@ -697,8 +749,17 @@ export function CameraCapture() {
               <span className="text-sm font-bold uppercase tracking-widest text-white/50">{t(getReadyStatusKey(captureMode))}</span>
               <span className="bg-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase italic tracking-tight">{category}</span>
             </div>
+            {settings.uxMode === 'simple' && (
+              <button
+                type="button"
+                onClick={() => setShowAdvancedCapture((current) => !current)}
+                className="w-full rounded-2xl bg-white/5 border border-white/10 py-3 text-xs font-black uppercase tracking-widest text-white/60"
+              >
+                {showAdvancedCapture ? t('settingsDetail.simpleMode') : t('settingsDetail.advancedMode')}
+              </button>
+            )}
 
-            {captureMode === 'photo' && (
+            {captureMode === 'photo' && showAdvancedCapture && (
             <div className="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -738,6 +799,38 @@ export function CameraCapture() {
             )}
 
             <div>
+              {showVoiceTuningHint && (
+                <div className="mb-4 rounded-2xl border border-green-400/30 bg-green-500/15 p-4 text-green-50">
+                  <div className="flex items-start gap-3">
+                    <Mic size={20} className="shrink-0 mt-0.5 text-green-200" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-black uppercase tracking-widest">{t('hints.voiceTuningTitle')}</div>
+                      <p className="mt-1 text-sm font-bold text-green-50/85">
+                        {descriptionTranscriptionIssue ? t('hints.voiceTuningIssueBody') : t('hints.voiceTuningBody')}
+                      </p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigate('/settings/speech')}
+                          className="rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-950"
+                        >
+                          {t('common.yes')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowVoiceTuningHint(false);
+                            if (!descriptionTranscriptionIssue) void HintService.dismiss('voice-tuning-capture');
+                          }}
+                          className="rounded-xl bg-white/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-white"
+                        >
+                          {t('common.no')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="mb-2 flex items-center justify-between gap-3">
                 <label className="block text-xs font-black uppercase tracking-widest text-white/60">
                   {t('capture.descriptionLabel')}

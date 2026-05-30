@@ -23,6 +23,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.uxMode = settings.uxMode;
+    root.dataset.themeMode = settings.themeMode;
+    root.dataset.textSize = settings.textSize;
+    root.dataset.voiceHelp = settings.voiceHelpEnabled ? 'on' : 'off';
+  }, [settings.uxMode, settings.themeMode, settings.textSize, settings.voiceHelpEnabled]);
+
   async function updateSettings(patch: Partial<SiteProofSettings>) {
     const next = { ...settings, ...patch };
     setSettings(next);

@@ -3,6 +3,7 @@ export type SyncStatus = 'PENDING' | 'SYNCED' | 'ERROR';
 
 export interface Job {
   id: string;
+  mode?: 'bid' | 'approved';
   customerName: string;
   address: string;
   jobType: string;
@@ -22,6 +23,25 @@ export interface Job {
   uiLanguageAtCreation?: 'en' | 'es';
   defaultCaptureLanguage?: 'en' | 'es';
   defaultExportLanguage?: 'en' | 'es';
+  bidMetrics?: BidMetric[];
+  bidAssumptions?: string;
+  bidExclusions?: string;
+  bidInternalNotes?: string;
+  bidCustomerNotes?: string;
+  bidEstimateApprovedForCustomer?: boolean;
+}
+
+export type BidVisibility = 'internal' | 'customer' | 'hidden';
+
+export interface BidMetric {
+  metricId: string;
+  label: string;
+  value?: string;
+  unit?: string;
+  type: 'text' | 'number' | 'yes-no' | 'select' | 'photo-required' | 'document-required';
+  visibility: BidVisibility;
+  required: boolean;
+  exportSection?: string;
 }
 
 export interface CustodyLogEntry {
