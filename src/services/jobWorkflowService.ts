@@ -19,6 +19,12 @@ export interface CreateFieldJobInput {
   scheduledDate?: number;
   notes?: string;
   status?: JobStatus;
+  bidScopeSummary?: string;
+  bidInternalNotes?: string;
+  bidMetrics?: Job['bidMetrics'];
+  bidAssumptions?: string;
+  bidExclusions?: string;
+  bidPaymentTerms?: string;
 }
 
 function parseQuickJobText(input: string): Pick<CreateFieldJobInput, 'customerName' | 'address' | 'jobType' | 'templateId' | 'notes'> {
@@ -58,6 +64,12 @@ export class JobWorkflowService {
       quotedAmount: input.quotedAmount,
       scheduledDate: input.scheduledDate,
       notes: input.notes || '',
+      bidScopeSummary: input.bidScopeSummary,
+      bidInternalNotes: input.bidInternalNotes,
+      bidMetrics: input.bidMetrics,
+      bidAssumptions: input.bidAssumptions,
+      bidExclusions: input.bidExclusions,
+      bidPaymentTerms: input.bidPaymentTerms,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       status: input.status || 'ACTIVE',

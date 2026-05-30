@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Camera, RefreshCw, X, Check, MapPin, Loader2, Zap, Mic } from 'lucide-react';
+import { Camera, RefreshCw, X, Check, MapPin, Loader2, Zap, Mic, Video } from 'lucide-react';
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { ProofCaptureService } from '../services/proofCaptureService';
 import { TemplateCatalogService } from '../services/templateCatalogService';
@@ -56,7 +56,13 @@ export function CameraCapture() {
   const [description, setDescription] = useState('');
   const [captureError, setCaptureError] = useState<CaptureErrorCode | null>(null);
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+  const [recordedVideoBlob, setRecordedVideoBlob] = useState<Blob | null>(null);
+  const [recordedVideoMimeType, setRecordedVideoMimeType] = useState('video/webm');
+  const [recordedVideoDurationMs, setRecordedVideoDurationMs] = useState(0);
+  const [recordedVideoThumbnail, setRecordedVideoThumbnail] = useState<string | null>(null);
+  const [videoRecorder, setVideoRecorder] = useState<MediaRecorder | null>(null);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [videoTimer, setVideoTimer] = useState(0);
   const [saving, setSaving] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number, accuracy?: number } | null>(null);
   const [burstMode, setBurstMode] = useState(false);
@@ -72,6 +78,8 @@ export function CameraCapture() {
   const [voiceTimer, setVoiceTimer] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const videoChunksRef = useRef<Blob[]>([]);
+  const videoStartedAtRef = useRef(0);
   const [isRecordingDescription, setIsRecordingDescription] = useState(false);
   const [descriptionTimer, setDescriptionTimer] = useState(0);
   const [isTranscribingDescription, setIsTranscribingDescription] = useState(false);
@@ -86,6 +94,8 @@ export function CameraCapture() {
 
   const categories = TemplateCatalogService.getCaptureCategories(templateId, requirementId, settings.uiLanguage);
   const hasRequirementContext = Boolean(requirementId || searchParams.get('category'));
+  const hasCapturedMedia = Boolean(capturedImage || recordedVideoUrl);
+  const maxVideoDurationSeconds = Math.max(30, Math.min(60, Math.round(settings.videoDefaults.maxVideoDurationSeconds || 60)));
 
   function getModeDefaultCategory(mode: CaptureMode) {
     return t(modeDefaultCategoryKey[mode]);
@@ -124,6 +134,9 @@ export function CameraCapture() {
     if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
     setCapturedImage(null);
     setRecordedVideoUrl(null);
+    setRecordedVideoBlob(null);
+    setRecordedVideoDurationMs(0);
+    setRecordedVideoThumbnail(null);
     setDescription('');
     setDescriptionVoiceText('');
     setDescriptionAudioBlob(null);
@@ -134,6 +147,18 @@ export function CameraCapture() {
     if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
     if (MediaRecorder.isTypeSupported('audio/ogg')) return 'audio/ogg';
     return 'audio/mp4';
+  }
+
+  function getSupportedVideoMimeType() {
+    const preferred = settings.videoDefaults.preferredMimeTypes.length
+      ? settings.videoDefaults.preferredMimeTypes
+      : ['video/webm', 'video/mp4'];
+    const supported = preferred.find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+    return supported ?? 'video/webm';
+  }
+
+  function canRecordVideo() {
+    return settings.videoDefaults.videoEnabled && typeof MediaRecorder !== 'undefined';
   }
 
   function playCaptureClick() {
@@ -167,7 +192,7 @@ export function CameraCapture() {
   function selectCaptureMode(mode: CaptureMode) {
     clearCapturedMedia();
     setCaptureMode(mode);
-    setCaptureError(mode === 'video' ? 'video_unsupported' : null);
+    setCaptureError(mode === 'video' && !canRecordVideo() ? 'video_unsupported' : null);
     if (mode !== 'photo') setBurstMode(false);
     if (!hasRequirementContext) setCategory(getModeDefaultCategory(mode));
   }
@@ -242,7 +267,7 @@ export function CameraCapture() {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
           },
-          audio: false,
+          audio: captureMode === 'video',
         });
         if (!mounted) {
           s.getTracks().forEach((t) => t.stop());
@@ -264,7 +289,7 @@ export function CameraCapture() {
         return null;
       });
     };
-  }, [facingMode, id, navigate]);
+  }, [captureMode, facingMode, id, navigate]);
 
   useEffect(() => {
     return () => {
@@ -284,6 +309,16 @@ export function CameraCapture() {
 
   useEffect(() => {
     let interval: any;
+    if (isRecordingVideo) {
+      interval = setInterval(() => setVideoTimer((current) => current + 1), 1000);
+    } else {
+      setVideoTimer(0);
+    }
+    return () => clearInterval(interval);
+  }, [isRecordingVideo]);
+
+  useEffect(() => {
+    let interval: any;
     if (isRecordingDescription) {
       interval = setInterval(() => setDescriptionTimer((current) => current + 1), 1000);
     } else {
@@ -294,7 +329,7 @@ export function CameraCapture() {
 
   useEffect(() => {
     let mounted = true;
-    if (!capturedImage || captureMode === 'video') {
+    if (!hasCapturedMedia) {
       setShowVoiceTuningHint(false);
       return;
     }
@@ -320,7 +355,7 @@ export function CameraCapture() {
     return () => {
       mounted = false;
     };
-  }, [capturedImage, captureMode, descriptionTranscriptionIssue, settings.hintMode]);
+  }, [hasCapturedMedia, descriptionTranscriptionIssue, settings.hintMode]);
 
   async function toggleVoiceRecording() {
     if (isRecordingVoice) {
@@ -439,9 +474,75 @@ export function CameraCapture() {
     }
   }
 
+  async function startVideoRecording() {
+    if (!canRecordVideo() || !stream) {
+      setCaptureError('video_unsupported');
+      return;
+    }
+
+    try {
+      const mimeType = getSupportedVideoMimeType();
+      const recorder = new MediaRecorder(stream, { mimeType });
+      videoChunksRef.current = [];
+      videoStartedAtRef.current = Date.now();
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) videoChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        const durationMs = Math.max(0, Date.now() - videoStartedAtRef.current);
+        const videoBlob = new Blob(videoChunksRef.current, { type: mimeType });
+        if (videoBlob.size < 100) {
+          setCaptureError('video_unsupported');
+          setIsRecordingVideo(false);
+          return;
+        }
+
+        const maxBytes = settings.videoDefaults.maxVideoFileSizeMb * 1024 * 1024;
+        if (videoBlob.size > maxBytes) {
+          setCaptureError('save_failed');
+          setIsRecordingVideo(false);
+          return;
+        }
+
+        const localUrl = URL.createObjectURL(videoBlob);
+        const thumbnail = settings.videoDefaults.generateVideoThumbnail
+          ? await MediaPipelineService.generateVideoThumbnail(videoBlob)
+          : null;
+        runCaptureFeedback();
+        setRecordedVideoBlob(videoBlob);
+        setRecordedVideoMimeType(mimeType);
+        setRecordedVideoDurationMs(durationMs);
+        setRecordedVideoThumbnail(thumbnail);
+        setRecordedVideoUrl(localUrl);
+        setIsRecordingVideo(false);
+      };
+
+      setCaptureError(null);
+      setVideoRecorder(recorder);
+      setIsRecordingVideo(true);
+      recorder.start(1000);
+      window.setTimeout(() => {
+        if (recorder.state !== 'inactive') recorder.stop();
+      }, maxVideoDurationSeconds * 1000);
+    } catch (err) {
+      console.error('video_record_start_failed', err);
+      setCaptureError('video_unsupported');
+      setIsRecordingVideo(false);
+    }
+  }
+
+  function stopVideoRecording() {
+    if (videoRecorder && videoRecorder.state !== 'inactive') {
+      videoRecorder.stop();
+    }
+    setIsRecordingVideo(false);
+  }
+
   function takePhoto() {
     if (captureMode === 'video') {
-      setCaptureError('video_unsupported');
+      void startVideoRecording();
       return;
     }
 
@@ -508,16 +609,31 @@ export function CameraCapture() {
   }
 
   async function saveCapture(notes: string) {
-    if (!id || !capturedImage || !canvasRef.current) return;
+    if (!id || (!capturedImage && !recordedVideoBlob)) return;
     setSaving(true);
     setCaptureError(null);
 
     try {
-      const blob = await new Promise<Blob | null>(resolve =>
-        canvasRef.current?.toBlob(resolve, 'image/jpeg', 0.9)
-      );
-
-      if (captureMode === 'document') {
+      if (captureMode === 'video') {
+        await ProofCaptureService.saveVideo({
+          jobId: id,
+          blob: recordedVideoBlob!,
+          localUrl: recordedVideoUrl ?? undefined,
+          thumbnailDataUrl: recordedVideoThumbnail,
+          durationMs: recordedVideoDurationMs,
+          mimeType: recordedVideoMimeType,
+          category,
+          requirementId,
+          stageId,
+          latitude: location?.lat,
+          longitude: location?.lng,
+          notes: notes.trim() || undefined,
+        });
+      } else if (captureMode === 'document') {
+        if (!capturedImage || !canvasRef.current) return;
+        const blob = await new Promise<Blob | null>(resolve =>
+          canvasRef.current?.toBlob(resolve, 'image/jpeg', 0.9)
+        );
         await JobDocumentCaptureRuntime.captureDocument({
           jobId: id,
           title: category,
@@ -531,6 +647,10 @@ export function CameraCapture() {
           notes: notes.trim() || undefined,
         });
       } else {
+        if (!capturedImage || !canvasRef.current) return;
+        const blob = await new Promise<Blob | null>(resolve =>
+          canvasRef.current?.toBlob(resolve, 'image/jpeg', 0.9)
+        );
         await ProofCaptureService.savePhoto({
           jobId: id,
           dataUrl: capturedImage,
@@ -575,7 +695,8 @@ export function CameraCapture() {
 
   function handlePrimaryCapture() {
     if (captureMode === 'video') {
-      setCaptureError('video_unsupported');
+      if (isRecordingVideo) stopVideoRecording();
+      else void startVideoRecording();
       return;
     }
     takePhoto();
@@ -629,16 +750,24 @@ export function CameraCapture() {
           captureFeedback && "scale-[0.8]"
         )}
       >
-        {!capturedImage ? (
+        {!hasCapturedMedia ? (
           <video 
             ref={videoRef} 
             autoPlay 
             playsInline 
             className="w-full h-full object-cover" 
           />
+        ) : recordedVideoUrl ? (
+          <video
+            src={recordedVideoUrl}
+            poster={recordedVideoThumbnail ?? undefined}
+            controls
+            playsInline
+            className="w-full h-full object-cover"
+          />
         ) : (
           <img 
-            src={capturedImage} 
+            src={capturedImage ?? ''}
             className="w-full h-full object-cover" 
           />
         )}
@@ -646,7 +775,7 @@ export function CameraCapture() {
           <div className="absolute inset-0 z-20 bg-white/45" />
         )}
         <canvas ref={canvasRef} className="hidden" />
-        {!capturedImage && (
+        {!hasCapturedMedia && (
           <div className="absolute left-4 right-4 bottom-4 bg-black/45 backdrop-blur-md border border-white/10 rounded-3xl p-4 text-white">
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200 mb-1">{getModeContextLabel()}</div>
             <div className="text-lg font-black leading-tight">{captureMode === 'video' ? getModeDefaultCategory('video') : category}</div>
@@ -684,9 +813,9 @@ export function CameraCapture() {
             )}
           </div>
         )}
-        {!capturedImage ? (
+        {!hasCapturedMedia ? (
           <>
-            {captureMode !== 'video' && showAdvancedCapture && (
+            {showAdvancedCapture && (
             <div className="overflow-x-auto no-scrollbar">
               <div className="flex gap-2 min-w-max">
                 {categories.map(cat => (
@@ -710,7 +839,10 @@ export function CameraCapture() {
             {captureMode === 'video' && (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm font-bold text-white/75 space-y-2">
                 <div>{t('capture.videoPurpose')}</div>
-                <div className="text-red-100">{t('capture.videoUnsupported')}</div>
+                <div>{t('capture.videoDurationLimit')}: {maxVideoDurationSeconds}s</div>
+                {isRecordingVideo && (
+                  <div className="text-red-100">{t('capture.recording')} {videoTimer}s</div>
+                )}
               </div>
             )}
 
@@ -729,13 +861,12 @@ export function CameraCapture() {
               )}
               <button
                 onClick={handlePrimaryCapture}
-                disabled={captureMode === 'video'}
                 className={cn(
                   "min-h-20 flex-1 bg-white rounded-2xl flex items-center justify-center gap-3 px-5 shadow-[0_0_0_4px_rgba(255,255,255,0.2)] active:scale-95 transition-transform text-slate-900 font-black uppercase tracking-widest border-4 border-blue-300",
-                  captureMode === 'video' && "opacity-60"
+                  isRecordingVideo && "bg-red-50 border-red-300 text-red-700 animate-pulse"
                 )}
               >
-                <Camera className="text-slate-900" size={28} />
+                {captureMode === 'video' ? <Video size={28} /> : <Camera className="text-slate-900" size={28} />}
                 <span className="text-sm">{t(getPrimaryCaptureLabelKey(captureMode, isRecordingVideo))}</span>
               </button>
               <button onClick={() => setFacingMode((current) => current === 'environment' ? 'user' : 'environment')} className="text-white/50 p-2" aria-label={t('capture.switchCamera')}>

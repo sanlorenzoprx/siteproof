@@ -1,4 +1,4 @@
-import { APP_REPORT_TYPES, SiteProofReportType } from './reportTypes';
+import { SiteProofReportType } from './reportTypes';
 
 export type ReportAudience = 'customer' | 'office' | 'inspector' | 'payment' | 'dispute_support';
 
@@ -15,6 +15,7 @@ export type ReportSection =
   | 'payment_readiness'
   | 'inspection_disclaimer'
   | 'payment_note'
+  | 'bid_summary'
   | 'integrity_manifest'
   | 'signature';
 
@@ -24,7 +25,9 @@ export type ReportProofFilter =
   | 'inspection'
   | 'change_order'
   | 'timeline_all'
-  | 'payment';
+  | 'payment'
+  | 'bid_internal'
+  | 'bid_customer';
 
 export interface ReportDefinition {
   type: SiteProofReportType;
@@ -43,7 +46,9 @@ export interface ReportDefinition {
   includeTimeline: boolean;
 }
 
-export const REPORT_DEFINITIONS: Record<(typeof APP_REPORT_TYPES)[number], ReportDefinition> = {
+type ConcreteReportDefinitionType = Exclude<SiteProofReportType, SiteProofReportType.ALL_REPORTS>;
+
+export const REPORT_DEFINITIONS: Record<ConcreteReportDefinitionType, ReportDefinition> = {
   [SiteProofReportType.CUSTOMER_COMPLETION]: {
     type: SiteProofReportType.CUSTOMER_COMPLETION,
     titleKey: 'reports.customerCompletionReport',
@@ -154,6 +159,38 @@ export const REPORT_DEFINITIONS: Record<(typeof APP_REPORT_TYPES)[number], Repor
     includeIntegrityManifest: true,
     includeSignature: false,
     includeChecklist: true,
+    includeTimeline: true,
+  },
+  [SiteProofReportType.INTERNAL_BID_REPORT]: {
+    type: SiteProofReportType.INTERNAL_BID_REPORT,
+    titleKey: 'reports.internalBidReport',
+    fallbackTitle: 'Internal Bid Report',
+    audience: 'office',
+    purpose: 'Private office bid report with internal notes, all metrics, assumptions, exclusions, estimate draft, and proof references.',
+    sections: ['cover', 'bid_summary', 'photo_grid', 'voice_notes', 'timeline', 'integrity_manifest'],
+    proofFilter: 'bid_internal',
+    fallbackProofFilter: 'timeline_all',
+    proofFilterTags: ['internal_record'],
+    fallbackProofTags: ['internal_record'],
+    includeIntegrityManifest: true,
+    includeSignature: false,
+    includeChecklist: false,
+    includeTimeline: true,
+  },
+  [SiteProofReportType.CUSTOMER_BID_REPORT]: {
+    type: SiteProofReportType.CUSTOMER_BID_REPORT,
+    titleKey: 'reports.customerBidReport',
+    fallbackTitle: 'Customer Bid Report',
+    audience: 'customer',
+    purpose: 'Customer-facing proposal support report with customer-safe scope, estimate, visible metrics, and approved proof references.',
+    sections: ['cover', 'bid_summary', 'photo_grid', 'timeline'],
+    proofFilter: 'bid_customer',
+    fallbackProofFilter: 'customer_safe',
+    proofFilterTags: ['customer_bid_report', 'customer_packet'],
+    fallbackProofTags: ['customer_packet'],
+    includeIntegrityManifest: false,
+    includeSignature: false,
+    includeChecklist: false,
     includeTimeline: true,
   },
 };

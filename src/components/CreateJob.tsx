@@ -13,7 +13,7 @@ export function CreateJob() {
   const { settings, t } = useSettings();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const jobMode = searchParams.get('mode') === 'bid' ? 'bid' : 'approved';
+  const [jobMode, setJobMode] = useState<'bid' | 'approved'>(searchParams.get('mode') === 'bid' ? 'bid' : 'approved');
   const [loading, setLoading] = useState(false);
   const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [form, setForm] = useState({
@@ -56,6 +56,21 @@ export function CreateJob() {
       trade: form.trade,
       specialty: form.specialty,
       status: (jobMode === 'bid' ? 'INCOMING' : 'ACTIVE') as JobStatus,
+      bidScopeSummary: jobMode === 'bid' ? form.notes : undefined,
+      bidInternalNotes: jobMode === 'bid' ? form.notes : undefined,
+      bidMetrics: jobMode === 'bid'
+        ? settings.biddingDefaults.bidMetricDefaults.map((label) => ({
+          metricId: crypto.randomUUID(),
+          label,
+          value: '',
+          type: 'text' as const,
+          visibility: 'internal' as const,
+          required: false,
+        }))
+        : undefined,
+      bidAssumptions: jobMode === 'bid' ? settings.biddingDefaults.defaultAssumptions.join('\n') : undefined,
+      bidExclusions: jobMode === 'bid' ? settings.biddingDefaults.defaultExclusions.join('\n') : undefined,
+      bidPaymentTerms: jobMode === 'bid' ? settings.biddingDefaults.paymentTerms : undefined,
     });
     setLoading(false);
     navigate(`/job/${newJob.id}${openDocumentCapture ? '?document=setup' : ''}`);
@@ -79,6 +94,22 @@ export function CreateJob() {
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-2 gap-3 rounded-[28px] bg-white p-2 border border-slate-200 shadow-sm">
+          {[
+            { value: 'bid' as const, label: t('jobs.bidJob'), help: t('jobs.bidJobHelp') },
+            { value: 'approved' as const, label: t('jobs.startApprovedJob'), help: t('jobs.startApprovedJobHelp') },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setJobMode(option.value)}
+              className={`rounded-2xl px-4 py-4 text-left transition-all ${jobMode === option.value ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-700'}`}
+            >
+              <span className="block text-xs font-black uppercase tracking-widest">{option.label}</span>
+              <span className="mt-1 block text-[11px] font-bold opacity-70">{option.help}</span>
+            </button>
+          ))}
+        </div>
         <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.customerName')}</label>

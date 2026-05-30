@@ -20,6 +20,9 @@ function languageField(value: Record<string, unknown>, key: string): 'en' | 'es'
 }
 
 const PLAN_ALLOWLIST = new Set(['siteproof_pro', 'core', 'branded_reports']);
+const CLOUD_OBJECT_TYPES = new Set(['photo', 'document', 'video', 'signature', 'transcript', 'report', 'bid_report', 'thumbnail', 'share_package']);
+const CLOUD_REPORT_TYPES = new Set(['customer_completion', 'daily_job_proof', 'inspection_readiness', 'change_order_evidence', 'photo_proof_timeline', 'payment_final_handoff', 'office_internal_job_record', 'all_reports', 'internal_bid_report', 'customer_bid_report']);
+const CLOUD_VISIBILITIES = new Set(['private', 'internal_only', 'customer_visible', 'hidden_do_not_export']);
 
 function isValidEmail(value?: string): boolean {
   return Boolean(value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value));
@@ -35,6 +38,51 @@ function activationCodeFromSession(sessionId: string): string {
 
 function redactedSession(sessionId?: string): string | undefined {
   return sessionId ? `...${sessionId.slice(-6)}` : undefined;
+}
+
+function ownerIdFromRequest(request: Request, body?: Record<string, unknown>): string {
+  const auth = request.headers.get('authorization') || '';
+  const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
+  return stringField(body ?? {}, 'ownerId') || request.headers.get('x-siteproof-owner-id') || bearer || 'sandbox-owner';
+}
+
+function cloudObjectStorageKey(input: { ownerId: string; jobId: string; objectId: string; objectType: string; reportType?: string; contentType?: string }) {
+  const objectId = input.objectId.replace(/[^a-zA-Z0-9_.-]/g, '_');
+  if (input.objectType === 'report' && input.reportType) return `owners/${input.ownerId}/jobs/${input.jobId}/reports/${input.reportType}/${objectId}.pdf`;
+  if (input.objectType === 'bid_report' && input.reportType) return `owners/${input.ownerId}/jobs/${input.jobId}/reports/${input.reportType}/${objectId}.pdf`;
+  if (input.objectType === 'video') return `owners/${input.ownerId}/jobs/${input.jobId}/videos/${objectId}.${input.contentType?.includes('mp4') ? 'mp4' : 'webm'}`;
+  if (input.objectType === 'thumbnail') return `owners/${input.ownerId}/jobs/${input.jobId}/thumbnails/${objectId}.jpg`;
+  return `owners/${input.ownerId}/jobs/${input.jobId}/${input.objectType}/${objectId}`;
+}
+
+function cloudObjectFromBody(body: Record<string, unknown>, request: Request) {
+  const jobId = stringField(body, 'jobId');
+  const objectId = stringField(body, 'objectId') ?? stringField(body, 'localId');
+  const objectType = stringField(body, 'objectType');
+  const reportType = stringField(body, 'reportType');
+  const visibility = stringField(body, 'visibility') ?? 'private';
+  const contentType = stringField(body, 'contentType') ?? 'application/octet-stream';
+  const fileSize = numberField(body, 'fileSize') ?? 0;
+  const sha256 = stringField(body, 'sha256');
+  if (!jobId || !objectId || !objectType || !sha256) return { error: 'jobId, objectId, objectType, and sha256 are required' };
+  if (!CLOUD_OBJECT_TYPES.has(objectType)) return { error: 'Unsupported objectType' };
+  if (reportType && !CLOUD_REPORT_TYPES.has(reportType)) return { error: 'Unsupported reportType' };
+  if (!CLOUD_VISIBILITIES.has(visibility)) return { error: 'Unsupported visibility' };
+  if ((objectType === 'report' || objectType === 'bid_report') && !reportType) return { error: 'reportType is required for report objects' };
+  const ownerId = ownerIdFromRequest(request, body);
+  return {
+    id: `co_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
+    ownerId,
+    jobId,
+    objectId,
+    objectType,
+    reportType,
+    visibility,
+    contentType,
+    fileSize,
+    sha256,
+    storageKey: cloudObjectStorageKey({ ownerId, jobId, objectId, objectType, reportType, contentType }),
+  };
 }
 
 function normalizePurchaseIntake(body: Record<string, unknown>, plan: string) {
@@ -80,6 +128,14 @@ async function durableFirst<T>(env: WorkerEnv, sql: string, ...values: unknown[]
   const statement = db?.prepare?.(sql).bind(...values);
   if (!statement?.first) return null;
   return await statement.first() as T | null;
+}
+
+async function durableAll<T>(env: WorkerEnv, sql: string, ...values: unknown[]): Promise<T[]> {
+  const db = dbBinding(env);
+  const statement = db?.prepare?.(sql).bind(...values);
+  if (!statement || !('all' in statement) || typeof statement.all !== 'function') return [];
+  const result = await statement.all() as { results?: T[] };
+  return result.results ?? [];
 }
 
 async function recordCheckout(env: WorkerEnv, input: {
@@ -393,21 +449,112 @@ async function routeBoundary(pathname: string, request: Request, env: WorkerEnv)
     });
   }
 
-  if (request.method === 'POST' && pathname === '/cloud/upload-url') {
+  if (request.method === 'POST' && (pathname === '/cloud/upload-url' || pathname === '/api/cloud/upload-url')) {
+    const parsed = cloudObjectFromBody(body, request);
+    if ('error' in parsed) return jsonResponse({ error: parsed.error }, 400);
+    const now = new Date().toISOString();
+    await durableRun(
+      env,
+      'INSERT OR REPLACE INTO cloud_storage_objects (id, owner_id, job_id, object_type, report_type, visibility, storage_key, content_type, file_size, sha256, sync_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      parsed.id,
+      parsed.ownerId,
+      parsed.jobId,
+      parsed.objectType,
+      parsed.reportType ?? null,
+      parsed.visibility,
+      parsed.storageKey,
+      parsed.contentType,
+      parsed.fileSize,
+      parsed.sha256,
+      'pending',
+      now,
+      now,
+    );
+    return jsonResponse({
+      uploadUrl: `${new URL(request.url).origin}/cloud/mock-upload?storageKey=${encodeURIComponent(parsed.storageKey)}`,
+      method: 'PUT',
+      storageKey: parsed.storageKey,
+      cloudObjectId: parsed.id,
+      requiredHeaders: { 'content-type': parsed.contentType },
+    });
+  }
+
+  if (request.method === 'POST' && (pathname === '/cloud/upload-commit' || pathname === '/cloud/commit-upload' || pathname === '/api/cloud/upload-commit')) {
+    const cloudObjectId = stringField(body, 'cloudObjectId');
+    const storageKey = stringField(body, 'storageKey') ?? stringField(body, 'objectKey');
+    const sha256 = stringField(body, 'sha256');
+    const fileSize = numberField(body, 'fileSize');
+    if (!cloudObjectId || !storageKey || !sha256 || fileSize === undefined) return jsonResponse({ error: 'cloudObjectId, storageKey, sha256, and fileSize are required' }, 400);
+    const existing = await durableFirst<Record<string, unknown>>(env, 'SELECT * FROM cloud_storage_objects WHERE id = ? AND storage_key = ?', cloudObjectId, storageKey);
+    if (existing && (existing.sha256 !== sha256 || existing.file_size !== fileSize)) return jsonResponse({ error: 'Upload commit does not match pending object metadata' }, 409);
+    const now = new Date().toISOString();
+    await durableRun(env, 'UPDATE cloud_storage_objects SET sync_status = ?, updated_at = ? WHERE id = ? AND storage_key = ?', 'synced', now, cloudObjectId, storageKey);
+    const object = existing ? {
+      id: existing.id,
+      ownerId: existing.owner_id,
+      jobId: existing.job_id,
+      objectType: existing.object_type,
+      reportType: existing.report_type ?? undefined,
+      visibility: existing.visibility,
+      storageKey: existing.storage_key,
+      contentType: existing.content_type,
+      fileSize: existing.file_size,
+      sha256: existing.sha256,
+      syncStatus: 'synced',
+      shareLinkId: existing.share_link_id ?? undefined,
+      createdAt: existing.created_at,
+      updatedAt: now,
+    } : { id: cloudObjectId, storageKey, sha256, fileSize, syncStatus: 'synced' };
+    return jsonResponse({ ok: true, object });
+  }
+
+  if (request.method === 'GET' && (pathname.startsWith('/cloud/jobs/') || pathname.startsWith('/api/cloud/jobs/') || pathname.startsWith('/cloud/job/'))) {
+    const parts = pathname.split('/').filter(Boolean);
+    const jobIndex = parts.includes('jobs') ? parts.indexOf('jobs') : parts.indexOf('job');
+    const jobId = parts[jobIndex + 1];
+    if (!jobId) return jsonResponse({ error: 'jobId is required' }, 400);
+    const ownerId = ownerIdFromRequest(request);
+    const rows = await durableAll<Record<string, unknown>>(env, 'SELECT * FROM cloud_storage_objects WHERE owner_id = ? AND job_id = ? ORDER BY created_at DESC', ownerId, jobId);
+    return jsonResponse({ objects: rows.map((row) => ({
+      id: row.id,
+      ownerId: row.owner_id,
+      jobId: row.job_id,
+      objectType: row.object_type,
+      reportType: row.report_type ?? undefined,
+      visibility: row.visibility,
+      storageKey: row.storage_key,
+      contentType: row.content_type,
+      fileSize: row.file_size,
+      sha256: row.sha256,
+      syncStatus: row.sync_status,
+      shareLinkId: row.share_link_id ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) });
+  }
+
+  if (request.method === 'POST' && (pathname === '/cloud/share-links' || pathname === '/api/cloud/share-links')) {
     const jobId = stringField(body, 'jobId');
-    const localId = stringField(body, 'localId');
-    const objectType = stringField(body, 'objectType');
-    if (!jobId || !localId || !objectType) return jsonResponse({ error: 'jobId, localId, and objectType are required' }, 400);
-    return jsonResponse({ error: 'R2 upload URL generation requires deployment configuration' }, 501);
+    if (!jobId) return jsonResponse({ error: 'jobId is required' }, 400);
+    const ownerId = ownerIdFromRequest(request, body);
+    const shareLinkId = randomId('share');
+    const rows = await durableAll<Record<string, unknown>>(env, 'SELECT * FROM cloud_storage_objects WHERE owner_id = ? AND job_id = ? AND visibility = ? ORDER BY created_at ASC', ownerId, jobId, 'customer_visible');
+    await durableRun(env, 'UPDATE cloud_storage_objects SET share_link_id = ? WHERE owner_id = ? AND job_id = ? AND visibility = ?', shareLinkId, ownerId, jobId, 'customer_visible');
+    return jsonResponse({
+      ok: true,
+      shareLinkId,
+      objects: rows.map((row) => ({
+        id: row.id,
+        objectType: row.object_type,
+        reportType: row.report_type ?? undefined,
+        visibility: row.visibility,
+        storageKey: row.storage_key,
+      })),
+    });
   }
 
-  if (request.method === 'POST' && pathname === '/cloud/commit-upload') {
-    if (!stringField(body, 'objectKey')) return jsonResponse({ error: 'objectKey is required' }, 400);
-    return jsonResponse({ accepted: true }, 202);
-  }
-
-  if (request.method === 'GET' && pathname.startsWith('/cloud/job/')) {
-    return jsonResponse({ objects: [] });
+  if (request.method === 'PUT' && pathname === '/cloud/mock-upload') {
+    return new Response(null, { status: 200, headers: jsonHeaders });
   }
 
   return null;

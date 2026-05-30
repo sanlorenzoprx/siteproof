@@ -92,11 +92,11 @@ test('cloud sync boundary no-ops when disabled and queues offline', async () => 
   SettingsService.getSettings = async () => createDefaultSettings('en');
   SettingsService.saveSettings = async (settings) => { savedStatus = settings.cloudSyncStatus; };
 
-  const localOnly = await CloudSyncService.upload({ localId: '1', jobId: 'j', objectType: 'metadata' }, false);
+  const localOnly = await CloudSyncService.upload({ localId: '1', jobId: 'j', objectType: 'transcript' }, false);
   assert.equal(localOnly.state, 'local_only');
 
   SettingsService.getSettings = async () => ({ ...createDefaultSettings('en'), cloudEnabled: true });
-  const queued = await CloudSyncService.upload({ localId: '2', jobId: 'j', objectType: 'metadata' }, false);
+  const queued = await CloudSyncService.upload({ localId: '2', jobId: 'j', objectType: 'transcript' }, false);
   assert.equal(queued.state, 'queued');
   assert.equal(savedStatus, 'pending');
 

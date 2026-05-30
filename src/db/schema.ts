@@ -102,6 +102,8 @@ export type ExportPacketType =
   | 'change_order_evidence_report'
   | 'photo_proof_timeline'
   | 'payment_final_handoff_report'
+  | 'internal_bid_report'
+  | 'customer_bid_report'
   | 'all_reports'
   | 'customer_packet'
   | 'inspector_packet'
@@ -236,6 +238,15 @@ export interface Job extends TimestampFields, SyncFields {
   permit_status?: PermitStatus;
   inspection_status?: InspectionStatus;
   scope_summary?: string | null;
+  bid_customer_summary?: string | null;
+  bid_internal_notes?: string | null;
+  bid_metrics?: unknown[];
+  bid_assumptions?: string | null;
+  bid_exclusions?: string | null;
+  bid_payment_terms?: string | null;
+  bid_estimate_expires_at?: string | null;
+  bid_final_estimate_text?: string | null;
+  bid_estimate_approved_for_customer?: boolean;
   emergency_job?: boolean;
   storm_related?: boolean;
   utility_provider?: string | null;

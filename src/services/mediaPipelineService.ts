@@ -182,6 +182,44 @@ export class MediaPipelineService {
     return Math.max(0.1, Math.min(0.98, Number(score.toFixed(2))));
   }
 
+  static async generateVideoThumbnail(videoBlob: Blob, atSeconds = 1): Promise<string | null> {
+    if (typeof document === 'undefined' || typeof URL === 'undefined') return null;
+
+    const url = URL.createObjectURL(videoBlob);
+    try {
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error('Unable to load video metadata.'));
+        video.src = url;
+      });
+
+      const seekTarget = Math.min(Math.max(0, atSeconds), Math.max(0, (video.duration || atSeconds) - 0.1));
+      await new Promise<void>((resolve) => {
+        video.onseeked = () => resolve();
+        video.currentTime = Number.isFinite(seekTarget) ? seekTarget : 0;
+      });
+
+      const width = video.videoWidth || 640;
+      const height = video.videoHeight || 360;
+      const next = fitWithin(width, height, THUMBNAIL_EDGE);
+      const canvas = createCanvas(next.width, next.height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0, next.width, next.height);
+      return canvasToDataUrl(canvas, 'image/jpeg', 0.76);
+    } catch (error) {
+      console.warn('Video thumbnail generation failed:', error);
+      return null;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
   static humanFileSize(bytes?: number): string {
     if (!bytes || bytes <= 0) return '0 KB';
     if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;

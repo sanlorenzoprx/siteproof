@@ -26,6 +26,10 @@ export function reportTypeToPacketType(reportType: SiteProofReportType): ExportP
       return 'payment_final_handoff_report';
     case SiteProofReportType.OFFICE_INTERNAL_RECORD:
       return 'internal_record';
+    case SiteProofReportType.INTERNAL_BID_REPORT:
+      return 'internal_bid_report';
+    case SiteProofReportType.CUSTOMER_BID_REPORT:
+      return 'customer_bid_report';
     case SiteProofReportType.ALL_REPORTS:
       return 'all_reports';
     default:

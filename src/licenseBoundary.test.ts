@@ -93,7 +93,10 @@ test('signature record can be saved locally and consent stays handoff-scoped', w
 }));
 
 test('cloud object keys are deterministic and no frontend Stripe secrets leak', () => {
-  assert.equal(CloudflareClient.objectKey({ localId: 'p1', jobId: 'j1', objectType: 'photo' }), 'j1/photo/p1');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'p1', jobId: 'j1', objectType: 'photo' }), 'owners/owner-1/jobs/j1/photo/p1');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'r1', jobId: 'j1', objectType: 'report', reportType: 'inspection_readiness' }), 'owners/owner-1/jobs/j1/reports/inspection_readiness/r1.pdf');
+  assert.equal(CloudflareClient.defaultVisibility({ localId: 'b1', jobId: 'j1', objectType: 'bid_report', reportType: 'internal_bid_report' }), 'internal_only');
+  assert.equal(CloudflareClient.defaultVisibility({ localId: 'b2', jobId: 'j1', objectType: 'bid_report', reportType: 'customer_bid_report' }), 'customer_visible');
   const source = [
     'src/services/licenseApiClient.ts',
     'src/services/cloudflareClient.ts',
@@ -187,4 +190,53 @@ test('worker checkout, activate, verify, and webhook routes expose safe JSON onl
     body: '{}',
   }), env);
   assert.equal(unsignedWebhook.status, 400);
+
+  const uploadUrl = await worker.fetch(new Request('https://api.test/cloud/upload-url', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      objectId: 'photo-1',
+      objectType: 'photo',
+      visibility: 'private',
+      contentType: 'image/jpeg',
+      fileSize: 123,
+      sha256: 'abc123',
+    }),
+  }), env);
+  const uploadJson = await uploadUrl.json() as Record<string, unknown>;
+  assert.equal(uploadUrl.status, 200);
+  assert.match(String(uploadJson.storageKey), /^owners\/owner-1\/jobs\/job-1\/photo\/photo-1$/);
+
+  const badUpload = await worker.fetch(new Request('https://api.test/cloud/upload-url', {
+    method: 'POST',
+    body: JSON.stringify({ jobId: 'job-1', objectId: 'x', objectType: 'voice_note', visibility: 'private', contentType: 'text/plain', fileSize: 1, sha256: 'abc' }),
+  }), env);
+  assert.equal(badUpload.status, 400);
+
+  const bidUpload = await worker.fetch(new Request('https://api.test/cloud/upload-url', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      objectId: 'bid-1',
+      objectType: 'bid_report',
+      reportType: 'internal_bid_report',
+      visibility: 'internal_only',
+      contentType: 'application/pdf',
+      fileSize: 456,
+      sha256: 'def456',
+    }),
+  }), env);
+  const bidJson = await bidUpload.json() as Record<string, unknown>;
+  assert.match(String(bidJson.storageKey), /reports\/internal_bid_report\/bid-1\.pdf$/);
+
+  const share = await worker.fetch(new Request('https://api.test/cloud/share-links', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({ jobId: 'job-1' }),
+  }), env);
+  const shareJson = await share.json() as Record<string, unknown>;
+  assert.equal(share.status, 200);
+  assert.equal(Array.isArray(shareJson.objects), true);
 });

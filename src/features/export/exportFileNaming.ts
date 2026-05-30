@@ -33,6 +33,10 @@ function appReportLabel(reportKind: SiteProofReportType, language: SiteProofLang
         return 'InformePagoEntregaFinal';
       case SiteProofReportType.OFFICE_INTERNAL_RECORD:
         return 'InformeRegistroInternoOficina';
+      case SiteProofReportType.INTERNAL_BID_REPORT:
+        return 'InformeInternoCotizacion';
+      case SiteProofReportType.CUSTOMER_BID_REPORT:
+        return 'InformeCotizacionCliente';
       case SiteProofReportType.ALL_REPORTS:
         return 'TodosLosInformes';
       default:
@@ -55,6 +59,10 @@ function appReportLabel(reportKind: SiteProofReportType, language: SiteProofLang
       return 'PaymentFinalHandoffReport';
     case SiteProofReportType.OFFICE_INTERNAL_RECORD:
       return 'OfficeInternalJobRecordProReport';
+    case SiteProofReportType.INTERNAL_BID_REPORT:
+      return 'InternalBidReport';
+    case SiteProofReportType.CUSTOMER_BID_REPORT:
+      return 'CustomerBidReport';
     case SiteProofReportType.ALL_REPORTS:
       return 'AllReports';
     default:
@@ -71,6 +79,8 @@ function reportNameParts(reportKind: ExportFileReportKind, language: SiteProofLa
     case SiteProofReportType.PHOTO_PROOF_TIMELINE:
     case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
     case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+    case SiteProofReportType.INTERNAL_BID_REPORT:
+    case SiteProofReportType.CUSTOMER_BID_REPORT:
       return {
         label: appReportLabel(reportKind, language),
         title: translate(language, getReportDefinition(reportKind).titleKey),
