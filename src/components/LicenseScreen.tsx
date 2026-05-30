@@ -27,7 +27,7 @@ function displayStatus(state: LicenseState | null, t: (key: string) => string) {
 }
 
 export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
-  const { t } = useSettings();
+  const { settings, t } = useSettings();
   const navigate = useNavigate();
   const [key, setKey] = useState('');
   const [activating, setActivating] = useState(false);
@@ -46,7 +46,23 @@ export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
   }
 
   async function handlePurchase() {
-    const checkout = await LicenseApiClient.createCheckout('siteproof_pro', undefined, license?.deviceId);
+    const email = settings.companyProfile.businessEmail || undefined;
+    const hasIntake = Boolean(settings.companyProfile.companyName && settings.companyProfile.ownerAdminName && settings.companyProfile.businessEmail);
+    const checkout = await LicenseApiClient.createCheckout('siteproof_pro', email, license?.deviceId, hasIntake ? {
+      companyName: settings.companyProfile.companyName,
+      ownerAdminName: settings.companyProfile.ownerAdminName,
+      email: settings.companyProfile.businessEmail,
+      phone: settings.companyProfile.businessPhone || undefined,
+      tradeType: settings.companyProfile.primaryTrade || settings.tradeWorkflowDefaults.primaryTrade || undefined,
+      serviceArea: settings.companyProfile.serviceArea || undefined,
+      businessAddress: settings.companyProfile.businessAddress || undefined,
+      licenseNumber: settings.companyProfile.licenseNumber || undefined,
+      preferredLanguage: settings.uiLanguage,
+      reportLanguage: settings.exportLanguage,
+      crewDeviceCount: settings.cloudLicense.seatsIncluded ?? undefined,
+      cloudStoragePlan: settings.cloudLicense.includedCloudStorage ?? undefined,
+      planId: 'siteproof_pro',
+    } : undefined);
     const checkoutUrl = checkout.checkoutUrl ?? checkout.url;
     if (checkoutUrl) {
       window.location.assign(checkoutUrl);

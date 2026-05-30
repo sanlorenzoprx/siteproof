@@ -112,11 +112,34 @@ test('worker checkout, activate, verify, and webhook routes expose safe JSON onl
   };
   const checkout = await worker.fetch(new Request('https://api.test/api/checkout/create', {
     method: 'POST',
-    body: JSON.stringify({ plan: 'siteproof_pro', email: 'owner@example.com', deviceId: 'device-1' }),
+    body: JSON.stringify({
+      plan: 'siteproof_pro',
+      email: 'owner@example.com',
+      deviceId: 'device-1',
+      intake: {
+        companyName: 'Acme Electric',
+        ownerAdminName: 'Ada Owner',
+        email: 'owner@example.com',
+        preferredLanguage: 'es',
+        reportLanguage: 'es',
+        planId: 'siteproof_pro',
+      },
+    }),
   }), env);
   const checkoutJson = await checkout.json() as Record<string, unknown>;
   assert.equal(typeof checkoutJson.checkoutUrl, 'string');
+  assert.equal(checkoutJson.intakeAccepted, true);
   assert.equal(`${'STRIPE'}_${'SECRET'}_KEY` in checkoutJson, false);
+
+  const invalidPlan = await worker.fetch(new Request('https://api.test/api/checkout/create', {
+    method: 'POST',
+    body: JSON.stringify({ plan: 'unknown_plan', email: 'owner@example.com' }),
+  }), env);
+  assert.equal(invalidPlan.status, 400);
+
+  const checkoutStatus = await worker.fetch(new Request(`https://api.test/api/checkout/status?session_id=${encodeURIComponent(String(checkoutJson.sessionId))}`), env);
+  const checkoutStatusJson = await checkoutStatus.json() as Record<string, unknown>;
+  assert.equal(typeof checkoutStatusJson.activationCode, 'string');
 
   const activate = await worker.fetch(new Request('https://api.test/api/license/activate', {
     method: 'POST',
@@ -133,10 +156,35 @@ test('worker checkout, activate, verify, and webhook routes expose safe JSON onl
   assert.equal(verifyJson.status, 'licensed');
   assert.equal('licenseKey' in verifyJson, false);
 
+  const bootstrap = await worker.fetch(new Request('https://api.test/api/license/bootstrap', {
+    method: 'POST',
+    body: JSON.stringify({
+      licenseKey: 'ABC12345',
+      deviceId: 'device-1',
+      intake: {
+        companyName: 'Acme Electric',
+        ownerAdminName: 'Ada Owner',
+        email: 'owner@example.com',
+        preferredLanguage: 'es',
+        reportLanguage: 'es',
+        planId: 'siteproof_pro',
+      },
+    }),
+  }), env);
+  const bootstrapJson = await bootstrap.json() as Record<string, unknown>;
+  assert.equal((bootstrapJson.license as Record<string, unknown>).status, 'licensed');
+  assert.equal((bootstrapJson.settingsSeed as Record<string, unknown>).uiLanguage, 'es');
+
   const webhook = await worker.fetch(new Request('https://api.test/api/stripe/webhook', {
     method: 'POST',
     headers: { 'stripe-signature': 'test-signature' },
     body: '{}',
   }), env);
   assert.equal(webhook.status, 200);
+
+  const unsignedWebhook = await worker.fetch(new Request('https://api.test/api/stripe/webhook', {
+    method: 'POST',
+    body: '{}',
+  }), env);
+  assert.equal(unsignedWebhook.status, 400);
 });

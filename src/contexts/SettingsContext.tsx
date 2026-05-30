@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { translate } from '../config/i18n';
-import { SettingsService, createDefaultSettings } from '../services/settingsService';
+import { SettingsService, createDefaultSettings, normalizeSettings } from '../services/settingsService';
 import type { SiteProofSettings } from '../types/settings';
 
 interface SettingsContextValue {
   settings: SiteProofSettings;
   ready: boolean;
   updateSettings: (patch: Partial<SiteProofSettings>) => Promise<void>;
+  updateSettingsSection: <K extends keyof SiteProofSettings>(section: K, patch: Partial<SiteProofSettings[K]>) => Promise<void>;
   t: (key: string) => string;
 }
 
@@ -32,7 +33,19 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [settings.uxMode, settings.themeMode, settings.textSize, settings.voiceHelpEnabled]);
 
   async function updateSettings(patch: Partial<SiteProofSettings>) {
-    const next = { ...settings, ...patch };
+    const next = normalizeSettings({ ...settings, ...patch }, settings.uiLanguage);
+    setSettings(next);
+    await SettingsService.saveSettings(next);
+  }
+
+  async function updateSettingsSection<K extends keyof SiteProofSettings>(section: K, patch: Partial<SiteProofSettings[K]>) {
+    const currentSection = settings[section];
+    const next = normalizeSettings({
+      ...settings,
+      [section]: typeof currentSection === 'object' && currentSection !== null
+        ? { ...currentSection, ...patch }
+        : patch,
+    } as SiteProofSettings, settings.uiLanguage);
     setSettings(next);
     await SettingsService.saveSettings(next);
   }
@@ -41,6 +54,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     settings,
     ready,
     updateSettings,
+    updateSettingsSection,
     t: (key: string) => translate(settings.uiLanguage, key),
   }), [settings, ready]);
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Cloud, Shield, Database, Save, CheckCircle, Smartphone, Mic as MicIcon } from 'lucide-react';
+import { ArrowLeft, Briefcase, Cloud, Database, FileText, Save, CheckCircle, Shield, Smartphone, Mic as MicIcon, Video } from 'lucide-react';
 import { CloudService } from '../services/cloudService';
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { AppSettingsService } from '../services/appSettingsService';
@@ -14,7 +14,7 @@ import { CloudUpsellCard } from './cloud/CloudUpsellCard';
 import { useSettings } from '../contexts/SettingsContext';
 
 export function Settings() {
-  const { settings, updateSettings, t } = useSettings();
+  const { settings, updateSettings, updateSettingsSection, t } = useSettings();
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
@@ -70,6 +70,19 @@ export function Settings() {
     CloudService.setConfiguration({ url, key });
     if (business) await SiteProofDataService.saveBusinessProfile(business);
     if (user) await SiteProofDataService.saveUserProfile(user);
+    if (business) {
+      await updateSettingsSection('companyProfile', {
+        companyName: business.companyName,
+        ownerAdminName: user?.fullName || settings.companyProfile.ownerAdminName,
+        businessPhone: business.phone,
+        businessEmail: business.email,
+        businessAddress: [business.address, business.city, business.state, business.zipCode, business.country].filter(Boolean).join(', '),
+        website: business.website,
+        licenseNumber: business.licenseNumber,
+        serviceArea: settings.companyProfile.serviceArea,
+        primaryTrade: settings.companyProfile.primaryTrade || settings.tradeWorkflowDefaults.primaryTrade,
+      });
+    }
     
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -360,6 +373,125 @@ export function Settings() {
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-xs font-medium h-20"
               placeholder={t('settingsDetail.regulatoryPlaceholder')}
             />
+          </div>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="bg-cyan-600/10 p-2 rounded-lg">
+              <FileText className="text-cyan-600" size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">{t('settingsDetail.reportDefaults')}</h2>
+              <p className="text-xs font-bold text-slate-500">{t('settingsDetail.contractorVerification')}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('reports.reportLanguage')}</span>
+              <select value={settings.exportLanguage} onChange={(event) => void updateSettings({ exportLanguage: event.target.value as typeof settings.exportLanguage })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold">
+                <option value="en">{t('common.english')}</option>
+                <option value="es">{t('common.spanish')}</option>
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.estimateExpiration')}</span>
+              <input type="number" min={1} max={90} value={settings.reportDefaults.estimateExpirationDays} onChange={(event) => void updateSettingsSection('reportDefaults', { estimateExpirationDays: Number(event.target.value) })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold" />
+            </label>
+          </div>
+          <label className="space-y-2 block">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.paymentTerms')}</span>
+            <textarea value={settings.reportDefaults.paymentTerms} onChange={(event) => void updateSettingsSection('reportDefaults', { paymentTerms: event.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold min-h-20" />
+          </label>
+          <label className="space-y-2 block">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.warrantyServiceNote')}</span>
+            <textarea value={settings.reportDefaults.warrantyServiceNote} onChange={(event) => void updateSettingsSection('reportDefaults', { warrantyServiceNote: event.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold min-h-20" />
+          </label>
+          <label className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+            {t('settingsDetail.signatureRequired')}
+            <input type="checkbox" checked={settings.reportDefaults.signatureRequiredByDefault} onChange={(event) => void updateSettingsSection('reportDefaults', { signatureRequiredByDefault: event.target.checked })} />
+          </label>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="bg-orange-600/10 p-2 rounded-lg">
+              <Briefcase className="text-orange-600" size={20} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">{t('settingsDetail.tradeWorkflowDefaults')}</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.primaryTrade')}</span>
+              <input value={settings.tradeWorkflowDefaults.primaryTrade} onChange={(event) => void updateSettingsSection('tradeWorkflowDefaults', { primaryTrade: event.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold" />
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.defaultWorkflow')}</span>
+              <input value={settings.tradeWorkflowDefaults.defaultWorkflowId || ''} onChange={(event) => void updateSettingsSection('tradeWorkflowDefaults', { defaultWorkflowId: event.target.value || null })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold" />
+            </label>
+          </div>
+          <label className="space-y-2 block">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.inspectionProofDefaults')}</span>
+            <input value={settings.tradeWorkflowDefaults.inspectionProofDefaults.join(', ')} onChange={(event) => void updateSettingsSection('tradeWorkflowDefaults', { inspectionProofDefaults: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold" />
+          </label>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-600/10 p-2 rounded-lg">
+              <Briefcase className="text-amber-600" size={20} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">{t('settingsDetail.biddingDefaults')}</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.defaultBidPrivacy')}</span>
+              <select value={settings.biddingDefaults.defaultBidPrivacy} onChange={(event) => void updateSettingsSection('biddingDefaults', { defaultBidPrivacy: event.target.value as typeof settings.biddingDefaults.defaultBidPrivacy })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold">
+                <option value="internal_only">{t('settingsDetail.internalOnly')}</option>
+                <option value="customer_visible_requires_confirmation">{t('settingsDetail.customerVisibleConfirm')}</option>
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.estimateExpiration')}</span>
+              <input type="number" min={1} max={90} value={settings.biddingDefaults.estimateExpirationDays} onChange={(event) => void updateSettingsSection('biddingDefaults', { estimateExpirationDays: Number(event.target.value) })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold" />
+            </label>
+          </div>
+          <label className="space-y-2 block">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.defaultAssumptions')}</span>
+            <textarea value={settings.biddingDefaults.defaultAssumptions.join('\n')} onChange={(event) => void updateSettingsSection('biddingDefaults', { defaultAssumptions: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold min-h-20" />
+          </label>
+          <label className="space-y-2 block">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.defaultExclusions')}</span>
+            <textarea value={settings.biddingDefaults.defaultExclusions.join('\n')} onChange={(event) => void updateSettingsSection('biddingDefaults', { defaultExclusions: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold min-h-20" />
+          </label>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600/10 p-2 rounded-lg">
+              <Video className="text-indigo-600" size={20} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">{t('settingsDetail.videoDefaults')}</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.maxVideoDuration')}</span>
+              <input type="number" min={30} max={60} value={settings.videoDefaults.maxVideoDurationSeconds} onChange={(event) => void updateSettingsSection('videoDefaults', { maxVideoDurationSeconds: Number(event.target.value) })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold" />
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('settingsDetail.maxVideoFileSize')}</span>
+              <input type="number" min={10} max={500} value={settings.videoDefaults.maxVideoFileSizeMb} onChange={(event) => void updateSettingsSection('videoDefaults', { maxVideoFileSizeMb: Number(event.target.value) })} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold" />
+            </label>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+              {t('settingsDetail.videoEnabled')}
+              <input type="checkbox" checked={settings.videoDefaults.videoEnabled} onChange={(event) => void updateSettingsSection('videoDefaults', { videoEnabled: event.target.checked })} />
+            </label>
+            <label className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+              {t('settingsDetail.includeVideoLinks')}
+              <input type="checkbox" checked={settings.videoDefaults.includeVideoLinksInReports} onChange={(event) => void updateSettingsSection('videoDefaults', { includeVideoLinksInReports: event.target.checked })} />
+            </label>
           </div>
         </section>
 
