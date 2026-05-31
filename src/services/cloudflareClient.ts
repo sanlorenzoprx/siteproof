@@ -2,6 +2,8 @@ export type CloudObjectType =
   | 'photo'
   | 'document'
   | 'video'
+  | 'metadata'
+  | 'voice_note'
   | 'signature'
   | 'transcript'
   | 'report'
@@ -46,17 +48,24 @@ export interface CloudStorageObject {
 
 export interface CloudUploadRequest {
   localId: string;
+  proofObjectId?: string;
+  mediaAssetId?: string;
   jobId: string;
   objectType: CloudObjectType;
   ownerId?: string;
+  companyId?: string;
+  licenseId?: string;
   reportType?: CloudReportType;
   visibility?: CloudObjectVisibility;
   localUri?: string;
   payload?: unknown;
   blob?: Blob;
   contentType?: string;
+  mimeType?: string;
+  filename?: string;
   fileSize?: number;
   sha256?: string;
+  checksum?: string;
 }
 
 export interface CloudUploadResult {
@@ -98,6 +107,8 @@ export class CloudflareClient {
       return `owners/${ownerId}/jobs/${request.jobId}/reports/${request.reportType}/${request.localId}.pdf`;
     }
     if (request.objectType === 'video') return `owners/${ownerId}/jobs/${request.jobId}/videos/${request.localId}.webm`;
+    if (request.objectType === 'voice_note') return `owners/${ownerId}/jobs/${request.jobId}/voice_notes/${request.localId}.webm`;
+    if (request.objectType === 'metadata') return `owners/${ownerId}/jobs/${request.jobId}/metadata/${request.localId}.json`;
     if (request.objectType === 'thumbnail') return `owners/${ownerId}/jobs/${request.jobId}/thumbnails/${request.localId}.jpg`;
     return `owners/${ownerId}/jobs/${request.jobId}/${request.objectType}/${request.localId}`;
   }
@@ -111,27 +122,36 @@ export class CloudflareClient {
   }
 
   static async upload(request: CloudUploadRequest): Promise<CloudUploadResult> {
-    const baseUrl = import.meta.env.VITE_SITEPROOF_API_BASE_URL;
+    const baseUrl = (import.meta.env.VITE_SITEPROOF_API_BASE_URL || '').trim().replace(/\/+$/, '');
     if (!baseUrl) return { success: false, error: 'Cloudflare Worker upload endpoint is not configured.' };
     try {
       const blob = await blobFromRequest(request);
-      const contentType = request.contentType ?? blob?.type ?? 'application/octet-stream';
+      const contentType = request.mimeType ?? request.contentType ?? blob?.type ?? 'application/octet-stream';
       const fileSize = request.fileSize ?? blob?.size ?? 0;
-      const sha256 = request.sha256 ?? await sha256Hex(blob ?? JSON.stringify(request.payload ?? request.localId));
+      const sha256 = request.sha256 ?? request.checksum ?? await sha256Hex(blob ?? JSON.stringify(request.payload ?? request.localId));
       const visibility = this.defaultVisibility(request);
+      const objectId = request.proofObjectId ?? request.mediaAssetId ?? request.localId;
 
-      const uploadResponse = await fetch(`${baseUrl}/cloud/upload-url`, {
+      const uploadResponse = await fetch(`${baseUrl}/api/cloud/upload-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobId: request.jobId,
-          objectId: request.localId,
+          objectId,
+          proofObjectId: request.proofObjectId,
+          mediaAssetId: request.mediaAssetId,
           objectType: request.objectType,
           reportType: request.reportType,
           visibility,
           contentType,
+          mimeType: contentType,
+          filename: request.filename,
           fileSize,
           sha256,
+          checksum: sha256,
+          licenseId: request.licenseId,
+          companyId: request.companyId ?? request.ownerId,
+          ownerId: request.ownerId,
         }),
       });
       if (!uploadResponse.ok) return { success: false, error: 'Cloud upload boundary rejected request.' };
@@ -146,14 +166,18 @@ export class CloudflareClient {
         if (!putResponse.ok) return { success: false, error: 'Cloud object upload failed.' };
       }
 
-      const commitResponse = await fetch(`${baseUrl}/cloud/upload-commit`, {
+      const commitResponse = await fetch(`${baseUrl}/api/cloud/commit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cloudObjectId: upload.cloudObjectId,
           storageKey: upload.storageKey,
+          objectKey: upload.storageKey,
           sha256,
+          checksum: sha256,
           fileSize,
+          licenseId: request.licenseId,
+          companyId: request.companyId ?? request.ownerId,
         }),
       });
       if (!commitResponse.ok) return { success: false, cloudObjectId: upload.cloudObjectId, cloudObjectKey: upload.storageKey, error: 'Cloud upload commit failed.' };

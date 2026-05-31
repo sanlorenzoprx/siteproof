@@ -2,7 +2,15 @@
 
 ## 1. Summary
 
-Implemented a local-first licensing boundary, safe Stripe/Cloudflare Worker stubs, D1 license schema, and optional R2 upload boundary while preserving the bilingual offline core.
+Implemented a local-first licensing boundary, demoted app Worker billing/license stubs, D1/cloud schema boundaries, and optional Cloud Proof Vault upload boundaries while preserving the bilingual offline core.
+
+Production purchase/license authority moved to the `siteproof.report` Worker. The SiteProof app must call that backend through `VITE_SITEPROOF_API_BASE_URL`, for example:
+
+- `https://api.siteproof.report/api/checkout/create`
+- `https://api.siteproof.report/api/license/activate`
+- `https://api.siteproof.report/api/license/verify`
+
+The app Worker billing/license stubs were demoted to explicit `501` responses to prevent accidental production use.
 
 ## 2. Files reviewed
 
@@ -46,24 +54,29 @@ Implemented a local-first licensing boundary, safe Stripe/Cloudflare Worker stub
 - Verification failure keeps licensed users in safe offline grace instead of destroying local state.
 - App initialization no longer hard-blocks core routes solely because the local trial expired.
 
-## 5. Stripe boundary behavior implemented
+## 5. Purchase/license authority
 
-- Added frontend `LicenseApiClient.createCheckout()` boundary.
-- Frontend calls the Worker boundary and contains no Stripe secret keys.
-- Worker `POST /checkout/create` route validates payloads and returns explicit deployment/configuration stubs until Stripe secrets are configured.
+- Frontend `LicenseApiClient` calls the configured `VITE_SITEPROOF_API_BASE_URL`.
+- Production purchase/license authority is `siteproof.report`, not the app Worker.
+- The app frontend contains no Stripe secret keys.
+- App Worker billing/license routes now return `501` with a clear message directing developers to `siteproof.report`.
+- The app Worker must not return fake Stripe checkout URLs or fake successful `licensed` states.
 
 ## 6. Cloudflare Worker boundary behavior implemented
 
-- Added safe route boundaries for:
+- App Worker keeps app-owned route boundaries for:
   - `GET /health`
+  - `POST /cloud/upload-url`
+  - `POST /cloud/commit`
+  - `GET /cloud/job/:jobId`
+- Demoted purchase/license routes:
   - `POST /checkout/create`
   - `POST /stripe/webhook`
   - `POST /license/activate`
+  - `POST /license/bootstrap`
   - `POST /license/verify`
-  - `POST /cloud/upload-url`
-  - `POST /cloud/commit-upload`
-  - `GET /cloud/job/:jobId`
-- Routes validate required payload fields and return explicit configuration/deployment responses where backend implementation requires live secrets or D1/R2 deployment.
+  - matching `/api/...` variants
+- Demoted routes return explicit `501` JSON instead of fake success.
 
 ## 7. Cloudflare D1/R2 boundary behavior implemented or documented
 
@@ -120,13 +133,14 @@ Implemented a local-first licensing boundary, safe Stripe/Cloudflare Worker stub
 
 ## 16. Remaining risks
 
-- Stripe Checkout session creation, webhook verification, D1 verification queries, and signed R2 uploads require deployed Cloudflare/Stripe configuration before production activation.
+- Stripe Checkout session creation, webhook verification, customer/company/license persistence, and license verification now belong in the `siteproof.report` Worker.
+- Signed Cloud Proof Vault uploads require deployed backend support before setting `VITE_SITEPROOF_CLOUD_VAULT_ENABLED=true`.
 
 ## 17. Exact blockers
 
-- Production Stripe implementation requires `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and deployed success/cancel URLs.
-- Production license verification requires D1 access implementation against the new schema.
-- Production R2 upload signing requires deployed R2 credentials/binding behavior.
+- Production app purchase/activation requires `VITE_SITEPROOF_API_BASE_URL` pointing to the deployed `siteproof.report` API.
+- Production billing/license work should be implemented in `siteproof.report`, not reintroduced in the app Worker.
+- Production cloud upload signing requires deployed upload/commit routes and storage binding behavior.
 
 ## 18. Merge recommendation
 

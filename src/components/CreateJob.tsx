@@ -35,7 +35,7 @@ export function CreateJob() {
     if (!form.customerName || !form.address) return;
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
-      alert(t('license.trialEndedMessage'));
+      alert(LicenseService.getTrialStatusMessage(license));
       navigate('/license');
       return;
     }

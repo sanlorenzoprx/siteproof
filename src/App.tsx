@@ -37,7 +37,11 @@ function LicenseBanner({ license }: { license: LicenseState | null }) {
           ? 'License saved - verification will complete when internet is available'
           : license.status === 'revoked'
             ? 'License revoked - contact support'
-            : 'License required';
+            : license.status === 'expired'
+              ? 'License expired - renew to continue paid features'
+              : license.status === 'device_limit_exceeded'
+                ? 'Device limit reached - manage seats or contact support'
+                : 'License required';
   return (
     <button onClick={() => window.location.assign('/license')} className="w-full bg-slate-900 text-white text-xs font-black uppercase tracking-widest py-2">
       {text}
@@ -63,7 +67,10 @@ export default function App() {
       const currentLicense = activationParams
         ? (await PurchaseIntakeBootstrapService.bootstrapFromActivationLink(activationParams)).license
         : await LicenseService.getState();
-      setLicense(currentLicense);
+      const verifiedLicense = !activationParams && typeof navigator !== 'undefined' && navigator.onLine !== false && ['licensed', 'offline_grace', 'license_pending_verification'].includes(currentLicense.status)
+        ? (await LicenseService.verifyLicense()).state
+        : currentLicense;
+      setLicense(verifiedLicense);
 
       // 2. Onboarding Check
       const profile = await SiteProofDataService.getBusinessProfile();

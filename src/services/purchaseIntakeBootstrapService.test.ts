@@ -105,11 +105,65 @@ test('activation link bootstrap saves pending license when offline', withSetting
   const originalBootstrap = LicenseApiClient.bootstrap;
   LicenseApiClient.bootstrap = async () => { throw new Error('offline'); };
   try {
-    const result = await PurchaseIntakeBootstrapService.bootstrapFromActivationLink({ licenseKey: 'PENDING-123', activationToken: 'tok' });
+    const result = await PurchaseIntakeBootstrapService.bootstrapFromActivationLink({ licenseKey: 'PENDING-123' });
     const state = await LicenseService.getLicenseState();
     assert.equal(result.license.status, 'license_pending_verification');
     assert.equal(state.licenseKey, 'PENDING-123');
   } finally {
     LicenseApiClient.bootstrap = originalBootstrap;
+  }
+}));
+
+test('activation token link activates without storing raw token', withSettingsStore({}, async () => {
+  const originalActivateWithToken = LicenseApiClient.activateWithToken;
+  const originalVerify = LicenseApiClient.verify;
+  LicenseApiClient.activateWithToken = async (activationToken, deviceId, deviceLabel) => {
+    assert.equal(activationToken, 'tok_123');
+    assert.ok(deviceId);
+    assert.ok(deviceLabel);
+    return {
+      valid: true,
+      status: 'licensed',
+      licenseId: 'lic_token',
+      licenseKey: 'SAFE-LICENSE-123',
+      tier: 'crew_7',
+      planId: 'siteproof_launch_7_license',
+      customerEmail: 'owner@example.com',
+      seatLimit: 7,
+      trialJobLimit: 3,
+      cloudVaultEnabled: true,
+      brandedReportsEnabled: false,
+      currentPeriodEndsAt: '2027-05-30T00:00:00.000Z',
+    };
+  };
+  LicenseApiClient.verify = async (state) => ({
+    valid: true,
+    status: 'licensed',
+    licenseId: state.licenseId,
+    licenseKey: state.licenseKey,
+    tier: state.tier,
+    planId: state.planId,
+    customerEmail: state.customerEmail,
+    seatLimit: state.seatLimit,
+    trialJobLimit: state.trialJobLimit,
+    cloudVaultEnabled: state.cloudVaultEnabled,
+    brandedReportsEnabled: state.brandedReportsEnabled,
+    currentPeriodEndsAt: state.currentPeriodEndsAt,
+  });
+  try {
+    assert.deepEqual(PurchaseIntakeBootstrapService.parseActivationLink('?token=tok_123'), { activationToken: 'tok_123', licenseKey: undefined });
+    const result = await PurchaseIntakeBootstrapService.bootstrapFromActivationLink({ activationToken: 'tok_123' });
+    const state = await LicenseService.getLicenseState();
+    assert.equal(result.license.status, 'licensed');
+    assert.equal(state.licenseKey, 'SAFE-LICENSE-123');
+    assert.equal(state.tier, 'crew_7');
+    assert.equal(state.seatLimit, 7);
+    assert.equal(state.trialJobLimit, 3);
+    assert.equal(state.cloudVaultEnabled, true);
+    assert.equal(state.currentPeriodEndsAt, '2027-05-30T00:00:00.000Z');
+    assert.doesNotMatch(JSON.stringify(state), /tok_123/);
+  } finally {
+    LicenseApiClient.activateWithToken = originalActivateWithToken;
+    LicenseApiClient.verify = originalVerify;
   }
 }));

@@ -3,6 +3,7 @@ import { SiteProofDataService } from './siteProofDataService';
 import { TemplateCatalogService } from './templateCatalogService';
 import { TradeTemplatePackService } from './tradeTemplatePackService';
 import { SettingsService } from './settingsService';
+import { LicenseService } from './licenseService';
 
 export interface CreateFieldJobInput {
   mode?: Job['mode'];
@@ -80,6 +81,7 @@ export class JobWorkflowService {
     };
 
     await SiteProofDataService.saveJob(job);
+    await LicenseService.recordTrialJobCreated(job.id);
     await SiteProofDataService.setLastActiveJobId(job.id);
     return job;
   }

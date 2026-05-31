@@ -45,7 +45,7 @@ export function JobList() {
     if (!quickInput.trim()) return;
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
-      alert(t('license.trialEndedMessage'));
+      alert(LicenseService.getTrialStatusMessage(license));
       navigate('/license');
       return;
     }
@@ -57,7 +57,7 @@ export function JobList() {
   const startJob = async (mode: 'bid' | 'approved' = 'approved') => {
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
-      alert(t('license.trialEndedMessage'));
+      alert(LicenseService.getTrialStatusMessage(license));
       navigate('/license');
       return;
     }

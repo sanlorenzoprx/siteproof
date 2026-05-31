@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Cloud, Download, ExternalLink, Settings } from 'lucide-react';
 import { LicenseApiClient, CheckoutStatusResponse } from '../services/licenseApiClient';
 import { SITEPROOF_BRAND } from '../config/brand';
+import { CloudSyncService } from '../services/cloudSyncService';
 
 export function CheckoutThankYou() {
   const [searchParams] = useSearchParams();
@@ -10,6 +11,7 @@ export function CheckoutThankYou() {
   const sessionId = searchParams.get('session_id') || '';
   const planId = searchParams.get('plan') || 'siteproof_pro';
   const [status, setStatus] = useState<CheckoutStatusResponse>({ status: sessionId ? 'pending' : 'failed' });
+  const cloudVaultLive = CloudSyncService.isCloudVaultUploadEnabled();
 
   const openAppLink = useMemo(() => {
     if (status.activationLink) return status.activationLink;
@@ -63,7 +65,9 @@ export function CheckoutThankYou() {
           {status.cloudEntitled && (
             <div className="flex items-start gap-2 rounded-2xl bg-blue-500/10 p-3 text-sm font-bold text-blue-100">
               <Cloud size={18} className="mt-0.5 shrink-0" />
-              Your cloud storage is included. Reports and proof will sync when online.
+              {cloudVaultLive
+                ? 'Your cloud storage is included. Reports and proof will sync when online.'
+                : 'Cloud Proof Vault entitlement is included. Local offline proof capture works now; cloud backup activates when your account backup is enabled.'}
             </div>
           )}
         </div>

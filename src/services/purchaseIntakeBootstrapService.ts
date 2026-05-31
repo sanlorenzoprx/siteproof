@@ -10,7 +10,7 @@ const PURCHASE_SEED_APPLIED_AT_KEY = 'purchase_seed_applied_at';
 const PURCHASE_SEED_PENDING_KEY = 'purchase_seed_pending_v1';
 
 export interface ActivationLinkParams {
-  licenseKey: string;
+  licenseKey?: string;
   activationToken?: string;
 }
 
@@ -97,23 +97,38 @@ export class PurchaseIntakeBootstrapService {
   static parseActivationLink(search = window.location.search): ActivationLinkParams | null {
     const params = new URLSearchParams(search);
     const licenseKey = params.get('license') || params.get('licenseKey') || params.get('activationCode');
-    if (!licenseKey) return null;
+    const activationToken = params.get('token') || params.get('activationToken') || undefined;
+    if (!licenseKey && !activationToken) return null;
     return {
-      licenseKey,
-      activationToken: params.get('token') || params.get('activationToken') || undefined,
+      licenseKey: licenseKey || undefined,
+      activationToken,
     };
   }
 
   static async bootstrapFromActivationLink(params: ActivationLinkParams): Promise<PurchaseBootstrapResult> {
     const pending = await LicenseService.markPendingVerification(params.licenseKey);
     try {
-      const response = await LicenseApiClient.bootstrap(params.licenseKey, pending.deviceId, params.activationToken);
+      if (params.activationToken) {
+        const license = await LicenseService.activateToken(params.activationToken);
+        return { license, appliedSettings: false, pendingSettings: false };
+      }
+      if (!params.licenseKey) {
+        return { license: pending, appliedSettings: false, pendingSettings: false };
+      }
+      const response = await LicenseApiClient.bootstrap(params.licenseKey, pending.deviceId);
       const license = await LicenseService.activateLocally(params.licenseKey, {
         status: response.license.status,
         licenseId: response.license.licenseId,
+        tier: response.license.tier,
         planId: response.license.planId,
         customerEmail: response.license.customerEmail,
         cloudEntitled: response.license.cloudEntitled,
+        cloudVaultEnabled: response.license.cloudVaultEnabled ?? response.license.cloudEntitled,
+        brandedReportsEnabled: response.license.brandedReportsEnabled,
+        seatLimit: response.license.seatLimit ?? response.license.seatsIncluded,
+        trialJobLimit: response.license.trialJobLimit,
+        currentPeriodEndsAt: response.license.currentPeriodEndsAt,
+        verificationCredential: response.license.verificationCredential,
         errorMessage: undefined,
         lastVerifiedAt: new Date().toISOString(),
       });
