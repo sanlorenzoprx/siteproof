@@ -102,27 +102,6 @@ function toProReportType(reportType: SiteProofReportType): ProReportType {
   }
 }
 
-function toProReportType(reportType: SiteProofReportType): ProReportType {
-  switch (reportType) {
-    case SiteProofReportType.CUSTOMER_COMPLETION:
-      return 'customer_completion';
-    case SiteProofReportType.INSPECTION_READINESS:
-      return 'inspection_readiness';
-    case SiteProofReportType.CHANGE_ORDER_EVIDENCE:
-      return 'change_order_evidence';
-    case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
-      return 'payment_handoff';
-    case SiteProofReportType.PHOTO_PROOF_TIMELINE:
-      return 'photo_timeline';
-    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
-      return 'office_internal_record';
-    case SiteProofReportType.ALL_REPORTS:
-      return 'all_pro_reports';
-    default:
-      return 'office_internal_record';
-  }
-}
-
 export function JobDetail() {
   const { settings, t } = useSettings();
   const { id } = useParams<{ id: string }>();
