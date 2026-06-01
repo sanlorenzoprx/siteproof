@@ -7,8 +7,23 @@ export const jsonHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type,Authorization',
 };
 
-export function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
+export function corsHeaders(request: Request, env: { ALLOWED_ORIGINS?: string }): Record<string, string> {
+  const origin = request.headers.get('Origin') || '';
+  const allowed = (env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Vary: 'Origin',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+  };
+  if (allowed.length === 0 || allowed.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin || '*';
+  }
+  return headers;
+}
+
+export function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = jsonHeaders): Response {
+  return new Response(JSON.stringify(body), { status, headers });
 }
 
 export async function readJson(request: Request): Promise<Record<string, unknown>> {

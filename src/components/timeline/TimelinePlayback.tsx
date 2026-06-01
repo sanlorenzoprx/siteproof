@@ -3,6 +3,7 @@ import { AlertTriangle, Camera, CheckCircle, Clock, Download, FileText, MapPin, 
 import { format } from 'date-fns';
 import { TimelinePlaybackItem, TimelinePlaybackResult, TimelinePlaybackService } from '../../features/timeline/timelinePlaybackService';
 import { cn } from '../../lib/utils';
+import { useSettings } from '../../contexts/SettingsContext';
 
 function itemIcon(item: TimelinePlaybackItem) {
   switch (item.type) {
@@ -73,7 +74,7 @@ function PlaybackItemCard({ item, onPreview }: { item: TimelinePlaybackItem; onP
   );
 }
 
-function TimelinePreviewModal({ item, onClose }: { item: TimelinePlaybackItem | null; onClose: () => void }) {
+function TimelinePreviewModal({ item, onClose, closeLabel, gpsLabel }: { item: TimelinePlaybackItem | null; onClose: () => void; closeLabel: string; gpsLabel: string }) {
   if (!item) return null;
   return (
     <div className="fixed inset-0 z-[80] bg-slate-950/80 backdrop-blur-sm p-4 flex items-center justify-center" onClick={onClose}>
@@ -87,8 +88,8 @@ function TimelinePreviewModal({ item, onClose }: { item: TimelinePlaybackItem | 
           <div className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">{format(item.occurredAt, 'PPpp')}</div>
           <h3 className="text-2xl font-black text-slate-950 tracking-tight">{item.requirementName || item.title}</h3>
           {item.description && <p className="mt-2 text-sm font-bold text-slate-600 leading-relaxed">{item.description}</p>}
-          {item.gpsLabel && <p className="mt-4 text-xs font-black text-green-700 uppercase tracking-widest">GPS: {item.gpsLabel}</p>}
-          <button onClick={onClose} className="mt-6 w-full bg-slate-950 text-white rounded-2xl py-4 font-black uppercase tracking-widest text-xs">Close</button>
+          {item.gpsLabel && <p className="mt-4 text-xs font-black text-green-700 uppercase tracking-widest">{gpsLabel}: {item.gpsLabel}</p>}
+          <button onClick={onClose} className="mt-6 w-full bg-slate-950 text-white rounded-2xl py-4 font-black uppercase tracking-widest text-xs">{closeLabel}</button>
         </div>
       </div>
     </div>
@@ -96,6 +97,7 @@ function TimelinePreviewModal({ item, onClose }: { item: TimelinePlaybackItem | 
 }
 
 export function TimelinePlayback({ jobId }: { jobId: string }) {
+  const { t } = useSettings();
   const [timeline, setTimeline] = useState<TimelinePlaybackResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<TimelinePlaybackItem | null>(null);
@@ -127,43 +129,43 @@ export function TimelinePlayback({ jobId }: { jobId: string }) {
   }, [timeline, filter]);
 
   if (loading) {
-    return <div className="bg-white border border-slate-200 rounded-[32px] p-8 text-center text-sm font-black text-slate-400 uppercase tracking-widest">Loading job timeline…</div>;
+    return <div className="bg-white border border-slate-200 rounded-[32px] p-8 text-center text-sm font-black text-slate-400 uppercase tracking-widest">{t('timeline.loading')}</div>;
   }
 
   if (!timeline) {
-    return <div className="bg-white border border-slate-200 rounded-[32px] p-8 text-center text-sm font-black text-slate-400 uppercase tracking-widest">Timeline unavailable</div>;
+    return <div className="bg-white border border-slate-200 rounded-[32px] p-8 text-center text-sm font-black text-slate-400 uppercase tracking-widest">{t('timeline.unavailable')}</div>;
   }
 
   return (
     <section className="space-y-6">
-      <TimelinePreviewModal item={preview} onClose={() => setPreview(null)} />
+      <TimelinePreviewModal item={preview} onClose={() => setPreview(null)} closeLabel={t('timeline.close')} gpsLabel={t('timeline.gps')} />
 
       <div className="bg-slate-950 rounded-[36px] p-6 md:p-8 text-white overflow-hidden relative">
         <div className="absolute -right-14 -top-14 opacity-10"><PlayCircle size={230} /></div>
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-blue-100 text-[10px] font-black uppercase tracking-widest mb-4">
-            <Clock size={13} /> Timeline Playback
+            <Clock size={13} /> {t('timeline.playback')}
           </div>
-          <h2 className="text-3xl md:text-4xl font-black tracking-tight">Replay the job from arrival to export.</h2>
-          <p className="mt-3 text-sm font-bold text-slate-300 max-w-2xl">Chronological proof, notes, issues, GPS, and generated reports in one field-ready job story.</p>
+          <h2 className="text-3xl md:text-4xl font-black tracking-tight">{t('timeline.replayTitle')}</h2>
+          <p className="mt-3 text-sm font-bold text-slate-300 max-w-2xl">{t('timeline.replaySubtitle')}</p>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-7">
-            <SummaryStat label="Events" value={String(timeline.summary.itemCount)} />
-            <SummaryStat label="Photos" value={String(timeline.summary.photoCount)} />
-            <SummaryStat label="Notes" value={String(timeline.summary.voiceNoteCount)} />
-            <SummaryStat label="Issues" value={String(timeline.summary.issueCount)} />
-            <SummaryStat label="Duration" value={timeline.summary.durationLabel} />
+            <SummaryStat label={t('timeline.events')} value={String(timeline.summary.itemCount)} />
+            <SummaryStat label={t('timeline.photos')} value={String(timeline.summary.photoCount)} />
+            <SummaryStat label={t('timeline.notes')} value={String(timeline.summary.voiceNoteCount)} />
+            <SummaryStat label={t('timeline.issues')} value={String(timeline.summary.issueCount)} />
+            <SummaryStat label={t('timeline.duration')} value={timeline.summary.durationLabel} />
           </div>
         </div>
       </div>
 
       <div className="flex gap-2 p-1.5 bg-slate-200/60 rounded-2xl w-fit overflow-x-auto no-scrollbar">
         {[
-          ['all', 'All'],
-          ['proof', 'Proof'],
-          ['notes', 'Notes'],
-          ['issues', 'Issues'],
-          ['exports', 'Exports'],
+          ['all', t('timeline.filterAll')],
+          ['proof', t('timeline.filterProof')],
+          ['notes', t('timeline.filterNotes')],
+          ['issues', t('timeline.filterIssues')],
+          ['exports', t('timeline.filterExports')],
         ].map(([id, label]) => (
           <button
             key={id}
@@ -197,7 +199,7 @@ export function TimelinePlayback({ jobId }: { jobId: string }) {
         {!filteredGroups.length && (
           <div className="bg-white border border-slate-200 rounded-[32px] p-10 text-center">
             <Clock size={38} className="mx-auto text-slate-300 mb-3" />
-            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No timeline items for this filter</p>
+            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">{t('timeline.noItemsForFilter')}</p>
           </div>
         )}
       </div>

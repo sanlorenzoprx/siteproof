@@ -10,7 +10,7 @@ import { ExportPacketType, Job as RuntimeJob, MediaAsset, ProofObject, TimelineE
 import { TemplateCatalogService } from '../../services/templateCatalogService';
 import { SiteProofDataService } from '../../services/siteProofDataService';
 import type { ReportMode } from '../../services/pdfService';
-import { Job as LegacyJob, JobPhoto, VoiceNote as LegacyVoiceNote } from '../../types';
+import { Job as LegacyJob, JobPhoto, VoiceNote as LegacyVoiceNote } from '../../domain/models';
 import { WorkflowTemplate } from '../../templates/workflowTemplate.types';
 import type { SiteProofLanguage } from '../../types/settings';
 import { filterProofBundlesForReport } from './reportFilters';

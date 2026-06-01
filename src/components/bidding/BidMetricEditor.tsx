@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react';
-import type { BidMetric } from '../../types';
+import type { BidMetric } from '../../domain/models';
 
 interface BidMetricEditorProps {
   metrics: BidMetric[];

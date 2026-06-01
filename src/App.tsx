@@ -23,25 +23,27 @@ import { CloudService } from './services/cloudService';
 import { SITEPROOF_BRAND } from './config/brand';
 import { LicenseService, type LicenseState } from './services/licenseService';
 import { PurchaseIntakeBootstrapService } from './services/purchaseIntakeBootstrapService';
+import { useSettings } from './contexts/SettingsContext';
 
-function LicenseBanner({ license }: { license: LicenseState | null }) {
+function LicenseBanner({ license, t }: { license: LicenseState | null; t: (key: string) => string }) {
   if (!license || license.status === 'licensed') return null;
   const days = LicenseService.getDaysRemaining(license);
+  const withDays = (key: string) => t(key).replace('{days}', String(days));
   const text = license.status === 'trial_active'
-    ? `Trial active - ${days} days remaining`
+    ? withDays('license.bannerTrialActive')
     : license.status === 'trial_expired'
-      ? 'Trial expired - Activate to continue creating reports'
+      ? t('license.bannerTrialExpired')
       : license.status === 'offline_grace'
-        ? `Offline grace - verify within ${days} days`
+        ? withDays('license.bannerOfflineGrace')
         : license.status === 'license_pending_verification'
-          ? 'License saved - verification will complete when internet is available'
+          ? t('license.bannerPendingVerification')
           : license.status === 'revoked'
-            ? 'License revoked - contact support'
+            ? t('license.bannerRevoked')
             : license.status === 'expired'
-              ? 'License expired - renew to continue paid features'
+              ? t('license.bannerExpired')
               : license.status === 'device_limit_exceeded'
-                ? 'Device limit reached - manage seats or contact support'
-                : 'License required';
+                ? t('license.bannerDeviceLimit')
+                : t('license.bannerRequired');
   return (
     <button onClick={() => window.location.assign('/license')} className="w-full bg-slate-900 text-white text-xs font-black uppercase tracking-widest py-2">
       {text}
@@ -54,6 +56,7 @@ export default function App() {
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { t } = useSettings();
 
   useEffect(() => {
     async function init() {
@@ -89,7 +92,7 @@ export default function App() {
 
   return (
     <>
-    <LicenseBanner license={license} />
+    <LicenseBanner license={license} t={t} />
     <OfflineStatusBanner />
     <AnimatePresence mode="wait">
       <Routes>

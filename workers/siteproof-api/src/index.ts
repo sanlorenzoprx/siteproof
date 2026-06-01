@@ -2,6 +2,36 @@ import { handleAiRoute, jsonHeaders, jsonResponse, readJson } from './ai/aiRoute
 import { WorkerEnv } from './ai/types';
 import { WorkersAiProvider } from './ai/workersAiProvider';
 
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+const RATE_LIMIT_MAX_REQUESTS = 60;
+const inMemoryRateCounters = new Map<string, { count: number; resetAt: number }>();
+
+async function isRateLimited(env: WorkerEnv, ip: string): Promise<boolean> {
+  const key = `rate:${ip}`;
+  if (env.RATE_LIMIT_KV) {
+    const now = Date.now();
+    const currentRaw = await env.RATE_LIMIT_KV.get(key);
+    const current = currentRaw ? Number.parseInt(currentRaw, 10) : 0;
+    if (!Number.isNaN(current) && current >= RATE_LIMIT_MAX_REQUESTS) return true;
+    const next = Number.isNaN(current) ? 1 : current + 1;
+    const elapsed = Math.floor(now / 1000) % RATE_LIMIT_WINDOW_SECONDS;
+    const ttl = currentRaw ? Math.max(1, RATE_LIMIT_WINDOW_SECONDS - elapsed) : RATE_LIMIT_WINDOW_SECONDS;
+    await env.RATE_LIMIT_KV.put(key, String(next), { expirationTtl: ttl });
+    return false;
+  }
+
+  const now = Date.now();
+  const existing = inMemoryRateCounters.get(key);
+  if (!existing || existing.resetAt <= now) {
+    inMemoryRateCounters.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_SECONDS * 1000 });
+    return false;
+  }
+  if (existing.count >= RATE_LIMIT_MAX_REQUESTS) return true;
+  existing.count += 1;
+  inMemoryRateCounters.set(key, existing);
+  return false;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -17,21 +47,6 @@ function numberField(value: Record<string, unknown>, key: string): number | unde
 const CLOUD_OBJECT_TYPES = new Set(['photo', 'document', 'video', 'report', 'metadata', 'voice_note', 'signature', 'transcript', 'bid_report', 'thumbnail', 'share_package']);
 const CLOUD_REPORT_TYPES = new Set(['customer_completion', 'daily_job_proof', 'inspection_readiness', 'change_order_evidence', 'photo_proof_timeline', 'payment_final_handoff', 'office_internal_job_record', 'all_reports', 'internal_bid_report', 'customer_bid_report']);
 const CLOUD_VISIBILITIES = new Set(['private', 'internal_only', 'customer_visible', 'hidden_do_not_export']);
-const BILLING_MOVED_MESSAGE = 'Billing and license routes moved to the siteproof.report Worker. Configure VITE_SITEPROOF_API_BASE_URL to call https://api.siteproof.report.';
-const APP_WORKER_BILLING_PATHS = new Set([
-  '/checkout/status',
-  '/api/checkout/status',
-  '/checkout/create',
-  '/api/checkout/create',
-  '/stripe/webhook',
-  '/api/stripe/webhook',
-  '/license/activate',
-  '/api/license/activate',
-  '/license/bootstrap',
-  '/api/license/bootstrap',
-  '/license/verify',
-  '/api/license/verify',
-]);
 
 function randomId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
@@ -112,14 +127,6 @@ async function durableAll<T>(env: WorkerEnv, sql: string, ...values: unknown[]):
 async function routeBoundary(pathname: string, request: Request, env: WorkerEnv): Promise<Response | null> {
   if (request.method === 'GET' && (pathname === '/health' || pathname === '/api/health')) {
     return jsonResponse({ ok: true, service: 'siteproof-cloudflare-api' });
-  }
-
-  if (APP_WORKER_BILLING_PATHS.has(pathname)) {
-    return jsonResponse({
-      error: BILLING_MOVED_MESSAGE,
-      authority: 'siteproof.report',
-      configure: 'VITE_SITEPROOF_API_BASE_URL=https://api.siteproof.report',
-    }, 501);
   }
 
   const body = ['POST'].includes(request.method) ? await readJson(request) : {};
@@ -240,6 +247,13 @@ export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return new Response(null, { headers: jsonHeaders });
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+
+    if (url.pathname.startsWith('/api/ai/') || url.pathname.startsWith('/cloud/') || url.pathname.startsWith('/api/cloud/')) {
+      if (await isRateLimited(env, ip)) {
+        return jsonResponse({ error: 'rate_limited' }, 429, { ...jsonHeaders, 'Retry-After': '60' });
+      }
+    }
 
     const boundary = await routeBoundary(url.pathname, request, env);
     if (boundary) return boundary;

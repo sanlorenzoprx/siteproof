@@ -1,4 +1,4 @@
-import { BusinessProfile } from '../types';
+import { BusinessProfile } from '../domain/models';
 import { LicenseApiClient, LicenseBootstrapResponse } from './licenseApiClient';
 import { LicenseService, SiteProofLicenseState } from './licenseService';
 import { SettingsService, createDefaultSettings, normalizeSettings } from './settingsService';

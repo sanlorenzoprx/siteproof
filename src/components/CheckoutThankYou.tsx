@@ -4,8 +4,10 @@ import { CheckCircle2, Cloud, Download, ExternalLink, Settings } from 'lucide-re
 import { LicenseApiClient, CheckoutStatusResponse } from '../services/licenseApiClient';
 import { SITEPROOF_BRAND } from '../config/brand';
 import { CloudSyncService } from '../services/cloudSyncService';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function CheckoutThankYou() {
+  const { t } = useSettings();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const sessionId = searchParams.get('session_id') || '';
@@ -23,7 +25,7 @@ export function CheckoutThankYou() {
     let attempts = 0;
     async function poll() {
       if (!sessionId) {
-        setStatus({ status: 'failed', error: 'Checkout session is missing.' });
+        setStatus({ status: 'failed', error: t('checkout.sessionMissing') });
         return;
       }
       const next = await LicenseApiClient.checkoutStatus(sessionId, planId);
@@ -47,45 +49,45 @@ export function CheckoutThankYou() {
           </div>
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.28em] text-blue-300">{SITEPROOF_BRAND.appName}</p>
-            <h1 className="mt-2 text-4xl font-black italic tracking-tight uppercase">Thank you - SiteProof is ready</h1>
+            <h1 className="mt-2 text-4xl font-black italic tracking-tight uppercase">{t('checkout.title')}</h1>
           </div>
           {status.status === 'pending' ? (
-            <p className="text-slate-300 font-bold">Setting up license...</p>
+            <p className="text-slate-300 font-bold">{t('checkout.settingUpLicense')}</p>
           ) : status.status === 'failed' ? (
-            <p className="text-red-200 font-bold">{status.error || 'We could not load this checkout session. Open SiteProof and paste your activation code, or contact support.'}</p>
+            <p className="text-red-200 font-bold">{status.error || t('checkout.failedToLoad')}</p>
           ) : (
-            <p className="text-slate-300 font-bold">Your license and setup details are ready for SiteProof.</p>
+            <p className="text-slate-300 font-bold">{t('checkout.readyDetails')}</p>
           )}
         </div>
 
         <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/5 p-5">
-          <div className="text-sm font-bold text-slate-300">Plan: <span className="text-white">{status.planId || planId}</span></div>
-          <div className="text-sm font-bold text-slate-300">License email: <span className="text-white">{status.licenseEmail || 'Pending webhook'}</span></div>
-          <div className="text-sm font-bold text-slate-300">Activation code: <span className="font-mono text-white">{status.activationCode || 'Pending'}</span></div>
+          <div className="text-sm font-bold text-slate-300">{t('checkout.planLabel')}: <span className="text-white">{status.planId || planId}</span></div>
+          <div className="text-sm font-bold text-slate-300">{t('checkout.licenseEmailLabel')}: <span className="text-white">{status.licenseEmail || t('checkout.pendingWebhook')}</span></div>
+          <div className="text-sm font-bold text-slate-300">{t('checkout.activationCodeLabel')}: <span className="font-mono text-white">{status.activationCode || t('checkout.pending')}</span></div>
           {status.cloudEntitled && (
             <div className="flex items-start gap-2 rounded-2xl bg-blue-500/10 p-3 text-sm font-bold text-blue-100">
               <Cloud size={18} className="mt-0.5 shrink-0" />
               {cloudVaultLive
-                ? 'Your cloud storage is included. Reports and proof will sync when online.'
-                : 'Cloud Proof Vault entitlement is included. Local offline proof capture works now; cloud backup activates when your account backup is enabled.'}
+                ? t('checkout.cloudIncludedLive')
+                : t('checkout.cloudEntitledPending')}
             </div>
           )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <a href={openAppLink} className="flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-4 text-sm font-black uppercase tracking-widest text-slate-950">
-            <ExternalLink size={18} /> Open SiteProof
+            <ExternalLink size={18} /> {t('checkout.openSiteProof')}
           </a>
           <button onClick={() => window.print()} className="flex items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 py-4 text-sm font-black uppercase tracking-widest text-white">
-            <Download size={18} /> Download
+            <Download size={18} /> {t('checkout.download')}
           </button>
           <button onClick={() => navigate('/settings')} className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-4 text-sm font-black uppercase tracking-widest text-white">
-            <Settings size={18} /> Set Up Profile
+            <Settings size={18} /> {t('checkout.setupProfile')}
           </button>
         </div>
 
         <div className="rounded-3xl bg-slate-950/70 p-5 text-sm font-bold text-slate-400">
-          Install on phone: open SiteProof in your mobile browser, use the browser share/menu button, then choose Add to Home Screen or Install App.
+          {t('checkout.installHelp')}
         </div>
       </div>
     </div>

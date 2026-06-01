@@ -4,7 +4,7 @@ import { JobWorkflowService } from '../services/jobWorkflowService';
 import { TemplateCatalogService } from '../services/templateCatalogService';
 import { TradeTemplatePackService } from '../services/tradeTemplatePackService';
 import { ArrowLeft, ChevronDown, FileText, Info } from 'lucide-react';
-import { JobStatus } from '../types';
+import { JobStatus } from '../domain/models';
 import { VoiceDictation } from './VoiceDictation';
 import { useSettings } from '../contexts/SettingsContext';
 import { LicenseService } from '../services/licenseService';
@@ -35,7 +35,6 @@ export function CreateJob() {
     if (!form.customerName || !form.address) return;
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
-      alert(LicenseService.getTrialStatusMessage(license));
       navigate('/license');
       return;
     }

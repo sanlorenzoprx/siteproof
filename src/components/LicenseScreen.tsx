@@ -165,7 +165,7 @@ export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">{SITEPROOF_LAUNCH_OFFER.brandedReports.name} - {SITEPROOF_LAUNCH_OFFER.brandedReports.price} {SITEPROOF_LAUNCH_OFFER.brandedReports.priceQualifier}</p>
-              <p className="text-xs font-bold text-slate-400 mt-1">Request Branded Setup. Payment and setup tracking are TODOs, so no branded status is faked here.</p>
+              <p className="text-xs font-bold text-slate-400 mt-1">{t('license.brandedSetupNote')}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">{SITEPROOF_LAUNCH_OFFER.referral.title}</p>

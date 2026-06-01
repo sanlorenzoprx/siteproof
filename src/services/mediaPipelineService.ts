@@ -28,6 +28,7 @@ export interface OverlayMetadataInput {
 
 const MAX_COMPRESSED_EDGE = 1800;
 const THUMBNAIL_EDGE = 420;
+let compressionWorker: Worker | null = null;
 
 function createCanvas(width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
@@ -83,6 +84,33 @@ function drawScaled(image: HTMLImageElement, maxEdge: number): HTMLCanvasElement
   return canvas;
 }
 
+async function compressWithWorker(blob: Blob, maxEdge: number, quality = 0.82): Promise<Blob | null> {
+  if (typeof Worker === 'undefined' || typeof window === 'undefined') return null;
+  try {
+    if (!compressionWorker) {
+      compressionWorker = new Worker(new URL('../workers/imageCompressionWorker.ts', import.meta.url), { type: 'module' });
+    }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const buffer = await blob.arrayBuffer();
+    return await new Promise<Blob | null>((resolve) => {
+      const worker = compressionWorker;
+      if (!worker) return resolve(null);
+      const timeout = window.setTimeout(() => resolve(null), 5000);
+      const handler = (event: MessageEvent<{ id: string; ok: boolean; buffer?: ArrayBuffer }>) => {
+        if (!event.data || event.data.id !== id) return;
+        window.clearTimeout(timeout);
+        worker.removeEventListener('message', handler);
+        if (!event.data.ok || !event.data.buffer) return resolve(null);
+        resolve(new Blob([event.data.buffer], { type: 'image/jpeg' }));
+      };
+      worker.addEventListener('message', handler);
+      worker.postMessage({ id, type: 'compress', buffer, mimeType: blob.type || 'image/jpeg', maxEdge, quality }, [buffer]);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export class MediaPipelineService {
   static async processPhotoBlob(blob: Blob, previewDataUrl?: string): Promise<PhotoMediaPipelineResult> {
     try {
@@ -98,8 +126,13 @@ export class MediaPipelineService {
       let compressionState: CompressionState = 'not_needed';
 
       if (shouldCompress) {
-        const compressedCanvas = drawScaled(image, MAX_COMPRESSED_EDGE);
-        compressedBlob = await canvasToBlob(compressedCanvas, 'image/jpeg', 0.82);
+        const workerBlob = await compressWithWorker(blob, MAX_COMPRESSED_EDGE, 0.82);
+        if (workerBlob) {
+          compressedBlob = workerBlob;
+        } else {
+          const compressedCanvas = drawScaled(image, MAX_COMPRESSED_EDGE);
+          compressedBlob = await canvasToBlob(compressedCanvas, 'image/jpeg', 0.82);
+        }
         compressionState = 'compressed';
       }
 

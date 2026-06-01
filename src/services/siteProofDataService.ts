@@ -1,4 +1,4 @@
-import { Job, JobPhoto, JobVideo, VoiceNote, License, BusinessProfile, UserProfile, SyncState } from '../types';
+import { Job, JobPhoto, JobVideo, VoiceNote, License, BusinessProfile, UserProfile, SyncState } from '../domain/models';
 import { RuntimeOrchestrator, RuntimeSnapshot } from './runtimeOrchestrator';
 import { AppSettingsService } from './appSettingsService';
 import { jobRepository, customerRepository, proofRepository, mediaRepository, voiceNoteRepository, workflowStageRepository } from '../db/repositories';

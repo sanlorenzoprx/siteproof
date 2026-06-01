@@ -1,6 +1,6 @@
 import { exportRepository } from '../../db/repositories/exportRepository';
 import { ExportPacket, ShareStatus } from '../../db/schema';
-import { Job } from '../../types';
+import { Job } from '../../domain/models';
 
 export type ReportShareChannel = 'email' | 'sms';
 

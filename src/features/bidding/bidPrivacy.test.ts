@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { bidRecordFromJob, filterBidForAudience, proofBundleVisibleToBidCustomer } from './bidPrivacy';
-import type { Job } from '../../types';
+import type { Job } from '../../domain/models';
 import type { ExportProofBundle } from '../export/exportAssembler';
 
 test('new bid job defaults to internal privacy and customer filter removes private fields', () => {

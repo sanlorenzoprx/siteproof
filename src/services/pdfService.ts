@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { SiteProofDataService } from './siteProofDataService';
 import { AIService } from './aiService';
-import { Job, JobPhoto, VoiceNote } from '../types';
+import { Job, JobPhoto, VoiceNote } from '../domain/models';
 import { TemplateCatalogService } from './templateCatalogService';
 import { format } from 'date-fns';
 import { ExportPacketService } from '../features/export/exportPacketService';

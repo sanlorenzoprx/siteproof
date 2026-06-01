@@ -55,6 +55,7 @@ export function CameraCapture() {
   const [category, setCategory] = useState(searchParams.get('category') || t('capture.modePhoto'));
   const [description, setDescription] = useState('');
   const [captureError, setCaptureError] = useState<CaptureErrorCode | null>(null);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
   const [recordedVideoBlob, setRecordedVideoBlob] = useState<Blob | null>(null);
   const [recordedVideoMimeType, setRecordedVideoMimeType] = useState('video/webm');
@@ -278,6 +279,7 @@ export function CameraCapture() {
       } catch (err) {
         console.error('camera_start_failed', err);
         setCaptureError(classifyCameraError(err));
+        setPermissionError(t('capture.cameraError'));
       }
     }
 
@@ -409,7 +411,7 @@ export function CameraCapture() {
         setIsRecordingVoice(true);
       } catch (err) {
         console.error("Microphone access denied", err);
-        alert(t('capture.microphoneRequired'));
+        setPermissionError(t('capture.microphoneRequired'));
       }
     }
   }
@@ -470,7 +472,7 @@ export function CameraCapture() {
       setIsRecordingDescription(true);
     } catch (err) {
       console.error("Microphone access denied", err);
-      alert(t('capture.microphoneRequired'));
+      setPermissionError(t('capture.microphoneRequired'));
     }
   }
 
@@ -775,6 +777,15 @@ export function CameraCapture() {
           <div className="absolute inset-0 z-20 bg-white/45" />
         )}
         <canvas ref={canvasRef} className="hidden" />
+        {permissionError && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="absolute left-4 right-4 top-4 mx-4 mt-4 text-sm font-bold text-red-700 bg-red-50 border border-red-300 rounded-xl px-4 py-3 flex items-center gap-2"
+          >
+            <span>⚠</span> {permissionError}
+          </div>
+        )}
         {!hasCapturedMedia && (
           <div className="absolute left-4 right-4 bottom-4 bg-black/45 backdrop-blur-md border border-white/10 rounded-3xl p-4 text-white">
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200 mb-1">{getModeContextLabel()}</div>

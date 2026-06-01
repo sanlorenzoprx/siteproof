@@ -1,4 +1,4 @@
-import { Job, JobStatus } from '../types';
+import { Job, JobStatus } from '../domain/models';
 import { SiteProofDataService } from './siteProofDataService';
 import { TemplateCatalogService } from './templateCatalogService';
 import { TradeTemplatePackService } from './tradeTemplatePackService';

@@ -1,4 +1,4 @@
-import { Job, JobPhoto, VoiceNote } from '../types';
+import { Job, JobPhoto, VoiceNote } from '../domain/models';
 import { AiTaskQueueService } from './aiTaskQueueService';
 import { SiteProofAiClient } from './siteProofAiClient';
 import { translate } from '../config/i18n';

@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Camera, FileUp, Save, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { JobDocumentType } from '../db/schema';
-import { Job } from '../types';
+import { Job } from '../domain/models';
 import { JobDocumentCaptureRuntime } from '../services/jobDocumentCaptureRuntime';
 import { cn } from '../lib/utils';
 import { useSettings } from '../contexts/SettingsContext';

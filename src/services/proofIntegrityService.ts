@@ -1,4 +1,4 @@
-import { JobPhoto, JobVideo, VoiceNote } from '../types';
+import { JobPhoto, JobVideo, VoiceNote } from '../domain/models';
 import { ExportAssembly } from '../features/export/exportAssembler';
 import { Job, MediaAsset, ProofObject, TimelineEvent, nowIso } from '../db/schema';
 import { proofRepository, timelineRepository } from '../db/repositories';

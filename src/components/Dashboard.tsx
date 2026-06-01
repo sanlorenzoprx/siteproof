@@ -5,13 +5,15 @@ import {
   TrendingDown, Briefcase, Activity
 } from 'lucide-react';
 import { SiteProofDataService } from '../services/siteProofDataService';
-import { Job, JobStatus } from '../types';
+import { Job, JobStatus } from '../domain/models';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function Dashboard() {
+  const { t } = useSettings();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -27,33 +29,33 @@ export function Dashboard() {
 
   const stats = [
     { 
-      label: 'Backlog Value', 
+      label: t('dashboard.backlogValue'), 
       value: `$${jobs.reduce((acc, job) => job.status !== 'COMPLETED' ? acc + (job.quotedAmount || 0) : acc, 0).toLocaleString()}`,
-      change: '+12.5%',
+      change: t('dashboard.backlogValueChange'),
       trend: 'up',
       icon: DollarSign,
       color: 'bg-blue-500'
     },
     { 
-      label: 'Active Pipeline', 
+      label: t('dashboard.activePipeline'), 
       value: jobs.filter(j => j.status === 'ACTIVE').length.toString(),
-      change: '+3 this week',
+      change: t('dashboard.activePipelineChange'),
       trend: 'up',
       icon: Activity,
       color: 'bg-indigo-500'
     },
     { 
-      label: 'Avg Cycle Time', 
-      value: '4.2 Days',
-      change: '-0.5 days',
+      label: t('dashboard.avgCycleTime'), 
+      value: t('dashboard.avgCycleTimeValue'),
+      change: t('dashboard.avgCycleTimeChange'),
       trend: 'down',
       icon: Clock,
       color: 'bg-purple-500'
     },
     { 
-      label: 'Completion Rate', 
+      label: t('dashboard.completionRate'), 
       value: `${Math.round((jobs.filter(j => j.status === 'COMPLETED').length / (jobs.length || 1)) * 100)}%`,
-      change: '+5%',
+      change: t('dashboard.completionRateChange'),
       trend: 'up',
       icon: TrendingUp,
       color: 'bg-green-500'
@@ -80,18 +82,18 @@ export function Dashboard() {
     <div className="p-4 md:p-8 space-y-8 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">HQ Dashboard</h1>
-          <p className="text-slate-500 font-medium">Business intelligence and growth tracking for SiteProof.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">{t('dashboard.title')}</h1>
+          <p className="text-slate-500 font-medium">{t('dashboard.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <button 
             onClick={() => navigate('/')} 
             className="px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all"
           >
-            Field View
+            {t('dashboard.fieldView')}
           </button>
           <button className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-600/20 active:scale-95 transition-all">
-            Quick Schedule
+            {t('dashboard.quickSchedule')}
           </button>
         </div>
       </header>
@@ -134,7 +136,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-2">
               <Activity size={20} className="text-blue-600" />
-              Incoming & Active Pipeline
+              {t('dashboard.incomingActivePipeline')}
             </h2>
           </div>
 
@@ -162,7 +164,7 @@ export function Dashboard() {
                         </div>
                       </motion.div>
                     )) : (
-                      <div className="text-[10px] text-slate-300 text-center py-4 font-medium italic">Empty</div>
+                      <div className="text-[10px] text-slate-300 text-center py-4 font-medium italic">{t('dashboard.empty')}</div>
                     )}
                   </div>
                 </div>
@@ -175,7 +177,7 @@ export function Dashboard() {
         <div className="space-y-6">
           <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-2">
             <Calendar size={20} className="text-blue-600" />
-            Weekly Schedule
+            {t('dashboard.weeklySchedule')}
           </h2>
           <div className="bg-white rounded-[32px] border border-slate-200 p-6 shadow-sm divide-y divide-slate-100">
             {weeklySchedule.map((date) => {
@@ -200,7 +202,7 @@ export function Dashboard() {
                         <ChevronRight size={14} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
                       </div>
                     ))}
-                    {dayJobs.length === 0 && <div className="text-[10px] text-slate-400 italic">No scheduled jobs</div>}
+                    {dayJobs.length === 0 && <div className="text-[10px] text-slate-400 italic">{t('dashboard.noScheduledJobs')}</div>}
                   </div>
                 </div>
               );

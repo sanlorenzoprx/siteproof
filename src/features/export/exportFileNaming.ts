@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Job } from '../../types';
+import { Job } from '../../domain/models';
 import { ReportMode } from '../../services/pdfService';
 import type { SiteProofLanguage } from '../../types/settings';
 import { translate } from '../../config/i18n';

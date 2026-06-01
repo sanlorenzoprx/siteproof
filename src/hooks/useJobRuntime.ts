@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Job } from '../types';
+import { Job } from '../domain/models';
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { RuntimeSnapshot } from '../services/runtimeOrchestrator';
 

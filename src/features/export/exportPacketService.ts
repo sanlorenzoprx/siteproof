@@ -1,7 +1,7 @@
 import { exportRepository } from '../../db/repositories/exportRepository';
 import { timelineRepository } from '../../db/repositories/timelineRepository';
 import { ExportPacketType } from '../../db/schema';
-import { Job, JobPhoto, VoiceNote } from '../../types';
+import { Job, JobPhoto, VoiceNote } from '../../domain/models';
 import { ReportMode } from '../../services/pdfService';
 import type { ExportIntegrityManifest } from '../../services/proofIntegrityService';
 import { buildExportFileName, packetTitle } from './exportFileNaming';

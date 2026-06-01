@@ -1,5 +1,5 @@
 import generatorInstallTemplate from '../templates/generator_install_v1.json';
-import { Job as LegacyJob, JobPhoto, JobVideo, VoiceNote as LegacyVoiceNote, SyncState } from '../types';
+import { Job as LegacyJob, JobPhoto, JobVideo, VoiceNote as LegacyVoiceNote, SyncState } from '../domain/models';
 import {
   Address,
   Job as RuntimeJob,

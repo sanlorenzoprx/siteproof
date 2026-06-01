@@ -1,4 +1,4 @@
-import { JobPhoto, JobVideo, VoiceNote } from '../types';
+import { JobPhoto, JobVideo, VoiceNote } from '../domain/models';
 import { SiteProofDataService } from './siteProofDataService';
 import { TemplateCatalogService } from './templateCatalogService';
 import { MediaPipelineService } from './mediaPipelineService';

@@ -5,7 +5,7 @@ import { SettingsService, createDefaultSettings } from './settingsService';
 import { SiteProofDataService } from './siteProofDataService';
 import { CloudSyncService, CloudSyncAttempt } from './cloudSyncService';
 import { MediaPipelineService } from './mediaPipelineService';
-import { JobVideo } from '../types';
+import { JobVideo } from '../domain/models';
 
 async function withVideoCaptureStubs(run: (calls: { uploads: Array<{ objectType: string; visibility?: string }>; saved?: JobVideo }) => Promise<void>) {
   const originalGetSettings = SettingsService.getSettings;

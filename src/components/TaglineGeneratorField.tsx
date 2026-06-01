@@ -3,6 +3,7 @@ import { Sparkles, Loader2, Check, X, Wand2 } from 'lucide-react';
 import { VoiceDictation } from './VoiceDictation';
 import { AIService } from '../services/aiService';
 import { cn } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface TaglineGeneratorFieldProps {
   value: string;
@@ -12,13 +13,14 @@ interface TaglineGeneratorFieldProps {
 }
 
 export function TaglineGeneratorField({ value, companyName, onChange, isDark }: TaglineGeneratorFieldProps) {
+  const { t } = useSettings();
   const [isGenerating, setIsGenerating] = useState(false);
   const [options, setOptions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async (transcript?: string) => {
     if (!companyName) {
-      setError("Please set a Company Name first.");
+      setError(t('tagline.companyNameRequired'));
       return;
     }
     
@@ -28,7 +30,7 @@ export function TaglineGeneratorField({ value, companyName, onChange, isDark }: 
       const results = await AIService.generateTaglineOptions(companyName, transcript);
       setOptions(results);
     } catch (err) {
-      setError("Failed to generate taglines.");
+      setError(t('tagline.generateFailed'));
       console.error(err);
     } finally {
       setIsGenerating(false);
@@ -41,14 +43,14 @@ export function TaglineGeneratorField({ value, companyName, onChange, isDark }: 
         "text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-1.5",
         isDark ? "text-slate-500" : "text-slate-500"
       )}>
-        Company Tagline
+        {t('tagline.label')}
         {isGenerating && <Loader2 className="w-2.5 h-2.5 animate-spin text-blue-500" />}
       </label>
       
       <div className="relative">
         <input 
           type="text"
-          placeholder="e.g. Quality You Can Trust"
+          placeholder={t('tagline.placeholder')}
           value={value}
           onChange={e => onChange(e.target.value)}
           className={cn(
@@ -65,7 +67,7 @@ export function TaglineGeneratorField({ value, companyName, onChange, isDark }: 
               "p-2 rounded-lg transition-all hover:bg-blue-500/10 hover:text-blue-500",
               isDark ? "text-slate-500" : "text-slate-400"
             )}
-            title="AI Ideas"
+            title={t('tagline.aiIdeas')}
           >
             <Wand2 size={16} />
           </button>
@@ -86,7 +88,7 @@ export function TaglineGeneratorField({ value, companyName, onChange, isDark }: 
         )}>
           <div className="flex items-center justify-between mb-2 px-1">
             <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest flex items-center gap-1">
-              <Sparkles size={10} /> AI Suggestions
+              <Sparkles size={10} /> {t('tagline.aiSuggestions')}
             </span>
             <button onClick={() => setOptions([])} className="text-slate-400 hover:text-slate-600">
               <X size={12} />
@@ -113,7 +115,7 @@ export function TaglineGeneratorField({ value, companyName, onChange, isDark }: 
             ))}
           </div>
           <p className="text-[9px] text-slate-500 mt-2 text-center italic">
-            Select one or dictate keywords for custom ideas.
+            {t('tagline.selectOrDictate')}
           </p>
         </div>
       )}

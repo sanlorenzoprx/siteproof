@@ -1,4 +1,4 @@
-import type { BidMetric, BidRecord, Job } from '../../types';
+import type { BidMetric, BidRecord, Job } from '../../domain/models';
 import type { ExportProofBundle } from '../export/exportAssembler';
 
 export type BidAudience = 'internal' | 'customer';

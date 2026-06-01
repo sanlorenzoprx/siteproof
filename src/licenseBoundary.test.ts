@@ -151,7 +151,7 @@ test('cloud object keys are deterministic and no frontend Stripe secrets leak', 
   assert.equal(secretPattern.test(source), false);
 });
 
-test('app worker billing routes are demoted and cloud routes expose safe JSON only', async () => {
+test('app worker no longer serves billing routes and cloud routes expose safe JSON only', async () => {
   const env = {
     AI: { run: async () => ({}) },
     SITEPROOF_APP_URL: 'https://siteproof.app',
@@ -167,9 +167,8 @@ test('app worker billing routes are demoted and cloud routes expose safe JSON on
   for (const request of movedRoutes) {
     const response = await worker.fetch(request, env);
     const json = await response.json() as Record<string, unknown>;
-    assert.equal(response.status, 501);
-    assert.match(String(json.error), /siteproof\.report Worker/);
-    assert.equal(json.authority, 'siteproof.report');
+    assert.equal(response.status, 404);
+    assert.equal(json.error, 'Not found');
     assert.equal('checkoutUrl' in json, false);
     assert.equal(json.status, undefined);
     assert.equal(json.valid, undefined);

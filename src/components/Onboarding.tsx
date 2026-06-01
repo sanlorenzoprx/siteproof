@@ -6,7 +6,7 @@ import { SiteProofDataService } from '../services/siteProofDataService';
 import { AppSettingsService } from '../services/appSettingsService';
 import { JobWorkflowService } from '../services/jobWorkflowService';
 import { TemplateCatalogService } from '../services/templateCatalogService';
-import { BusinessProfile, UserProfile } from '../types';
+import { BusinessProfile, UserProfile } from '../domain/models';
 import { VoiceDictation } from './VoiceDictation';
 import { cn } from '../lib/utils';
 import { SITEPROOF_BRAND } from '../config/brand';

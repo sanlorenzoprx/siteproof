@@ -1,6 +1,7 @@
-import { Job, JobPhoto, VoiceNote, BusinessProfile, UserProfile } from '../types';
+import { Job, JobPhoto, VoiceNote, BusinessProfile, UserProfile } from '../domain/models';
 import { SyncOperation } from '../db/schema';
 import { AppSettingsService } from './appSettingsService';
+import { sanitizeSyncOperation } from './sync/payloadWhitelist';
 
 export interface SyncPayload {
   jobs: Job[];
@@ -75,6 +76,7 @@ export class CloudService {
 
   static async syncRuntimeOperations(runtimeOperations: SyncOperation[]) {
     const { url, key } = await this.requireConfiguration();
+    const sanitizedOps = runtimeOperations.map((op) => sanitizeSyncOperation(op));
 
     const response = await fetch(`${url}/sync`, {
       method: 'POST',
@@ -86,7 +88,7 @@ export class CloudService {
         jobs: [],
         photos: [],
         voiceNotes: [],
-        runtimeOperations,
+        runtimeOperations: sanitizedOps,
       })
     });
 

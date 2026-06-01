@@ -5,7 +5,7 @@ import { cn } from '../lib/utils';
 import { CloudService } from '../services/cloudService';
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { SyncRuntime } from '../services/sync/syncRuntime';
-import { BusinessProfile } from '../types';
+import { BusinessProfile } from '../domain/models';
 import { useSyncRuntimeStatus } from '../hooks/useSyncRuntimeStatus';
 import { formatDistanceToNow } from 'date-fns';
 import { useSettings } from '../contexts/SettingsContext';
@@ -71,7 +71,7 @@ export function Layout() {
         {syncState && (
           <div className="mx-4 mb-4 p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sync Queue</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('layout.syncQueue')}</span>
               {syncState.isSyncing ? (
                 <RotateCw size={12} className="text-blue-500 animate-spin" />
               ) : !syncState.online ? (
@@ -85,26 +85,26 @@ export function Layout() {
             
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400">Status</span>
+                <span className="text-[10px] font-bold text-slate-400">{t('layout.status')}</span>
                 <span className={cn(
                   "text-[10px] font-black uppercase tracking-tighter",
                   !syncState.online ? "text-orange-400" : syncState.isSyncing ? "text-blue-400" : syncState.lastError ? "text-amber-400" : syncState.pending > 0 ? "text-blue-300" : "text-green-400"
                 )}>
-                  {!syncState.online ? 'Offline' : syncState.isSyncing ? 'Syncing...' : syncState.lastError ? 'Needs Setup' : syncState.pending > 0 ? 'Queued' : 'Synced'}
+                  {!syncState.online ? t('layout.syncStatusOffline') : syncState.isSyncing ? t('layout.syncStatusSyncing') : syncState.lastError ? t('layout.syncStatusNeedsSetup') : syncState.pending > 0 ? t('layout.syncStatusQueued') : t('layout.syncStatusSynced')}
                 </span>
               </div>
               
               {syncState.pending > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400">Queue</span>
-                  <span className="text-[10px] font-black text-white">{syncState.pending} pending</span>
+                  <span className="text-[10px] font-bold text-slate-400">{t('layout.queue')}</span>
+                  <span className="text-[10px] font-black text-white">{syncState.pending} {t('layout.pending')}</span>
                 </div>
               )}
 
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400">Last Sync</span>
+                <span className="text-[10px] font-bold text-slate-400">{t('layout.lastSync')}</span>
                 <span className="text-[10px] font-bold text-slate-500 italic">
-                  {syncState.lastSyncTime ? formatDistanceToNow(syncState.lastSyncTime, { addSuffix: true }) : 'Never'}
+                  {syncState.lastSyncTime ? formatDistanceToNow(syncState.lastSyncTime, { addSuffix: true }) : t('layout.never')}
                 </span>
               </div>
 
@@ -116,8 +116,8 @@ export function Layout() {
 
               {syncState.failed > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400">Failed</span>
-                  <span className="text-[10px] font-black text-red-400">{syncState.failed} needs attention</span>
+                  <span className="text-[10px] font-bold text-slate-400">{t('layout.failed')}</span>
+                  <span className="text-[10px] font-black text-red-400">{syncState.failed} {t('layout.needsAttention')}</span>
                 </div>
               )}
               
@@ -126,7 +126,7 @@ export function Layout() {
                 disabled={syncState.isSyncing}
                 className="w-full mt-2 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-400 transition-colors disabled:opacity-50"
               >
-                Sync Now
+                {t('layout.syncNow')}
               </button>
             </div>
           </div>

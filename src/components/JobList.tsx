@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Mic, Play, ShieldCheck, MapPin, Calendar, Briefcase } from 'lucide-react';
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { JobWorkflowService } from '../services/jobWorkflowService';
-import { Job } from '../types';
+import { Job } from '../domain/models';
 import { format } from 'date-fns';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -45,7 +45,6 @@ export function JobList() {
     if (!quickInput.trim()) return;
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
-      alert(LicenseService.getTrialStatusMessage(license));
       navigate('/license');
       return;
     }
@@ -57,7 +56,6 @@ export function JobList() {
   const startJob = async (mode: 'bid' | 'approved' = 'approved') => {
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
-      alert(LicenseService.getTrialStatusMessage(license));
       navigate('/license');
       return;
     }

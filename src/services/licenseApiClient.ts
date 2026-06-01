@@ -95,11 +95,15 @@ export interface LicenseBootstrapResponse {
   >>;
 }
 
-export const SITEPROOF_API_BASE_URL_SETUP_MESSAGE =
-  'SiteProof purchase/license API is not configured. Set VITE_SITEPROOF_API_BASE_URL to http://localhost:8787 for local Worker testing or https://api.siteproof.report in production.';
+export const SITEPROOF_LICENSE_API_BASE_URL_SETUP_MESSAGE =
+  'SiteProof purchase/license API is not configured. Set VITE_SITEPROOF_LICENSE_API_BASE_URL to the siteproof.report license worker (for example https://api.siteproof.report).';
 
 function workerBaseUrl(): string {
-  return (import.meta.env.VITE_SITEPROOF_API_BASE_URL || '').trim().replace(/\/+$/, '');
+  const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  return (
+    env?.VITE_SITEPROOF_LICENSE_API_BASE_URL ||
+    ''
+  ).trim().replace(/\/+$/, '');
 }
 
 async function parseJsonResponse<T>(response: Response, fallbackError: string): Promise<T> {
@@ -122,7 +126,7 @@ async function fetchJson<T>(input: RequestInfo | URL, init: RequestInit | undefi
 export class LicenseApiClient {
   static async createCheckout(payload: Partial<AppUpgradeCheckoutPayload> = {}): Promise<CheckoutResponse> {
     const baseUrl = workerBaseUrl();
-    if (!baseUrl) return { error: SITEPROOF_API_BASE_URL_SETUP_MESSAGE };
+    if (!baseUrl) return { error: SITEPROOF_LICENSE_API_BASE_URL_SETUP_MESSAGE };
     const checkoutPayload: AppUpgradeCheckoutPayload = {
       offerId: 'siteproof_launch_7_license',
       licenseTier: 'crew_7',
@@ -142,7 +146,7 @@ export class LicenseApiClient {
 
   static async bootstrap(licenseKey: string, deviceId: string, activationToken?: string): Promise<LicenseBootstrapResponse> {
     const baseUrl = workerBaseUrl();
-    if (!baseUrl) throw new Error(SITEPROOF_API_BASE_URL_SETUP_MESSAGE);
+    if (!baseUrl) throw new Error(SITEPROOF_LICENSE_API_BASE_URL_SETUP_MESSAGE);
     return fetchJson<LicenseBootstrapResponse>(`${baseUrl}/api/license/bootstrap`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -152,7 +156,7 @@ export class LicenseApiClient {
 
   static async activateWithToken(activationToken: string, deviceId: string, deviceLabel?: string): Promise<VerifyResponse> {
     const baseUrl = workerBaseUrl();
-    if (!baseUrl) throw new Error(SITEPROOF_API_BASE_URL_SETUP_MESSAGE);
+    if (!baseUrl) throw new Error(SITEPROOF_LICENSE_API_BASE_URL_SETUP_MESSAGE);
     return fetchJson<VerifyResponse>(`${baseUrl}/api/license/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -162,7 +166,7 @@ export class LicenseApiClient {
 
   static async checkoutStatus(sessionId: string, planId?: string): Promise<CheckoutStatusResponse> {
     const baseUrl = workerBaseUrl();
-    if (!baseUrl) return { status: 'failed', error: SITEPROOF_API_BASE_URL_SETUP_MESSAGE };
+    if (!baseUrl) return { status: 'failed', error: SITEPROOF_LICENSE_API_BASE_URL_SETUP_MESSAGE };
     const params = new URLSearchParams({ session_id: sessionId });
     if (planId) params.set('plan', planId);
     try {
@@ -177,7 +181,7 @@ export class LicenseApiClient {
 
   static async activate(state: LicenseState): Promise<VerifyResponse> {
     const baseUrl = workerBaseUrl();
-    if (!baseUrl) throw new Error(SITEPROOF_API_BASE_URL_SETUP_MESSAGE);
+    if (!baseUrl) throw new Error(SITEPROOF_LICENSE_API_BASE_URL_SETUP_MESSAGE);
     return fetchJson<VerifyResponse>(`${baseUrl}/api/license/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -187,7 +191,7 @@ export class LicenseApiClient {
 
   static async verify(state: LicenseState): Promise<VerifyResponse> {
     const baseUrl = workerBaseUrl();
-    if (!baseUrl) throw new Error(SITEPROOF_API_BASE_URL_SETUP_MESSAGE);
+    if (!baseUrl) throw new Error(SITEPROOF_LICENSE_API_BASE_URL_SETUP_MESSAGE);
     return fetchJson<VerifyResponse>(`${baseUrl}/api/license/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

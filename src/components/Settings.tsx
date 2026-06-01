@@ -4,7 +4,7 @@ import { ArrowLeft, Briefcase, Cloud, Database, FileText, Save, CheckCircle, Shi
 import { CloudService } from '../services/cloudService';
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { AppSettingsService } from '../services/appSettingsService';
-import { BusinessProfile, UserProfile } from '../types';
+import { BusinessProfile, UserProfile } from '../domain/models';
 import { cn } from '../lib/utils';
 import { VoiceDictation } from './VoiceDictation';
 import { BusinessOverviewField } from './BusinessOverviewField';
@@ -292,7 +292,7 @@ export function Settings() {
                         value={business?.website || ''} 
                         onChange={e => setBusiness({...business!, website: e.target.value})}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"
-                        placeholder="www.yourcompany.com"
+                        placeholder={t('settingsDetail.websitePlaceholder')}
                       />
                    </div>
 
@@ -306,7 +306,7 @@ export function Settings() {
                         value={business?.linkedIn || ''} 
                         onChange={e => setBusiness({...business!, linkedIn: e.target.value})}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"
-                        placeholder="linkedin.com/company/..."
+                        placeholder={t('settingsDetail.linkedinPlaceholder')}
                       />
                    </div>
                 </div>
@@ -514,7 +514,7 @@ export function Settings() {
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">{t('settingsDetail.workerUrl')}</label>
               <input
                 type="url"
-                placeholder="https://siteproof-api.workers.dev"
+                placeholder={t('settingsDetail.workerUrlPlaceholder')}
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium"
