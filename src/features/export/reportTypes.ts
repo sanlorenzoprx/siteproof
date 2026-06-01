@@ -6,6 +6,8 @@ export enum SiteProofReportType {
   PHOTO_PROOF_TIMELINE = 'photo_proof_timeline',
   PAYMENT_FINAL_HANDOFF = 'payment_final_handoff',
   OFFICE_INTERNAL_RECORD = 'office_internal_record',
+  INTERNAL_BID_REPORT = 'internal_bid_report',
+  CUSTOMER_BID_REPORT = 'customer_bid_report',
   ALL_REPORTS = 'all_reports',
 }
 
@@ -25,7 +27,13 @@ export const APP_REPORT_DROPDOWN_OPTIONS = [
   SiteProofReportType.ALL_REPORTS,
 ] as const;
 
+export const BID_REPORT_TYPES = [
+  SiteProofReportType.INTERNAL_BID_REPORT,
+  SiteProofReportType.CUSTOMER_BID_REPORT,
+] as const;
+
 export type AppReportType = (typeof APP_REPORT_TYPES)[number];
 export type AppReportDropdownOption = (typeof APP_REPORT_DROPDOWN_OPTIONS)[number];
+export type BidReportType = (typeof BID_REPORT_TYPES)[number];
 
 export type AppConcreteReportType = AppReportType;

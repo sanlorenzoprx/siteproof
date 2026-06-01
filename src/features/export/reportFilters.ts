@@ -1,6 +1,7 @@
 import type { ExportAssembly, ExportProofBundle } from './exportAssembler';
 import type { ReportDefinition } from './reportDefinitions';
 import { SiteProofReportType } from './reportTypes';
+import { proofBundleVisibleToBidCustomer } from '../bidding/bidPrivacy';
 
 export interface ReportFilterOptions {
   reportDate?: Date | number | string;
@@ -91,6 +92,7 @@ function isCustomerCompletionFallback(bundle: ExportProofBundle, definition: Rep
   if (!isCustomerSafe(bundle, definition)) return false;
   return hasAny(bundle, ['active work', 'work complete', 'work completed', 'install', 'installed', 'equipment', 'documented proof'])
     || bundle.proof.proof_type === 'photo'
+    || bundle.proof.proof_type === 'video'
     || bundle.proof.proof_type === 'serial_number'
     || bundle.proof.proof_type === 'test_result';
 }
@@ -98,6 +100,7 @@ function isCustomerCompletionFallback(bundle: ExportProofBundle, definition: Rep
 function isInspectionRelevant(bundle: ExportProofBundle): boolean {
   return bundle.proof.required_flag
     || bundle.proof.priority === 'required'
+    || bundle.proof.proof_type === 'video'
     || hasAny(bundle, ['inspection', 'inspector', 'permit', 'install', 'installed', 'test', 'serial', 'required']);
 }
 
@@ -179,6 +182,13 @@ export function filterProofBundlesForReport(
       break;
     case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
       selected = candidates.filter(isPaymentRelevant);
+      break;
+    case SiteProofReportType.INTERNAL_BID_REPORT:
+      selected = candidates;
+      break;
+    case SiteProofReportType.CUSTOMER_BID_REPORT:
+      selected = candidates.filter((bundle) => proofBundleVisibleToBidCustomer(bundle) && isCustomerSafe(bundle, definition));
+      useGenericFallback = false;
       break;
     case SiteProofReportType.OFFICE_INTERNAL_RECORD:
       selected = candidates;

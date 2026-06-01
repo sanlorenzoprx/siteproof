@@ -5,6 +5,8 @@ import { translate } from './config/i18n';
 import { VoiceAIService } from './services/voiceAIService';
 import { CloudSyncService } from './services/cloudSyncService';
 import { SettingsService } from './services/settingsService';
+import { CloudflareClient } from './services/cloudflareClient';
+import { LicenseService } from './services/licenseService';
 import { buildExportFileName, packetTitle } from './features/export/exportFileNaming';
 import { ReportMode } from './services/pdfService';
 import fs from 'node:fs';
@@ -94,14 +96,72 @@ test('cloud sync boundary no-ops when disabled and queues offline', async () => 
 
   const localOnly = await CloudSyncService.upload({ localId: '1', jobId: 'j', objectType: 'metadata' }, false);
   assert.equal(localOnly.state, 'local_only');
+  assert.match(localOnly.result?.error ?? '', /Cloud Proof Vault entitlement included/);
+  assert.equal(savedStatus, 'off');
 
   SettingsService.getSettings = async () => ({ ...createDefaultSettings('en'), cloudEnabled: true });
-  const queued = await CloudSyncService.upload({ localId: '2', jobId: 'j', objectType: 'metadata' }, false);
-  assert.equal(queued.state, 'queued');
-  assert.equal(savedStatus, 'pending');
+  const flaggedOff = await CloudSyncService.upload({ localId: '2', jobId: 'j', objectType: 'voice_note' }, false);
+  assert.equal(flaggedOff.state, 'local_only');
+  assert.equal(savedStatus, 'off');
 
   SettingsService.getSettings = originalGet;
   SettingsService.saveSettings = originalSave;
+});
+
+test('cloud sync requires feature flag and active entitlement before upload', async () => {
+  const originalGet = SettingsService.getSettings;
+  const originalSave = SettingsService.saveSettings;
+  const originalGetLicense = LicenseService.getLicenseState;
+  const originalUpload = CloudflareClient.upload;
+  CloudSyncService.setCloudVaultUploadEnabledOverride(true);
+
+  let savedStatus = '';
+  let uploadRequestObjectType = '';
+  SettingsService.getSettings = async () => ({ ...createDefaultSettings('en'), cloudEnabled: true });
+  SettingsService.saveSettings = async (settings) => { savedStatus = settings.cloudSyncStatus; };
+  LicenseService.getLicenseState = async () => ({
+    status: 'licensed',
+    licenseId: 'lic_123',
+    deviceId: 'device-1',
+    cloudVaultEnabled: true,
+    cloudEntitled: true,
+  });
+  CloudflareClient.upload = async (request) => {
+    uploadRequestObjectType = request.objectType;
+    assert.equal(request.licenseId, 'lic_123');
+    assert.equal(request.mimeType, 'application/json');
+    return { success: true, cloudObjectId: 'co_1', cloudObjectKey: 'owners/acme/jobs/job-1/metadata/meta-1.json' };
+  };
+
+  try {
+    const synced = await CloudSyncService.upload({
+      localId: 'meta-1',
+      jobId: 'job-1',
+      objectType: 'metadata',
+      mimeType: 'application/json',
+      filename: 'metadata.json',
+      payload: { ok: true },
+    }, true);
+    assert.equal(synced.state, 'synced');
+    assert.equal(savedStatus, 'synced');
+    assert.equal(uploadRequestObjectType, 'metadata');
+
+    LicenseService.getLicenseState = async () => ({
+      status: 'trial_active',
+      deviceId: 'device-1',
+      cloudVaultEnabled: false,
+      cloudEntitled: false,
+    });
+    const localOnly = await CloudSyncService.upload({ localId: 'voice-1', jobId: 'job-1', objectType: 'voice_note' }, true);
+    assert.equal(localOnly.state, 'local_only');
+    assert.match(localOnly.result?.error ?? '', /active cloud entitlement/);
+  } finally {
+    CloudSyncService.setCloudVaultUploadEnabledOverride(null);
+    SettingsService.getSettings = originalGet;
+    SettingsService.saveSettings = originalSave;
+    LicenseService.getLicenseState = originalGetLicense;
+    CloudflareClient.upload = originalUpload;
+  }
 });
 
 test('template-authored content localizes from the data layer', () => {

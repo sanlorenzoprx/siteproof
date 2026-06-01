@@ -28,6 +28,7 @@ export interface OverlayMetadataInput {
 
 const MAX_COMPRESSED_EDGE = 1800;
 const THUMBNAIL_EDGE = 420;
+let compressionWorker: Worker | null = null;
 
 function createCanvas(width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
@@ -83,6 +84,33 @@ function drawScaled(image: HTMLImageElement, maxEdge: number): HTMLCanvasElement
   return canvas;
 }
 
+async function compressWithWorker(blob: Blob, maxEdge: number, quality = 0.82): Promise<Blob | null> {
+  if (typeof Worker === 'undefined' || typeof window === 'undefined') return null;
+  try {
+    if (!compressionWorker) {
+      compressionWorker = new Worker(new URL('../workers/imageCompressionWorker.ts', import.meta.url), { type: 'module' });
+    }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const buffer = await blob.arrayBuffer();
+    return await new Promise<Blob | null>((resolve) => {
+      const worker = compressionWorker;
+      if (!worker) return resolve(null);
+      const timeout = window.setTimeout(() => resolve(null), 5000);
+      const handler = (event: MessageEvent<{ id: string; ok: boolean; buffer?: ArrayBuffer }>) => {
+        if (!event.data || event.data.id !== id) return;
+        window.clearTimeout(timeout);
+        worker.removeEventListener('message', handler);
+        if (!event.data.ok || !event.data.buffer) return resolve(null);
+        resolve(new Blob([event.data.buffer], { type: 'image/jpeg' }));
+      };
+      worker.addEventListener('message', handler);
+      worker.postMessage({ id, type: 'compress', buffer, mimeType: blob.type || 'image/jpeg', maxEdge, quality }, [buffer]);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export class MediaPipelineService {
   static async processPhotoBlob(blob: Blob, previewDataUrl?: string): Promise<PhotoMediaPipelineResult> {
     try {
@@ -98,8 +126,13 @@ export class MediaPipelineService {
       let compressionState: CompressionState = 'not_needed';
 
       if (shouldCompress) {
-        const compressedCanvas = drawScaled(image, MAX_COMPRESSED_EDGE);
-        compressedBlob = await canvasToBlob(compressedCanvas, 'image/jpeg', 0.82);
+        const workerBlob = await compressWithWorker(blob, MAX_COMPRESSED_EDGE, 0.82);
+        if (workerBlob) {
+          compressedBlob = workerBlob;
+        } else {
+          const compressedCanvas = drawScaled(image, MAX_COMPRESSED_EDGE);
+          compressedBlob = await canvasToBlob(compressedCanvas, 'image/jpeg', 0.82);
+        }
         compressionState = 'compressed';
       }
 
@@ -180,6 +213,44 @@ export class MediaPipelineService {
     if ((input.size ?? 0) > 180_000) score += 0.08;
     if (width < 900 || height < 700) score -= 0.18;
     return Math.max(0.1, Math.min(0.98, Number(score.toFixed(2))));
+  }
+
+  static async generateVideoThumbnail(videoBlob: Blob, atSeconds = 1): Promise<string | null> {
+    if (typeof document === 'undefined' || typeof URL === 'undefined') return null;
+
+    const url = URL.createObjectURL(videoBlob);
+    try {
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error('Unable to load video metadata.'));
+        video.src = url;
+      });
+
+      const seekTarget = Math.min(Math.max(0, atSeconds), Math.max(0, (video.duration || atSeconds) - 0.1));
+      await new Promise<void>((resolve) => {
+        video.onseeked = () => resolve();
+        video.currentTime = Number.isFinite(seekTarget) ? seekTarget : 0;
+      });
+
+      const width = video.videoWidth || 640;
+      const height = video.videoHeight || 360;
+      const next = fitWithin(width, height, THUMBNAIL_EDGE);
+      const canvas = createCanvas(next.width, next.height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0, next.width, next.height);
+      return canvasToDataUrl(canvas, 'image/jpeg', 0.76);
+    } catch (error) {
+      console.warn('Video thumbnail generation failed:', error);
+      return null;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }
 
   static humanFileSize(bytes?: number): string {

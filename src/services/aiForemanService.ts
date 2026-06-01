@@ -1,4 +1,4 @@
-import { Job, JobPhoto, VoiceNote } from '../types';
+import { Job, JobPhoto, VoiceNote } from '../domain/models';
 import { AIService } from './aiService';
 import { TemplateCatalogService } from './templateCatalogService';
 

@@ -10,7 +10,7 @@ import { ExportPacketType, Job as RuntimeJob, MediaAsset, ProofObject, TimelineE
 import { TemplateCatalogService } from '../../services/templateCatalogService';
 import { SiteProofDataService } from '../../services/siteProofDataService';
 import type { ReportMode } from '../../services/pdfService';
-import { Job as LegacyJob, JobPhoto, VoiceNote as LegacyVoiceNote } from '../../types';
+import { Job as LegacyJob, JobPhoto, VoiceNote as LegacyVoiceNote } from '../../domain/models';
 import { WorkflowTemplate } from '../../templates/workflowTemplate.types';
 import type { SiteProofLanguage } from '../../types/settings';
 import { filterProofBundlesForReport } from './reportFilters';
@@ -18,6 +18,7 @@ import { getReportDefinition } from './reportDefinitions';
 import type { ReportDefinition } from './reportDefinitions';
 import type { FilteredReportProofSelection, ReportFilterOptions } from './reportFilters';
 import { SiteProofReportType } from './reportTypes';
+import { bidRecordFromJob, filterBidForAudience } from '../bidding/bidPrivacy';
 
 export interface ExportProofBundle {
   proof: ProofObject;
@@ -48,6 +49,7 @@ export interface ExportAssembly {
   reportType?: SiteProofReportType;
   reportDefinition?: ReportDefinition;
   openRequiredItems?: string[];
+  bid?: ReturnType<typeof filterBidForAudience>;
 }
 
 function isoToMs(value?: string | null): number {
@@ -93,6 +95,8 @@ function proofMatchesPacket(proof: ProofObject, packetType: ExportPacketType): b
     || packetType === 'change_order_evidence_report'
     || packetType === 'photo_proof_timeline'
     || packetType === 'payment_final_handoff_report'
+    || packetType === 'internal_bid_report'
+    || packetType === 'customer_bid_report'
     || packetType === 'all_reports'
   ) return true;
   if (packetType === 'internal_record') return true;
@@ -131,6 +135,10 @@ function reportTypeToPacketType(reportType: SiteProofReportType): ExportPacketTy
       return 'payment_final_handoff_report';
     case SiteProofReportType.OFFICE_INTERNAL_RECORD:
       return 'internal_record';
+    case SiteProofReportType.INTERNAL_BID_REPORT:
+      return 'internal_bid_report';
+    case SiteProofReportType.CUSTOMER_BID_REPORT:
+      return 'customer_bid_report';
     case SiteProofReportType.ALL_REPORTS:
       return 'all_reports';
     default:
@@ -174,6 +182,17 @@ async function buildLegacyJob(runtimeJob: RuntimeJob): Promise<LegacyJob> {
     status: runtimeStatusToLegacy(runtimeJob.status),
     syncStatus: runtimeJob.sync_state === 'synced' ? 'SYNCED' : runtimeJob.sync_state === 'failed' ? 'ERROR' : 'PENDING',
     notes: runtimeJob.scope_summary ?? '',
+    mode: runtimeJob.mode ?? 'approved',
+    bidScopeSummary: runtimeJob.scope_summary ?? undefined,
+    bidCustomerNotes: runtimeJob.bid_customer_summary ?? undefined,
+    bidInternalNotes: runtimeJob.bid_internal_notes ?? undefined,
+    bidMetrics: (Array.isArray(runtimeJob.bid_metrics) ? runtimeJob.bid_metrics : []) as LegacyJob['bidMetrics'],
+    bidAssumptions: runtimeJob.bid_assumptions ?? undefined,
+    bidExclusions: runtimeJob.bid_exclusions ?? undefined,
+    bidPaymentTerms: runtimeJob.bid_payment_terms ?? undefined,
+    bidEstimateExpiresAt: runtimeJob.bid_estimate_expires_at ?? undefined,
+    bidFinalEstimateText: runtimeJob.bid_final_estimate_text ?? undefined,
+    bidEstimateApprovedForCustomer: runtimeJob.bid_estimate_approved_for_customer ?? false,
   };
 }
 
@@ -204,6 +223,39 @@ function proofToPhoto(bundle: ExportProofBundle): JobPhoto | null {
       integrityStatus: bundle.proof.integrity_status ?? bundle.legacyPhoto.integrityStatus,
       integrityStampedAt: bundle.proof.integrity_stamped_at ?? bundle.legacyPhoto.integrityStampedAt,
       custodyLog: (bundle.proof.chain_of_custody ?? bundle.proof.metadata?.custody_log ?? bundle.legacyPhoto.custodyLog) as JobPhoto['custodyLog'],
+    };
+  }
+
+  if (bundle.proof.proof_type === 'video') {
+    const media = bundle.media[0];
+    const thumbnail = typeof bundle.proof.metadata?.thumbnail_data_url === 'string' ? bundle.proof.metadata.thumbnail_data_url : undefined;
+    const durationMs = typeof bundle.proof.metadata?.duration_ms === 'number' ? bundle.proof.metadata.duration_ms : media?.duration_ms;
+    const videoNotes = [
+      bundle.proof.notes,
+      durationMs ? `Video proof: ${Math.round(durationMs / 1000)}s` : 'Video proof captured',
+      media?.cloud_object_key ? `Cloud reference: ${media.cloud_object_key}` : undefined,
+    ].filter(Boolean).join('\n');
+
+    return {
+      id: bundle.proof.proof_id,
+      jobId: bundle.proof.job_id,
+      dataUrl: thumbnail,
+      thumbnailDataUrl: thumbnail,
+      category: bundle.requirementLabel,
+      requirementId: bundle.proof.requirement_id ?? undefined,
+      stageId: bundle.stage?.template_stage_id,
+      timestamp: isoToMs(bundle.proof.captured_at),
+      latitude: bundle.proof.gps_latitude ?? undefined,
+      longitude: bundle.proof.gps_longitude ?? undefined,
+      notes: videoNotes || undefined,
+      qualityScore: bundle.proof.quality_score ?? undefined,
+      syncStatus: bundle.proof.sync_state === 'synced' ? 'SYNCED' : 'PENDING',
+      proofHash: bundle.proof.integrity_hash ?? bundle.proof.hash ?? undefined,
+      proofHashAlgorithm: bundle.proof.hash_algorithm ?? undefined,
+      integrityStatus: bundle.proof.integrity_status ?? undefined,
+      integrityStampedAt: bundle.proof.integrity_stamped_at ?? undefined,
+      custodyLog: (bundle.proof.chain_of_custody ?? bundle.proof.metadata?.custody_log) as JobPhoto['custodyLog'],
+      cloudObjectKey: media?.cloud_object_key ?? (bundle.proof.metadata?.cloud_object_key as string | undefined),
     };
   }
 
@@ -310,6 +362,7 @@ export class ExportAssembler {
       reportType,
       reportDefinition,
       openRequiredItems: filtered.openRequiredItems,
+      bid: assembly.bid ? filterBidForAudience(assembly.bid, reportType === SiteProofReportType.CUSTOMER_BID_REPORT ? 'customer' : 'internal') : undefined,
     };
   }
 
@@ -327,6 +380,7 @@ export class ExportAssembler {
 
     const template = TemplateCatalogService.getTemplate(runtimeJob.template_id, exportLanguage);
     const legacyJob = await buildLegacyJob(runtimeJob);
+    const bid = runtimeJob.mode === 'bid' ? bidRecordFromJob(legacyJob) : undefined;
     const legacyPhotos = await resolveLegacyPhotos(jobId);
     const legacyNotes = await resolveLegacyNotes(jobId);
     const voiceByProofId = new Map(voiceNotes.map((note) => [note.proof_id, note]));
@@ -386,6 +440,7 @@ export class ExportAssembler {
       selectedProofIds: selectedProofs.map((proof) => proof.proof_id),
       includedSections,
       packetType,
+      bid,
     };
   }
 

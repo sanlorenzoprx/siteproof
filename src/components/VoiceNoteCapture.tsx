@@ -31,6 +31,7 @@ export function VoiceNoteCapture() {
   const [analysis, setAnalysis] = useState<VoiceAIAnalysis | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [speechCalibrated, setSpeechCalibrated] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -120,7 +121,7 @@ export function VoiceNoteCapture() {
       setStatus('recording');
     } catch (e) {
       console.error("Microphone access denied", e);
-      alert(t('voice.microphoneRequired'));
+      setPermissionError(t('voice.microphoneRequired'));
     }
   }
 
@@ -175,6 +176,15 @@ export function VoiceNoteCapture() {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-12">
+        {permissionError && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="w-full max-w-md rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
+          >
+            {permissionError}
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {status === 'idle' && (
             <motion.div 

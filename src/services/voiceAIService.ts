@@ -1,4 +1,4 @@
-import { VoiceNote } from '../types';
+import { VoiceNote } from '../domain/models';
 
 export type VoiceLanguage = 'en' | 'es' | 'unknown';
 

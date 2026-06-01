@@ -8,6 +8,7 @@ import { SITEPROOF_LAUNCH_OFFER } from '../constants/siteProofOffer';
 import { LicenseValueCard } from './LicenseValueCard';
 import { LicenseService, type LicenseState } from '../services/licenseService';
 import { LicenseApiClient } from '../services/licenseApiClient';
+import { CloudSyncService } from '../services/cloudSyncService';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface LicenseScreenProps {
@@ -22,19 +23,38 @@ function displayStatus(state: LicenseState | null, t: (key: string) => string) {
   if (state.status === 'license_pending_verification') return t('license.pendingVerification');
   if (state.status === 'offline_grace') return t('license.offlineGrace');
   if (state.status === 'revoked') return t('license.revoked');
+  if (state.status === 'expired') return t('license.expired');
+  if (state.status === 'device_limit_exceeded') return t('license.deviceLimitExceeded');
   if (state.status === 'unlicensed') return t('license.unlicensed');
   return t('license.freeTrial');
 }
 
+function openCheckoutUrl(checkoutUrl: string) {
+  const standalone = typeof window !== 'undefined' && (
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+  if (standalone) {
+    const opened = window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+    if (!opened) window.location.assign(checkoutUrl);
+    return;
+  }
+  window.location.assign(checkoutUrl);
+}
+
 export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
-  const { t } = useSettings();
+  const { settings, t } = useSettings();
   const navigate = useNavigate();
   const [key, setKey] = useState('');
   const [activating, setActivating] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState('');
   const trialEndsAt = license?.trialEndsAt ? Date.parse(license.trialEndsAt) : 0;
   const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
+  const trialJobsUsed = license ? LicenseService.getTrialJobsUsed(license) : 0;
+  const trialJobLimit = license ? LicenseService.getTrialJobLimit(license) : SITEPROOF_LAUNCH_OFFER.trial.jobs;
   const licensed = license?.status === 'licensed' || license?.status === 'offline_grace';
+  const cloudVaultLive = CloudSyncService.isCloudVaultUploadEnabled() && license?.cloudVaultEnabled === true;
 
   async function handleActivate() {
     if (key.length < 8) return;
@@ -46,13 +66,26 @@ export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
   }
 
   async function handlePurchase() {
-    const checkout = await LicenseApiClient.createCheckout('siteproof_pro', undefined, license?.deviceId);
-    const checkoutUrl = checkout.checkoutUrl ?? checkout.url;
-    if (checkoutUrl) {
-      window.location.assign(checkoutUrl);
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setPurchaseMessage(t('license.checkoutOnlineRequired'));
       return;
     }
-    setPurchaseMessage(t('license.purchaseUnavailable'));
+    setPurchasing(true);
+    setPurchaseMessage('');
+    const email = settings.companyProfile.businessEmail || undefined;
+    const checkout = await LicenseApiClient.createCheckout({
+      email,
+      companyName: settings.companyProfile.companyName || undefined,
+      deviceId: license?.deviceId,
+    });
+    const checkoutUrl = checkout.checkoutUrl ?? checkout.url;
+    if (checkoutUrl) {
+      setPurchasing(false);
+      openCheckoutUrl(checkoutUrl);
+      return;
+    }
+    setPurchasing(false);
+    setPurchaseMessage(checkout.error || t('license.purchaseUnavailable'));
   }
 
   return (
@@ -101,27 +134,38 @@ export function LicenseScreen({ license, onUpdate }: LicenseScreenProps) {
               <button onClick={handleActivate} disabled={activating || key.length < 8} className="w-full bg-white text-slate-950 py-5 rounded-2xl font-black text-lg shadow-2xl hover:bg-blue-500 hover:text-white transition-all active:scale-[0.98] disabled:opacity-30 disabled:grayscale">
                 {activating ? t('license.verifying') : t('license.activate')}
               </button>
-              <button onClick={handlePurchase} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest">
-                {SITEPROOF_LAUNCH_OFFER.primaryCta}
+              <button onClick={handlePurchase} disabled={purchasing} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest disabled:opacity-50">
+                {purchasing ? t('license.openingCheckout') : t('license.upgradeSiteProof')}
               </button>
-              {purchaseMessage && <p className="text-xs font-bold text-blue-200">{purchaseMessage}</p>}
+              {purchaseMessage && <p className="text-xs font-bold text-blue-200 leading-relaxed">{purchaseMessage}</p>}
+              {license?.errorMessage && <p className="text-xs font-bold text-amber-200 leading-relaxed">{license.errorMessage}</p>}
             </div>
           )}
           <p className="text-xs font-bold text-slate-400">{t('license.offlineSafe')}</p>
+          {!licensed && (
+            <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm font-black text-white">{trialJobsUsed} {t('license.of')} {trialJobLimit} {t('license.freeJobsUsed')}</p>
+              <p className="text-sm font-bold text-slate-300">{daysLeft} {t('license.daysLeftFieldTrial')}</p>
+            </div>
+          )}
         </div>
 
         <div className="bg-slate-900/50 backdrop-blur-3xl border border-white/10 rounded-[32px] p-6 text-white">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-4"><Cloud size={14} /> {t('license.cloudEntitled')}: {license?.cloudEntitled ? t('license.cloudIncluded') : t('license.cloudNotIncluded')}</div>
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-4"><Cloud size={14} /> {t('license.cloudEntitled')}: {license?.cloudVaultEnabled || license?.cloudEntitled ? t('license.cloudIncluded') : t('license.cloudNotIncluded')}</div>
           <LicenseValueCard planId="core" status={licensed ? 'active' : license?.status === 'trial_expired' ? 'expired' : 'trial'} />
           <p className="mt-5 text-sm text-slate-400 font-bold leading-relaxed">{SITEPROOF_OFFER.roiPrinciple}</p>
           <div className="mt-5 grid gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">{SITEPROOF_LAUNCH_OFFER.cloudVault.includedYears} year Cloud Proof Vault included</p>
-              <p className="text-xs font-bold text-slate-400 mt-1">Renews at {SITEPROOF_LAUNCH_OFFER.cloudVault.renewalPrice} after the included year. {SITEPROOF_LAUNCH_OFFER.cloudVault.fairUseStorageLimit}.</p>
+              <p className="text-xs font-bold text-slate-400 mt-1">
+                {cloudVaultLive
+                  ? `Renews at ${SITEPROOF_LAUNCH_OFFER.cloudVault.renewalPrice} after the included year. ${SITEPROOF_LAUNCH_OFFER.cloudVault.fairUseStorageLimit}.`
+                  : t('license.cloudVaultPending')}
+              </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">{SITEPROOF_LAUNCH_OFFER.brandedReports.name} - {SITEPROOF_LAUNCH_OFFER.brandedReports.price} {SITEPROOF_LAUNCH_OFFER.brandedReports.priceQualifier}</p>
-              <p className="text-xs font-bold text-slate-400 mt-1">Request Branded Setup. Payment and setup tracking are TODOs, so no branded status is faked here.</p>
+              <p className="text-xs font-bold text-slate-400 mt-1">{t('license.brandedSetupNote')}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">{SITEPROOF_LAUNCH_OFFER.referral.title}</p>

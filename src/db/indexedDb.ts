@@ -1,7 +1,7 @@
 import { STORE_NAMES, StoreName } from './schema';
 
 export const DB_NAME = 'siteproof_offline_db';
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 export const KEY_PATHS: Record<StoreName, string> = {
   company_profiles: 'company_id',
@@ -166,13 +166,15 @@ export function openSiteProofDb(): Promise<IDBDatabase> {
 
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const db = request.result;
+      const tx = request.transaction;
+      const oldVersion = event.oldVersion;
 
       for (const storeName of STORE_NAMES) {
         const keyPath = KEY_PATHS[storeName];
         const store = db.objectStoreNames.contains(storeName)
-          ? request.transaction!.objectStore(storeName)
+          ? tx!.objectStore(storeName)
           : db.createObjectStore(storeName, { keyPath });
 
         for (const index of INDEXES[storeName]) {
@@ -181,6 +183,10 @@ export function openSiteProofDb(): Promise<IDBDatabase> {
           }
         }
       }
+
+      if (oldVersion < 5 && tx) {
+        runV5EnumNormalization(tx);
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -188,6 +194,70 @@ export function openSiteProofDb(): Promise<IDBDatabase> {
   });
 
   return dbPromise;
+}
+
+export function normalizeSyncStateValue(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  const lower = value.toLowerCase();
+  if (lower === 'pending') return 'pending_upload';
+  if (lower === 'error') return 'failed';
+  if (lower === 'synced') return 'synced';
+  if (lower === 'local_only') return 'local_only';
+  if (lower === 'uploading') return 'uploading';
+  if (lower === 'failed') return 'failed';
+  if (lower === 'conflict') return 'conflict';
+  if (lower === 'pending_upload') return 'pending_upload';
+  return value;
+}
+
+export function normalizeJobStatusValue(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  const upper = value.toUpperCase();
+  if (upper === 'INCOMING') return 'draft';
+  if (upper === 'ACTIVE') return 'active';
+  if (upper === 'WAITING') return 'waiting';
+  if (upper === 'INSPECTION') return 'inspection_ready';
+  if (upper === 'COMPLETED') return 'complete';
+  if (upper === 'ARCHIVED') return 'archived';
+  return value;
+}
+
+function runV5EnumNormalization(tx: IDBTransaction): void {
+  const stores: StoreName[] = ['jobs', 'proof_objects', 'media_assets', 'voice_notes', 'job_documents'];
+  for (const storeName of stores) {
+    if (!tx.db.objectStoreNames.contains(storeName)) continue;
+    const store = tx.objectStore(storeName);
+    const request = store.openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      const value = cursor.value as Record<string, unknown>;
+      let changed = false;
+      if ('sync_state' in value) {
+        const next = normalizeSyncStateValue(value.sync_state);
+        if (next !== value.sync_state) {
+          value.sync_state = next;
+          changed = true;
+        }
+      }
+      if (storeName === 'jobs' && 'status' in value) {
+        const nextStatus = normalizeJobStatusValue(value.status);
+        if (nextStatus !== value.status) {
+          value.status = nextStatus;
+          changed = true;
+        }
+      }
+      if (storeName === 'job_documents' && 'document_sync_state' in value) {
+        const docState = normalizeSyncStateValue(value.document_sync_state);
+        if (docState !== value.document_sync_state) {
+          value.document_sync_state = docState;
+          changed = true;
+        }
+      }
+      if (changed) cursor.update(value);
+      cursor.continue();
+    };
+  }
 }
 
 export async function withStore<T>(

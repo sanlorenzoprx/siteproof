@@ -1,5 +1,5 @@
 import generatorInstallTemplate from '../templates/generator_install_v1.json';
-import { Job as LegacyJob, JobPhoto, VoiceNote as LegacyVoiceNote, SyncState } from '../types';
+import { Job as LegacyJob, JobPhoto, JobVideo, VoiceNote as LegacyVoiceNote, SyncState } from '../domain/models';
 import {
   Address,
   Job as RuntimeJob,
@@ -191,6 +191,7 @@ export class RuntimeOrchestrator {
     const runtimeJob: RuntimeJob = {
       ...(existing ?? {}),
       job_id: legacyJob.id,
+      mode: legacyJob.mode ?? existing?.mode ?? 'approved',
       company_id: DEFAULT_COMPANY_ID,
       customer_id: customerId,
       job_title: legacyJob.customerName || legacyJob.jobType || 'Field Job',
@@ -211,6 +212,15 @@ export class RuntimeOrchestrator {
       permit_status: existing?.permit_status ?? 'unknown',
       inspection_status: existing?.inspection_status ?? 'unknown',
       scope_summary: legacyJob.notes ?? null,
+      bid_customer_summary: legacyJob.bidCustomerNotes ?? existing?.bid_customer_summary ?? null,
+      bid_internal_notes: legacyJob.bidInternalNotes ?? existing?.bid_internal_notes ?? null,
+      bid_metrics: legacyJob.bidMetrics ?? existing?.bid_metrics ?? [],
+      bid_assumptions: legacyJob.bidAssumptions ?? existing?.bid_assumptions ?? null,
+      bid_exclusions: legacyJob.bidExclusions ?? existing?.bid_exclusions ?? null,
+      bid_payment_terms: legacyJob.bidPaymentTerms ?? existing?.bid_payment_terms ?? null,
+      bid_estimate_expires_at: legacyJob.bidEstimateExpiresAt ?? existing?.bid_estimate_expires_at ?? null,
+      bid_final_estimate_text: legacyJob.bidFinalEstimateText ?? existing?.bid_final_estimate_text ?? null,
+      bid_estimate_approved_for_customer: legacyJob.bidEstimateApprovedForCustomer ?? existing?.bid_estimate_approved_for_customer ?? false,
       emergency_job: false,
       storm_related: false,
       utility_provider: null,
@@ -343,6 +353,97 @@ export class RuntimeOrchestrator {
     });
 
     await this.recomputeJobCompletion(photo.jobId);
+  }
+
+  static async saveVideoFromLegacy(video: JobVideo): Promise<void> {
+    const runtimeJob = await jobRepository.getById(video.jobId);
+    const template = await this.ensureTemplateCached(runtimeJob?.template_id ?? 'generator_install_v1');
+    const selected = template ? selectRequirement(template, video.category, 'video', video.requirementId) : null;
+    const stage = selected ? await getStageForTemplateStage(video.jobId, selected.stage.stage_id) : undefined;
+    const now = nowIso();
+
+    const existingProof = (await proofRepository.getByJob(video.jobId)).find((proof) =>
+      proof.metadata?.legacy_video_id === video.id || proof.metadata?.source_ui_video_id === video.id,
+    );
+    if (existingProof) return;
+
+    const proof = await proofRepository.createProof({
+      job_id: video.jobId,
+      stage_instance_id: stage?.stage_instance_id ?? null,
+      requirement_id: selected?.requirement.requirement_id ?? null,
+      proof_type: 'video',
+      title: selected?.requirement.display_name ?? video.category,
+      description: video.notes ?? null,
+      captured_at: new Date(video.timestamp || Date.now()).toISOString(),
+      device_captured_at: now,
+      gps_timestamp: video.latitude && video.longitude ? now : null,
+      gps_latitude: video.latitude ?? null,
+      gps_longitude: video.longitude ?? null,
+      gps_accuracy_meters: null,
+      captured_by: null,
+      required_flag: selected?.requirement.priority === 'required',
+      priority: (selected?.requirement.priority as RequirementPriority | undefined) ?? 'optional',
+      ai_labels: selected?.requirement.ai_label_hints ?? [video.category, 'video'],
+      user_labels: [video.category, 'video'],
+      inspection_tags: selected?.requirement.inspection_tags ?? [],
+      permit_tags: selected?.requirement.permit_tags ?? [],
+      export_tags: selected?.requirement.export_tags ?? ['internal_record'],
+      confidence_score: null,
+      quality_score: video.blob ? 0.9 : null,
+      hash: video.proofHash ?? null,
+      integrity_hash: video.proofHash ?? null,
+      hash_algorithm: video.proofHashAlgorithm ?? (video.proofHash ? 'SHA-256' : null),
+      integrity_status: video.integrityStatus ?? (video.proofHash ? 'verified' : 'missing_hash'),
+      integrity_stamped_at: video.integrityStampedAt ?? null,
+      chain_of_custody: video.custodyLog ?? [],
+      notes: video.notes ?? null,
+      metadata: {
+        legacy_video_id: video.id,
+        source_ui_video_id: video.id,
+        ui_stage_id: video.stageId ?? null,
+        local_url: video.localUrl ?? null,
+        thumbnail_data_url: video.thumbnailDataUrl ?? null,
+        duration_ms: video.durationMs,
+        file_size: video.fileSize,
+        mime_type: video.mimeType,
+        language: video.language ?? null,
+        cloud_object_key: video.cloudObjectKey ?? null,
+        thumbnail_cloud_object_key: video.thumbnailCloudObjectKey ?? null,
+        cloud_sync_state: video.cloudSyncState ?? null,
+        custody_log: video.custodyLog ?? [],
+      },
+    });
+
+    await mediaRepository.createMedia({
+      proof_id: proof.proof_id,
+      job_id: video.jobId,
+      local_uri: video.localUrl ?? `siteproof://media/${video.jobId}/${video.id}/video.webm`,
+      thumbnail_uri: video.thumbnailDataUrl ? `siteproof://media/${video.jobId}/${video.id}/thumb.jpg` : null,
+      mime_type: video.mimeType || 'video/webm',
+      file_name: `${video.category.replace(/\s+/g, '_').toLowerCase()}_${video.id}.${video.mimeType.includes('mp4') ? 'mp4' : 'webm'}`,
+      file_size: video.fileSize,
+      width: null,
+      height: null,
+      duration_ms: video.durationMs,
+      compression_state: 'not_needed',
+      upload_state: video.cloudSyncState === 'synced' ? 'uploaded' : video.cloudSyncState === 'error' ? 'failed' : 'pending_upload',
+      checksum: video.proofHash ?? null,
+      language: video.language ?? null,
+      cloud_object_key: video.cloudObjectKey ?? null,
+    });
+
+    await timelineRepository.createEvent({
+      job_id: video.jobId,
+      stage_instance_id: stage?.stage_instance_id ?? null,
+      event_type: 'proof_captured',
+      event_title: `${video.category} video captured`,
+      event_description: video.notes ?? selected?.requirement.field_instruction ?? null,
+      related_proof_ids: [proof.proof_id],
+      gps_latitude: video.latitude ?? null,
+      gps_longitude: video.longitude ?? null,
+    });
+
+    await this.recomputeJobCompletion(video.jobId);
   }
 
   static async saveVoiceNoteFromLegacy(note: LegacyVoiceNote): Promise<void> {

@@ -3,7 +3,7 @@ import { SiteProofDataService } from '../../services/siteProofDataService';
 import { timelineRepository } from '../../db/repositories/timelineRepository';
 import { ExportPacketService } from '../export/exportPacketService';
 import { TemplateCatalogService } from '../../services/templateCatalogService';
-import { Job, JobPhoto, VoiceNote } from '../../types';
+import { Job, JobPhoto, VoiceNote } from '../../domain/models';
 import { TimelineEvent } from '../../db/schema';
 import { WorkflowTemplate } from '../../templates/workflowTemplate.types';
 

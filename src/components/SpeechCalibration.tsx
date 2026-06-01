@@ -4,6 +4,7 @@ import { ArrowLeft, Mic, Square, CheckCircle, Zap, ShieldCheck, Loader2 } from '
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { AppSettingsService } from '../services/appSettingsService';
+import { useSettings } from '../contexts/SettingsContext';
 
 const CALIBRATION_SENTENCES = [
   "Verify the 200 amp service main breaker and grounding rod installation.",
@@ -12,6 +13,7 @@ const CALIBRATION_SENTENCES = [
 ];
 
 export function SpeechCalibration() {
+  const { t } = useSettings();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [status, setStatus] = useState<'idle' | 'recording' | 'processing' | 'done'>('idle');
@@ -41,7 +43,7 @@ export function SpeechCalibration() {
         <button onClick={() => navigate(-1)} className="p-2 bg-white/5 rounded-xl text-white/50 hover:text-white">
           <ArrowLeft size={24} />
         </button>
-        <span className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">Voice Optimization Engine</span>
+        <span className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">{t('speechCalibration.engine')}</span>
         <div className="w-10" />
       </header>
 
@@ -67,8 +69,8 @@ export function SpeechCalibration() {
                     />
                   ))}
                 </div>
-                <h1 className="text-2xl font-bold text-white tracking-tight italic">Calibrating Lexicon</h1>
-                <p className="text-slate-400 text-sm">Read the sentence below clearly to train the AI on your jobsite terminology.</p>
+                <h1 className="text-2xl font-bold text-white tracking-tight italic">{t('speechCalibration.title')}</h1>
+                <p className="text-slate-400 text-sm">{t('speechCalibration.subtitle')}</p>
               </div>
 
               <div className="bg-white/5 border border-white/10 p-8 rounded-3xl relative overflow-hidden group">
@@ -81,7 +83,7 @@ export function SpeechCalibration() {
                   <div className="absolute inset-0 bg-red-600/10 flex items-center justify-center backdrop-blur-sm">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-3 h-3 bg-red-500 rounded-full animate-ping" />
-                      <span className="text-red-500 font-black text-[10px] uppercase tracking-widest">Listening...</span>
+                      <span className="text-red-500 font-black text-[10px] uppercase tracking-widest">{t('speechCalibration.listening')}</span>
                     </div>
                   </div>
                 )}
@@ -90,7 +92,7 @@ export function SpeechCalibration() {
                   <div className="absolute inset-0 bg-blue-900/40 flex items-center justify-center backdrop-blur-sm">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="text-white animate-spin" size={24} />
-                      <span className="text-white font-black text-[10px] uppercase tracking-widest">Analyzing Waveform...</span>
+                      <span className="text-white font-black text-[10px] uppercase tracking-widest">{t('speechCalibration.analyzing')}</span>
                     </div>
                   </div>
                 )}
@@ -116,15 +118,15 @@ export function SpeechCalibration() {
                 <ShieldCheck className="text-green-500" size={48} />
               </div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-black text-white italic tracking-tighter">VOICE OPTIMIZED</h2>
+                <h2 className="text-3xl font-black text-white italic tracking-tighter">{t('speechCalibration.optimizedTitle')}</h2>
                 <p className="text-slate-400 text-sm max-w-xs mx-auto">
-                  SiteProof has successfully mapped your voice profile to industrial terminology.
+                  {t('speechCalibration.optimizedHelp')}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4 text-left">
                 {[
-                  { label: "Background Noise", val: "Filtered", icon: Zap },
-                  { label: "Technical Lexicon", val: "Mapped", icon: CheckCircle },
+                  { label: t('speechCalibration.backgroundNoise'), val: t('speechCalibration.filtered'), icon: Zap },
+                  { label: t('speechCalibration.technicalLexicon'), val: t('speechCalibration.mapped'), icon: CheckCircle },
                 ].map(stat => (
                   <div key={stat.label} className="bg-white/5 p-4 rounded-2xl border border-white/10">
                     <stat.icon size={16} className="text-blue-500 mb-2" />
@@ -137,7 +139,7 @@ export function SpeechCalibration() {
                 onClick={() => navigate(-1)}
                 className="w-full py-4 bg-white text-slate-900 font-bold rounded-2xl shadow-xl active:scale-95 transition-all"
               >
-                Finish Setup
+                {t('speechCalibration.finishSetup')}
               </button>
             </motion.div>
           )}
@@ -145,7 +147,7 @@ export function SpeechCalibration() {
       </main>
 
       <footer className="p-8 text-center">
-        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em]">Neural Engine v2.0</p>
+        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em]">{t('speechCalibration.footerEngine')}</p>
       </footer>
     </div>
   );

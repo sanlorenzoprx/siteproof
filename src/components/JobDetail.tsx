@@ -1,8 +1,9 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
+  Briefcase,
   Camera,
   CheckCircle,
   ChevronDown,
@@ -24,8 +25,8 @@ import {
 import { format } from 'date-fns';
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { PdfService } from '../services/pdfService';
-import { APP_REPORT_TYPES, SiteProofReportType } from '../features/export/reportTypes';
-import { Job, JobPhoto, VoiceNote } from '../types';
+import { APP_REPORT_TYPES, BID_REPORT_TYPES, SiteProofReportType } from '../features/export/reportTypes';
+import { BidMetric, Job, JobPhoto, VoiceNote } from '../domain/models';
 import { RuntimeOrchestrator, RuntimeSnapshot } from '../services/runtimeOrchestrator';
 import { ChecklistItem, ProofRequirement, WorkflowStageTemplate, WorkflowTemplate } from '../templates/workflowTemplate.types';
 import { TemplateCatalogService } from '../services/templateCatalogService';
@@ -51,22 +52,18 @@ import { MissingProofDetectionService, MissingProofWarning } from '../services/m
 import { ProReportManifestBuilder } from '../services/proReportManifestBuilder';
 import { ProReportType } from '../templates/tradeTemplatePack.types';
 import { ReportShareService } from '../features/export/reportShareService';
+import { JobWorkflowService } from '../services/jobWorkflowService';
+import { HintCard } from './HintCard';
+import { BidMetricEditor } from './bidding/BidMetricEditor';
+import { BidPrivacyBanner } from './bidding/BidPrivacyBanner';
+import { BidReportActions } from './bidding/BidReportActions';
 
 type DetailView = 'proof' | 'photos' | 'notes' | 'timeline' | 'export';
-
-const PhotoThumbnail = ({ photo, className }: { photo: JobPhoto; className?: string }) => {
-  const [url, setUrl] = useState<string>(photo.thumbnailDataUrl || photo.dataUrl || '');
-
-  useEffect(() => {
-    if (!photo.thumbnailDataUrl && !photo.dataUrl && photo.blob) {
-      const objectUrl = URL.createObjectURL(photo.blob);
-      setUrl(objectUrl);
-      return () => URL.revokeObjectURL(objectUrl);
-    }
-  }, [photo]);
-
-  return <img src={url} className={className} alt={photo.category} />;
-};
+const ProofSection = lazy(() => import('./jobDetailSections/ProofSection'));
+const PhotosSection = lazy(() => import('./jobDetailSections/PhotosSection'));
+const NotesSection = lazy(() => import('./jobDetailSections/NotesSection'));
+const TimelineSection = lazy(() => import('./jobDetailSections/TimelineSection'));
+const ExportSection = lazy(() => import('./jobDetailSections/ExportSection'));
 
 function getTemplateForJob(job: Job | null, uiLanguage: 'en' | 'es'): WorkflowTemplate | null {
   return TemplateCatalogService.getTemplate(job?.templateId, uiLanguage);
@@ -84,20 +81,25 @@ function requirementCapturePath(jobId: string, requirement: ProofRequirement, st
   return `/job/${jobId}/camera?${params.toString()}`;
 }
 
-function requirementActionLabel(requirement: ProofRequirement, t: (key: string) => string): string {
-  if (requirement.proof_type === 'voice_note') return t('jobDetail.recordNote');
-  if (requirement.proof_type === 'text_note') return t('jobDetail.dictateNote');
-  if (requirement.proof_type === 'signature') return t('jobDetail.captureSignoff');
-  if (requirement.proof_type === 'serial_number') return t('jobDetail.captureSerial');
-  if (requirement.proof_type === 'test_result') return t('jobDetail.captureTest');
-  return t('jobDetail.takePhoto');
-}
-
-function priorityBadge(requirement: ProofRequirement, t: (key: string) => string) {
-  if (requirement.priority === 'required') return t('jobDetail.required');
-  if (requirement.priority === 'recommended') return t('jobDetail.recommended');
-  if (requirement.priority === 'conditional') return t('jobDetail.conditional');
-  return t('jobDetail.optional');
+function toProReportType(reportType: SiteProofReportType): ProReportType {
+  switch (reportType) {
+    case SiteProofReportType.CUSTOMER_COMPLETION:
+      return 'customer_completion';
+    case SiteProofReportType.INSPECTION_READINESS:
+      return 'inspection_readiness';
+    case SiteProofReportType.CHANGE_ORDER_EVIDENCE:
+      return 'change_order_evidence';
+    case SiteProofReportType.PAYMENT_FINAL_HANDOFF:
+      return 'payment_handoff';
+    case SiteProofReportType.PHOTO_PROOF_TIMELINE:
+      return 'photo_timeline';
+    case SiteProofReportType.OFFICE_INTERNAL_RECORD:
+      return 'office_internal_record';
+    case SiteProofReportType.ALL_REPORTS:
+      return 'all_pro_reports';
+    default:
+      return 'office_internal_record';
+  }
 }
 
 function toProReportType(reportType: SiteProofReportType): ProReportType {
@@ -139,11 +141,25 @@ export function JobDetail() {
   const [exportPackets, setExportPackets] = useState<ExportPacket[]>([]);
   const [signatures, setSignatures] = useState<SignatureRecord[]>([]);
   const [shareRecipient, setShareRecipient] = useState('');
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [documentCaptureSource, setDocumentCaptureSource] = useState<'setup' | 'checklist' | 'final' | null>(
     searchParams.get('document') === 'setup' ? 'setup' : null,
   );
   const [missingProofWarnings, setMissingProofWarnings] = useState<MissingProofWarning[]>([]);
   const [showMissingProofReview, setShowMissingProofReview] = useState(false);
+  const [showCustomerBidConfirm, setShowCustomerBidConfirm] = useState(false);
+  const [bidDraft, setBidDraft] = useState({
+    scopeSummary: '',
+    customerSummary: '',
+    internalNotes: '',
+    metrics: [] as BidMetric[],
+    assumptions: '',
+    exclusions: '',
+    paymentTerms: '',
+    estimateExpiresAt: '',
+    finalEstimateText: '',
+  });
 
   useEffect(() => {
     async function load() {
@@ -164,6 +180,18 @@ export function JobDetail() {
       ]);
 
       setJob(jobData);
+      setBidDraft({
+        scopeSummary: jobData.bidScopeSummary || jobData.notes || '',
+        customerSummary: jobData.bidCustomerNotes || '',
+        internalNotes: jobData.bidInternalNotes || '',
+        metrics: jobData.bidMetrics ?? [],
+        assumptions: jobData.bidAssumptions || settings.biddingDefaults.defaultAssumptions.join('\n'),
+        exclusions: jobData.bidExclusions || settings.biddingDefaults.defaultExclusions.join('\n'),
+        paymentTerms: jobData.bidPaymentTerms || settings.biddingDefaults.paymentTerms,
+        estimateExpiresAt: jobData.bidEstimateExpiresAt || '',
+        finalEstimateText: jobData.bidFinalEstimateText || '',
+      });
+      if (jobData.mode === 'bid') setSelectedReportType(SiteProofReportType.INTERNAL_BID_REPORT);
       setPhotos(photosData);
       setVoiceNotes(notesData);
       setRuntimeSnapshot(snapshot);
@@ -183,7 +211,7 @@ export function JobDetail() {
       }
     }
     load();
-  }, [id, navigate, settings.uiLanguage]);
+  }, [id, navigate, settings.biddingDefaults.defaultAssumptions, settings.biddingDefaults.defaultExclusions, settings.biddingDefaults.paymentTerms, settings.uiLanguage]);
 
   const template = useMemo(() => getTemplateForJob(job, settings.uiLanguage), [job, settings.uiLanguage]);
   const visibleStages = useMemo(
@@ -236,14 +264,43 @@ export function JobDetail() {
 
   if (!job || !template) return null;
 
-  async function handleGenerateSelectedReport(skipMissingProofReview = false) {
+  async function saveBidDetails(markCustomerApproved = false) {
+    if (!job) return;
+    const updated: Job = {
+      ...job,
+      notes: bidDraft.scopeSummary,
+      bidScopeSummary: bidDraft.scopeSummary,
+      bidCustomerNotes: bidDraft.customerSummary,
+      bidInternalNotes: bidDraft.internalNotes,
+      bidMetrics: bidDraft.metrics,
+      bidAssumptions: bidDraft.assumptions,
+      bidExclusions: bidDraft.exclusions,
+      bidPaymentTerms: bidDraft.paymentTerms,
+      bidEstimateExpiresAt: bidDraft.estimateExpiresAt,
+      bidFinalEstimateText: bidDraft.finalEstimateText,
+      bidEstimateApprovedForCustomer: markCustomerApproved ? true : job.bidEstimateApprovedForCustomer,
+    };
+    await SiteProofDataService.saveJob(updated);
+    setJob(updated);
+  }
+
+  async function generateBidReport(reportType: SiteProofReportType.INTERNAL_BID_REPORT | SiteProofReportType.CUSTOMER_BID_REPORT) {
+    if (!job) return;
+    await saveBidDetails(reportType === SiteProofReportType.CUSTOMER_BID_REPORT);
+    setSelectedReportType(reportType);
+    await handleGenerateSelectedReport(true, reportType);
+  }
+
+  async function handleGenerateSelectedReport(skipMissingProofReview = false, overrideReportType?: SiteProofReportType) {
+    const targetReportType = overrideReportType ?? selectedReportType;
     const licenseState = await LicenseService.getLicenseState();
+    setReportError(null);
     if (!LicenseService.canGenerateReport(licenseState)) {
-      alert(t('license.trialEndedMessage'));
       navigate('/license');
       return;
     }
-    if (!skipMissingProofReview) {
+    const isBidReport = targetReportType === SiteProofReportType.INTERNAL_BID_REPORT || targetReportType === SiteProofReportType.CUSTOMER_BID_REPORT;
+    if (!skipMissingProofReview && !isBidReport) {
       const warnings = await MissingProofDetectionService.getWarnings(job!);
       if (warnings.length > 0) {
         setMissingProofWarnings(warnings.sort((a, b) => Number(b.required) - Number(a.required)));
@@ -256,16 +313,17 @@ export function JobDetail() {
     try {
       await ProReportManifestBuilder.build(job!, toProReportType(selectedReportType));
       const signatureDataUrl = signatures.find((signature) => signature.signerRole === 'customer')?.signatureDataUrl;
-      if (selectedReportType === SiteProofReportType.ALL_REPORTS) {
+      if (!isBidReport) await ProReportManifestBuilder.build(job!, toProReportType(targetReportType));
+      if (targetReportType === SiteProofReportType.ALL_REPORTS) {
         await PdfService.generateAllAppReports(job!, settings.exportLanguage, {}, signatureDataUrl);
       } else {
-        await PdfService.generateAppReport(job!, selectedReportType, signatureDataUrl, settings.exportLanguage);
+        await PdfService.generateAppReport(job!, targetReportType, signatureDataUrl, settings.exportLanguage);
       }
       const nextExports = await ExportPacketService.getPacketHistory(job!.id);
       setExportPackets(nextExports.sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
     } catch (error) {
       console.error(error);
-      alert(t('jobDetail.reportFailed'));
+      setReportError(t('jobDetail.reportFailed'));
     } finally {
       setGeneratingReport(false);
     }
@@ -295,14 +353,15 @@ export function JobDetail() {
   async function sharePacket(packet: ExportPacket, channel: 'email' | 'sms') {
     const recipient = shareRecipient.trim();
     if (!recipient) {
-      alert(channel === 'email' ? 'Enter an email address first.' : 'Enter a phone number first.');
+      setShareError(channel === 'email' ? t('jobDetail.shareEmailRequired') : t('jobDetail.sharePhoneRequired'));
       return;
     }
+    setShareError(null);
     const target = channel === 'email'
       ? ReportShareService.buildEmailTarget(packet, job!, recipient)
       : ReportShareService.buildSmsTarget(packet, job!, recipient);
     if (!target) {
-      alert('This report does not have a share link yet. Create or sync a Cloud Proof Vault link before sending by email or SMS.');
+      setShareError(t('jobDetail.shareNoLink'));
       return;
     }
     await ReportShareService.markShared(packet, target).catch((error) => console.warn('Report share status update failed:', error));
@@ -339,13 +398,21 @@ export function JobDetail() {
     navigate('/');
   }
 
+  async function convertBidToApprovedJob() {
+    if (!job) return;
+    const updated = await JobWorkflowService.convertBidToApprovedJob(job);
+    setJob(updated);
+  }
+
   const currentStage = visibleStages.find((stage) => {
     const runtime = stageRuntimeByTemplateId.get(stage.stage_id);
     return runtime?.status !== 'complete';
   }) ?? visibleStages[visibleStages.length - 1];
-  const reportOptions = [...APP_REPORT_TYPES, SiteProofReportType.ALL_REPORTS] as const;
+  const isBid = job.mode === 'bid';
+  const reportOptions = isBid ? BID_REPORT_TYPES : ([...APP_REPORT_TYPES, SiteProofReportType.ALL_REPORTS] as const);
   const inspectionReportBlocked = selectedReportType === SiteProofReportType.INSPECTION_READINESS
     && (readiness?.blocking_items.length ?? missingRequired.length) > 0;
+  const isSimpleMode = settings.uxMode === 'simple';
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28">
@@ -371,6 +438,11 @@ export function JobDetail() {
                 )}>
                   {job.status}
                 </span>
+                {isBid && (
+                  <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-widest">
+                    {t('jobDetail.bidWorkspace')}
+                  </span>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5 text-xs font-bold text-slate-500">
                 <span className="flex items-center gap-1.5"><MapPin size={14} className="text-blue-500" />{job.address}</span>
@@ -392,7 +464,7 @@ export function JobDetail() {
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => navigate(`/job/${job.id}/camera?category=${encodeURIComponent(currentStage?.display_name ?? 'General Photo')}`)}
+              onClick={() => navigate(`/job/${job.id}/camera?category=${encodeURIComponent(currentStage?.display_name ?? t('jobDetail.generalPhoto'))}`)}
               className="bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all flex items-center gap-2"
             >
               <Camera size={18} /> {t('jobDetail.takePhoto')}
@@ -422,6 +494,120 @@ export function JobDetail() {
       <div className="max-w-7xl mx-auto p-5 md:p-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <main className="lg:col-span-8 space-y-6">
+            {isSimpleMode && (
+              <section className="bg-white rounded-[32px] border border-slate-200 p-5 shadow-sm space-y-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">{isBid ? t('jobDetail.bidWorkspace') : t('jobDetail.whatAdd')}</p>
+                  <h2 className="text-2xl font-black text-slate-950">{job.customerName}</h2>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <button onClick={() => navigate(`/job/${job.id}/camera?mode=photo`)} className="min-h-20 rounded-2xl bg-blue-600 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><Camera size={18} />{t('capture.modePhoto')}</button>
+                  <button onClick={() => navigate(`/job/${job.id}/camera?document=1`)} className="min-h-20 rounded-2xl bg-white border border-slate-200 text-slate-800 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><FileText size={18} />{t('capture.modeDocument')}</button>
+                  <button onClick={() => navigate(`/job/${job.id}/voice`)} className="min-h-20 rounded-2xl bg-white border border-slate-200 text-slate-800 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><Mic size={18} />{t('jobDetail.notes')}</button>
+                  <button onClick={() => navigate(`/job/${job.id}/camera?mode=video`)} className="min-h-20 rounded-2xl bg-white border border-slate-200 text-slate-800 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><Camera size={18} />{t('capture.modeVideo')}</button>
+                </div>
+                {isBid ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button onClick={() => { setSelectedReportType(SiteProofReportType.INTERNAL_BID_REPORT); setActiveView('export'); }} className="rounded-2xl bg-slate-900 px-4 py-4 text-white text-xs font-black uppercase tracking-widest">{t('jobDetail.createInternalBidReport')}</button>
+                    <button onClick={() => setShowCustomerBidConfirm(true)} className="rounded-2xl bg-amber-50 px-4 py-4 text-amber-800 text-xs font-black uppercase tracking-widest">{t('jobDetail.createCustomerBidReport')}</button>
+                    <button onClick={() => void convertBidToApprovedJob()} className="rounded-2xl bg-blue-600 px-4 py-4 text-white text-xs font-black uppercase tracking-widest">{t('jobDetail.convertApprovedJob')}</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setActiveView('export')} className="w-full rounded-2xl bg-slate-900 px-5 py-4 text-white text-xs font-black uppercase tracking-widest">{t('jobDetail.generatePacket')}</button>
+                )}
+              </section>
+            )}
+            {isBid && (
+              <HintCard
+                hint={{
+                  hintId: 'bid-privacy-default',
+                  screen: 'jobDetail',
+                  type: 'privacy',
+                  textKey: 'hints.bidPrivacy',
+                  maxShows: 8,
+                }}
+              />
+            )}
+            {isBid && (
+              <section className="bg-white rounded-[32px] border border-slate-200 p-5 md:p-6 shadow-sm space-y-5">
+                <BidPrivacyBanner text={t('jobDetail.bidPrivacyWarning')} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('jobDetail.bidScopeSummary')}</span>
+                    <textarea
+                      value={bidDraft.scopeSummary}
+                      onChange={(event) => setBidDraft((current) => ({ ...current, scopeSummary: event.target.value }))}
+                      className="w-full min-h-24 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold"
+                    />
+                  </label>
+                  <label className="space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('jobDetail.bidCustomerSummary')}</span>
+                    <textarea
+                      value={bidDraft.customerSummary}
+                      onChange={(event) => setBidDraft((current) => ({ ...current, customerSummary: event.target.value }))}
+                      className="w-full min-h-24 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold"
+                    />
+                  </label>
+                </div>
+                <label className="block space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('jobDetail.bidInternalNotes')}</span>
+                  <textarea
+                    value={bidDraft.internalNotes}
+                    onChange={(event) => setBidDraft((current) => ({ ...current, internalNotes: event.target.value }))}
+                    className="w-full min-h-24 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950"
+                  />
+                </label>
+                <BidMetricEditor
+                  metrics={bidDraft.metrics}
+                  onChange={(metrics) => setBidDraft((current) => ({ ...current, metrics }))}
+                  t={t}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    ['assumptions', 'assumptions'],
+                    ['exclusions', 'exclusions'],
+                    ['paymentTerms', 'paymentTerms'],
+                    ['finalEstimateText', 'finalEstimate'],
+                    ['estimateExpiresAt', 'estimateExpiration'],
+                  ].map(([field, label]) => (
+                    <label key={field} className="space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t(`jobDetail.${label}`)}</span>
+                      {field === 'estimateExpiresAt' ? (
+                        <input
+                          type="date"
+                          value={bidDraft.estimateExpiresAt}
+                          onChange={(event) => setBidDraft((current) => ({ ...current, estimateExpiresAt: event.target.value }))}
+                          className="w-full min-h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold"
+                        />
+                      ) : (
+                        <textarea
+                          value={bidDraft[field as keyof typeof bidDraft] as string}
+                          onChange={(event) => setBidDraft((current) => ({ ...current, [field]: event.target.value }))}
+                          className="w-full min-h-20 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold"
+                        />
+                      )}
+                    </label>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => void saveBidDetails()}
+                    className="min-h-12 rounded-2xl bg-blue-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white"
+                  >
+                    {t('jobDetail.saveBid')}
+                  </button>
+                  <div className="sm:col-span-2">
+                    <BidReportActions
+                      disabled={generatingReport}
+                      onInternal={() => void generateBidReport(SiteProofReportType.INTERNAL_BID_REPORT)}
+                      onCustomer={() => setShowCustomerBidConfirm(true)}
+                      t={t}
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
             <InspectionReadyCard readiness={readiness} />
 
             {readiness?.blocking_items.length ? (
@@ -467,256 +653,81 @@ export function JobDetail() {
             </div>
 
             {activeView === 'proof' && (
-              <section className="space-y-5">
-                {documentCaptureSource === 'checklist' ? (
-                  <JobDocumentQuickCapture
-                    job={job}
-                    source="checklist"
-                    stepId="permit_or_inspection_document"
-                    onSaved={() => setDocumentCaptureSource(null)}
-                    onClose={() => setDocumentCaptureSource(null)}
-                  />
-                ) : (
-                  <button
-                    onClick={() => setDocumentCaptureSource('checklist')}
-                    className="w-full bg-blue-50 border border-blue-100 text-blue-700 p-5 rounded-[28px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
-                  >
-                    <FileText size={18} /> Add Permit / Inspection Document
-                  </button>
-                )}
-                {visibleStages.map((stage, index) => (
-                  <WorkflowStageCard
-                    key={stage.stage_id}
-                    jobId={job.id}
-                    stage={stage}
-                    index={index}
-                    runtimeStage={stageRuntimeByTemplateId.get(stage.stage_id)}
-                    proofByRequirement={proofByRequirement}
-                    expanded={expandedStages[stage.stage_id] ?? false}
-                    onToggle={() => setExpandedStages((current) => ({ ...current, [stage.stage_id]: !(current[stage.stage_id] ?? false) }))}
-                    onCapture={(requirement) => navigate(requirementCapturePath(job.id, requirement, stage.stage_id))}
-                    onCompleteChecklistItem={(item) => void completeChecklistItem(stage, item)}
-                    t={t}
-                  />
-                ))}
-              </section>
+              <Suspense fallback={null}>
+                <ProofSection
+                  job={job}
+                  documentCaptureSource={documentCaptureSource}
+                  setDocumentCaptureSource={setDocumentCaptureSource}
+                  visibleStages={visibleStages}
+                  stageRuntimeByTemplateId={stageRuntimeByTemplateId}
+                  proofByRequirement={proofByRequirement}
+                  expandedStages={expandedStages}
+                  onToggleStage={(stageId) => setExpandedStages((current) => ({ ...current, [stageId]: !(current[stageId] ?? false) }))}
+                  onCaptureRequirement={(stage, requirement) => navigate(requirementCapturePath(job.id, requirement, stage.stage_id))}
+                  onCompleteChecklistItem={(stage, item) => void completeChecklistItem(stage, item)}
+                  t={t}
+                />
+              </Suspense>
             )}
 
             {activeView === 'photos' && (
-              <section className="space-y-5">
-                <div className="bg-white rounded-[32px] border border-slate-200 p-5 shadow-sm flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-black text-slate-950 text-lg tracking-tight">{t('jobDetail.gallery')}</h3>
-                    <p className="text-xs font-bold text-slate-500">{t('jobDetail.galleryHelp')}</p>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/job/${job.id}/camera`)}
-                    className="px-5 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-600/20"
-                  >
-                    <Camera size={18} />
-                    {t('jobDetail.addPhoto')}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {photos.map((photo) => (
-                    <PhotoGalleryCard key={photo.id} photo={photo} t={t} />
-                  ))}
-                </div>
-              </section>
+              <Suspense fallback={null}>
+                <PhotosSection
+                  photos={photos}
+                  onOpenCamera={() => navigate(`/job/${job.id}/camera`)}
+                  t={t}
+                />
+              </Suspense>
             )}
 
             {activeView === 'notes' && (
-              <section className="space-y-4">
-                {voiceNotes.map((note) => (
-                  <div key={note.id} className="bg-white p-6 rounded-[28px] border border-slate-200 flex items-start gap-5 shadow-sm">
-                    <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
-                      <Mic size={22} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{note.category}</span>
-                        <span className="text-[10px] font-bold text-slate-400">{format(note.timestamp, 'MMM d, h:mm a')}</span>
-                      </div>
-                      {note.summary && (
-                        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 mb-3">
-                          <div className="text-[9px] font-black uppercase tracking-widest text-blue-600 mb-1">{t('jobDetail.aiSummary')}</div>
-                          <p className="text-xs font-bold text-blue-950 leading-relaxed">{note.summary}</p>
-                        </div>
-                      )}
-                      <p className="text-slate-900 font-bold leading-relaxed">“{note.transcribedText}”</p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <VoiceChip icon={<Languages size={13} />} label={note.language === 'es' ? t('jobDetail.spanish') : note.language === 'en' ? t('jobDetail.english') : t('jobDetail.languageAuto')} />
-                        {note.materialMentions?.slice(0, 3).map((item) => (
-                          <span key={item}><VoiceChip icon={<Wrench size={13} />} label={item} /></span>
-                        ))}
-                        {note.issueMentions?.length ? <VoiceChip tone="warning" icon={<AlertTriangle size={13} />} label={`${note.issueMentions.length} ${note.issueMentions.length === 1 ? t('jobDetail.issue') : t('jobDetail.issues')}`} /> : null}
-                        {note.changeOrderCandidates?.length ? <VoiceChip tone="warning" icon={<Zap size={13} />} label={t('jobDetail.changeOrderCandidate')} /> : null}
-                        {note.customerRequests?.length ? <VoiceChip icon={<Mic size={13} />} label={t('jobDetail.customerRequest')} /> : null}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <button
-                  onClick={() => navigate(`/job/${job.id}/voice`)}
-                  className="w-full py-8 border-4 border-dashed border-slate-200 rounded-[28px] flex flex-col items-center justify-center gap-4 text-slate-300 hover:border-blue-300 hover:text-blue-500 transition-all"
-                >
-                  <Mic size={38} />
-                  <span className="font-black text-xs uppercase tracking-widest">{t('jobDetail.recordFieldNote')}</span>
-                </button>
-              </section>
+              <Suspense fallback={null}>
+                <NotesSection
+                  voiceNotes={voiceNotes}
+                  onRecordVoiceNote={() => navigate(`/job/${job.id}/voice`)}
+                  t={t}
+                />
+              </Suspense>
             )}
 
             {activeView === 'timeline' && (
-              <TimelinePlayback jobId={job.id} />
+              <Suspense fallback={null}>
+                <TimelineSection jobId={job.id} />
+              </Suspense>
             )}
 
             {activeView === 'export' && (
-              <section className="space-y-6">
-                <div className="bg-slate-900 rounded-[36px] p-8 text-white overflow-hidden relative">
-                  <div className="absolute -right-10 -top-10 opacity-5"><FileText size={220} /></div>
-                  <div className="relative z-10">
-                    <h2 className="text-3xl font-black tracking-tight mb-3">{t('jobDetail.generatePacket')}</h2>
-                    <p className="text-sm font-bold text-slate-400 max-w-xl mb-8">
-                      {t('jobDetail.exportHelp')}
-                    </p>
-                    <div className="mb-5">
-                      <JobDocumentQuickCapture
-                        job={job}
-                        source="final"
-                        stepId="final_document_check"
-                        onSaved={() => setDocumentCaptureSource(null)}
-                      />
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-[28px] p-5 space-y-4">
-                      <label className="block">
-                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('jobDetail.reportType')}</span>
-                        <select
-                          value={selectedReportType}
-                          onChange={(event) => setSelectedReportType(event.target.value as SiteProofReportType)}
-                          className="w-full min-h-14 rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 text-base font-black text-white outline-none focus:border-blue-400"
-                        >
-                          {reportOptions.map((reportType) => (
-                            <option key={reportType} value={reportType}>
-                              {t(`jobDetail.reportTypes.${reportType}`)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {inspectionReportBlocked ? (
-                        <div className="rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-xs font-bold text-orange-100">
-                          Missing proof will be reviewed before generation. You can capture it, mark it not needed, or generate anyway.
-                        </div>
-                      ) : null}
-                      {showMissingProofReview ? (
-                        <div className="rounded-[24px] border border-orange-400/30 bg-orange-500/10 p-4 space-y-3">
-                          <div>
-                            <h3 className="text-sm font-black text-orange-100">Missing-Proof Review</h3>
-                            <p className="text-xs font-bold text-orange-100/75">Required warnings appear first. You can still generate the Pro Report offline.</p>
-                          </div>
-                          <div className="space-y-2">
-                            {missingProofWarnings.map((warning) => (
-                              <div key={warning.stepId} className="rounded-2xl bg-slate-950/60 border border-white/10 p-3">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                  <div>
-                                    <div className="text-sm font-black text-white">{warning.title}</div>
-                                    <div className="text-[11px] font-bold text-slate-400">{warning.warning}</div>
-                                    <div className="mt-1 text-[9px] font-black uppercase tracking-widest text-orange-200">{warning.required ? 'Required' : 'Recommended'}</div>
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    <button onClick={() => captureMissingProof(warning)} className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest">Capture Missing Proof</button>
-                                    <button onClick={() => void markWarningNotNeeded(warning)} className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest">Mark Not Needed</button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <button onClick={() => void generateAnywayFromReview()} className="w-full min-h-12 rounded-2xl bg-white text-slate-950 text-xs font-black uppercase tracking-widest">
-                            Generate Anyway
-                          </button>
-                        </div>
-                      ) : null}
-                      <button
-                        onClick={() => void handleGenerateSelectedReport()}
-                        disabled={generatingReport}
-                        className="w-full min-h-14 bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:hover:bg-blue-600"
-                      >
-                        <Download size={18} /> {generatingReport ? t('jobDetail.generatingReport') : t('jobDetail.generateReport')}
-                      </button>
-                    </div>
-                    {(selectedReportType === SiteProofReportType.CUSTOMER_COMPLETION || selectedReportType === SiteProofReportType.PAYMENT_FINAL_HANDOFF) ? (
-                      <div className="mt-4">
-                        <SignaturePad jobId={job.id} onSaved={(record) => setSignatures((current) => [record, ...current])} />
-                        <p className="mt-3 text-xs font-bold text-slate-400">
-                          {signatures.length ? `${signatures[0].signerName ?? t('signature.unnamedSigner')} - ${format(new Date(signatures[0].signedAt), 'MMM d, h:mm a')}` : t('signature.customerNotDocumented')}
-                        </p>
-                      </div>
-                    ) : null}
-                    <div className="mt-6"><ReportLanguageToggle /></div>
-
-                    <div className="mt-8 bg-white/5 border border-white/10 rounded-[28px] p-5">
-                      <div className="flex items-center justify-between gap-4 mb-4">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">{t('jobDetail.history')}</h3>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{exportPackets.length} {t('jobDetail.savedLocallyCount')}</span>
-                      </div>
-                      <label className="block mb-4">
-                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Email or SMS recipient</span>
-                        <input
-                          value={shareRecipient}
-                          onChange={(event) => setShareRecipient(event.target.value)}
-                          placeholder="email@example.com or phone number"
-                          className="w-full min-h-12 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-blue-400"
-                        />
-                      </label>
-                      {exportPackets.length === 0 ? (
-                        <p className="text-xs font-bold text-slate-500">{t('jobDetail.noPackets')}</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {exportPackets.slice(0, 5).map((packet) => (
-                            <div key={packet.export_id} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex flex-col gap-3">
-                              <div>
-                                <div className="text-sm font-black text-white">{packet.title}</div>
-                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{format(new Date(packet.generated_at), 'MMM d, h:mm a')} • {packet.included_proof_ids.length} {t('jobDetail.proofItems')}</div>
-                              </div>
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-green-300">
-                                  {ReportShareService.canShareLink(packet) ? packet.share_status.replaceAll('_', ' ') : 'Saved locally - cloud link needed'}
-                                </span>
-                                <div className="flex flex-wrap gap-2">
-                                  {packet.local_file_uri.startsWith('data:') ? (
-                                    <a
-                                      href={packet.local_file_uri}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="px-3 py-2 rounded-xl bg-white text-slate-950 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
-                                    >
-                                      <FileText size={14} /> Open Local Report
-                                    </a>
-                                  ) : null}
-                                  <button
-                                    onClick={() => void sharePacket(packet, 'email')}
-                                    disabled={!ReportShareService.canShareLink(packet)}
-                                    className="px-3 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
-                                  >
-                                    <Mail size={14} /> Email Report
-                                  </button>
-                                  <button
-                                    onClick={() => void sharePacket(packet, 'sms')}
-                                    disabled={!ReportShareService.canShareLink(packet)}
-                                    className="px-3 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
-                                  >
-                                    <MessageSquare size={14} /> SMS Link
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </section>
+              <Suspense fallback={null}>
+                <ExportSection
+                  job={job}
+                  selectedReportType={selectedReportType}
+                  reportOptions={reportOptions}
+                  onChangeSelectedReportType={(next) => setSelectedReportType(next)}
+                  inspectionReportBlocked={inspectionReportBlocked}
+                  showMissingProofReview={showMissingProofReview}
+                  missingProofWarnings={missingProofWarnings}
+                  onCaptureMissingProof={captureMissingProof}
+                  onMarkWarningNotNeeded={(warning) => void markWarningNotNeeded(warning)}
+                  onGenerateAnywayFromReview={() => void generateAnywayFromReview()}
+                  generatingReport={generatingReport}
+                  onGenerateReport={() => {
+                    if (selectedReportType === SiteProofReportType.CUSTOMER_BID_REPORT) setShowCustomerBidConfirm(true);
+                    else void handleGenerateSelectedReport();
+                  }}
+                  reportError={reportError}
+                  signatures={signatures}
+                  onSignatureSaved={(record) => setSignatures((current) => [record, ...current])}
+                  exportPackets={exportPackets}
+                  shareRecipient={shareRecipient}
+                  onChangeShareRecipient={(value) => {
+                    setShareRecipient(value);
+                    if (shareError) setShareError(null);
+                  }}
+                  shareError={shareError}
+                  onSharePacket={(packet, channel) => void sharePacket(packet, channel)}
+                  t={t}
+                />
+              </Suspense>
             )}
           </main>
 
@@ -727,7 +738,7 @@ export function JobDetail() {
                 <ShieldCheck size={15} className="text-blue-500" /> {t('jobDetail.jobSummary')}
               </h3>
               <div className="space-y-5">
-                <SummaryRow label={t('jobDetail.currentStage')} value={currentStage?.display_name ?? 'Ready'} />
+                <SummaryRow label={t('jobDetail.currentStage')} value={currentStage?.display_name ?? t('jobDetail.ready')} />
                 <SummaryRow label={t('jobDetail.photos')} value={String(photos.length)} />
                 <SummaryRow label={t('jobDetail.voiceNotes')} value={String(voiceNotes.length)} />
                 <SummaryRow label={t('jobDetail.timelineEvents')} value={String(1 + photos.length + voiceNotes.length + exportPackets.length)} />
@@ -781,6 +792,47 @@ export function JobDetail() {
         </div>
       </div>
 
+      {showCustomerBidConfirm && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-5">
+          <div className="w-full max-w-lg rounded-[32px] bg-white p-6 shadow-2xl space-y-5">
+            <div>
+              <h2 className="text-2xl font-black text-slate-950">{t('jobDetail.customerBidConfirmTitle')}</h2>
+              <p className="mt-2 text-sm font-bold text-slate-600 leading-relaxed">{t('jobDetail.customerBidConfirmBody')}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setShowCustomerBidConfirm(false)}
+                className="min-h-12 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-700"
+              >
+                {t('common.no')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedReportType(SiteProofReportType.CUSTOMER_BID_REPORT);
+                  setShowCustomerBidConfirm(false);
+                  setActiveView('export');
+                }}
+                className="min-h-12 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-amber-900"
+              >
+                {t('jobDetail.previewCustomerBid')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCustomerBidConfirm(false);
+                  void generateBidReport(SiteProofReportType.CUSTOMER_BID_REPORT);
+                }}
+                className="min-h-12 rounded-2xl bg-blue-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white"
+              >
+                {t('jobDetail.generateCustomerBidReport')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 rounded-full p-2 flex items-center gap-2 shadow-2xl z-50 md:hidden">
         <button onClick={() => navigate(`/job/${job.id}/camera`)} className="bg-blue-600 text-white p-4 rounded-full active:scale-95 transition-all">
           <Camera size={24} />
@@ -796,210 +848,12 @@ export function JobDetail() {
   );
 }
 
-function WorkflowStageCard({
-  jobId,
-  stage,
-  index,
-  runtimeStage,
-  proofByRequirement,
-  expanded,
-  onToggle,
-  onCapture,
-  onCompleteChecklistItem,
-  t,
-}: {
-  key?: React.Key;
-  jobId: string;
-  stage: WorkflowStageTemplate;
-  index: number;
-  runtimeStage?: RuntimeSnapshot['stages'][number];
-  proofByRequirement: Map<string, number>;
-  expanded: boolean;
-  onToggle: () => void;
-  onCapture: (requirement: ProofRequirement) => void;
-  onCompleteChecklistItem: (item: ChecklistItem) => void;
-  t: (key: string) => string;
-}) {
-  const required = stage.proof_requirements.filter((requirement) => requirement.priority === 'required');
-  const completedRequired = required.filter((requirement) => (proofByRequirement.get(requirement.requirement_id) ?? 0) >= requirement.minimum_count).length;
-  const stageComplete = required.length === 0 || completedRequired >= required.length;
-  const statusLabel = stageComplete ? t('jobDetail.complete') : runtimeStage?.status === 'in_progress' ? t('jobDetail.inProgress') : t('jobDetail.needsProof');
-
-  return (
-    <div className="bg-white border border-slate-200 rounded-[32px] shadow-sm overflow-hidden">
-      <button onClick={onToggle} className="w-full p-5 md:p-6 flex items-center justify-between gap-4 text-left hover:bg-slate-50 transition-all">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className={cn(
-            'w-12 h-12 rounded-2xl flex items-center justify-center font-black shrink-0',
-            stageComplete ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-400',
-          )}>
-            {stageComplete ? <CheckCircle size={24} /> : index + 1}
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h3 className="font-black text-slate-950 uppercase tracking-tight">{stage.display_name}</h3>
-              <span className={cn(
-                'px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest',
-                stageComplete ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700',
-              )}>
-                {statusLabel}
-              </span>
-            </div>
-            <p className="text-xs font-bold text-slate-500 leading-relaxed line-clamp-2">{stage.description}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="hidden sm:block text-xs font-black text-slate-400 uppercase tracking-widest">
-            {completedRequired}/{required.length} required
-          </span>
-          {expanded ? <ChevronDown size={22} className="text-slate-400" /> : <ChevronRight size={22} className="text-slate-400" />}
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="px-5 md:px-6 pb-6 space-y-3">
-          {stage.proof_requirements.map((requirement) => {
-            const count = proofByRequirement.get(requirement.requirement_id) ?? 0;
-            const done = count >= requirement.minimum_count;
-            return (
-              <div key={requirement.requirement_id} className={cn(
-                'border rounded-3xl p-4 md:p-5 transition-all',
-                done ? 'border-green-100 bg-green-50/40' : requirement.priority === 'required' ? 'border-orange-100 bg-orange-50/30' : 'border-slate-200 bg-white',
-              )}>
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className={cn('mt-0.5', done ? 'text-green-600' : 'text-slate-300')}>
-                      {done ? <CheckCircle size={22} /> : <Circle size={22} />}
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h4 className="font-black text-slate-950 text-sm md:text-base">{requirement.display_name}</h4>
-                        <span className={cn(
-                          'px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest',
-                          requirement.priority === 'required' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500',
-                        )}>
-                          {priorityBadge(requirement, t)}
-                        </span>
-                        {count > 0 && <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">{count} {t('jobDetail.captured')}</span>}
-                      </div>
-                      <p className="text-xs font-bold text-slate-600 leading-relaxed">{requirement.field_instruction}</p>
-                      {requirement.capture_hint && <p className="text-[11px] font-bold text-slate-400 mt-1">{t('jobDetail.tip')}: {requirement.capture_hint}</p>}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => onCapture(requirement)}
-                    className={cn(
-                      'shrink-0 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2',
-                      done ? 'bg-white border border-green-200 text-green-700 hover:bg-green-50' : 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/15',
-                    )}
-                  >
-                    {requirement.proof_type === 'voice_note' || requirement.proof_type === 'text_note' ? <Mic size={16} /> : <Camera size={16} />}
-                    {done ? t('jobDetail.addMore') : requirementActionLabel(requirement, t)}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          {stage.checklist_items && stage.checklist_items.length > 0 && (
-            <div className="mt-4 bg-slate-50 border border-slate-100 rounded-3xl p-4">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">{t('jobDetail.checklist')}</div>
-              <div className="space-y-2">
-                {stage.checklist_items.map((item) => {
-                  const done = (proofByRequirement.get(item.checklist_id) ?? 0) > 0;
-                  return (
-                  <button
-                    key={item.checklist_id}
-                    type="button"
-                    onClick={() => !done && onCompleteChecklistItem(item)}
-                    className={cn(
-                      'w-full text-left flex items-start gap-3 text-xs font-bold rounded-2xl p-3 transition-all',
-                      done ? 'bg-green-50 text-slate-600' : 'bg-white text-slate-600 hover:bg-slate-100',
-                    )}
-                  >
-                    {done ? <CheckCircle size={14} className="mt-0.5 text-green-600" /> : <Circle size={14} className="mt-0.5 text-slate-300" />}
-                    <div>
-                      <span className="text-slate-900">{item.display_name}</span>
-                      <p className="text-slate-500 font-semibold mt-0.5">{item.description}</p>
-                    </div>
-                  </button>
-                );})}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-function PhotoGalleryCard({ photo, t }: { photo: JobPhoto; t: (key: string) => string; key?: React.Key }) {
-  const hasGps = typeof photo.latitude === 'number' && typeof photo.longitude === 'number';
-  const compressed = photo.compressionState === 'compressed' || photo.compressionState === 'not_needed';
-  const quality = photo.qualityScore ? Math.round(photo.qualityScore * 100) : null;
-
-  return (
-    <div className="bg-white rounded-[30px] overflow-hidden border border-slate-200 shadow-sm">
-      <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
-        <PhotoThumbnail photo={photo} className="w-full h-full object-cover" />
-        <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-          <span className={cn('px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white', hasGps ? 'bg-green-600' : 'bg-red-500')}>
-            {hasGps ? 'GPS' : t('jobDetail.noGps')}
-          </span>
-          <span className={cn('px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white', compressed ? 'bg-blue-600' : 'bg-slate-600')}>
-            {compressed ? t('jobDetail.mediaReady') : t('jobDetail.processing')}
-          </span>
-        </div>
-        {photo.isIssue && (
-          <div className="absolute top-3 right-3 bg-orange-500 text-white px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-            {photo.issueType?.replace('_', ' ') || t('jobDetail.issue')}
-          </div>
-        )}
-      </div>
-      <div className="p-4 space-y-3">
-        <div>
-          <div className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">{photo.category}</div>
-          <div className="text-xs font-bold text-slate-500">{format(photo.timestamp, 'MMM d, h:mm a')}</div>
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.size')}</div>
-            <div className="text-[11px] font-black text-slate-900">{MediaPipelineService.humanFileSize(photo.compressedSize ?? photo.originalSize)}</div>
-          </div>
-          <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.quality')}</div>
-            <div className="text-[11px] font-black text-slate-900">{quality ? `${quality}%` : '—'}</div>
-          </div>
-          <div className="bg-slate-50 rounded-2xl p-2">
-            <div className="text-[9px] font-black uppercase text-slate-400">{t('jobDetail.pixels')}</div>
-            <div className="text-[11px] font-black text-slate-900">{photo.width && photo.height ? `${photo.width}×${photo.height}` : '—'}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{label}</span>
       <span className="text-sm font-black text-slate-950 text-right">{value}</span>
     </div>
-  );
-}
-
-
-function VoiceChip({ icon, label, tone = 'default' }: { icon: React.ReactNode; label: string; tone?: 'default' | 'warning' }) {
-  return (
-    <span className={cn(
-      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest',
-      tone === 'warning' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600',
-    )}>
-      {icon}
-      {label}
-    </span>
   );
 }
 

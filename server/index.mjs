@@ -41,7 +41,7 @@ app.post('/api/ai/transcribe', proxyAiRoute);
 app.post('/api/ai/summarize-job', proxyAiRoute);
 
 app.use(express.static(distDir));
-app.get('*', (_req, res) => {
+app.get('/{*splat}', (_req, res) => {
   res.sendFile(path.join(distDir, 'index.html'));
 });
 

@@ -27,8 +27,28 @@ test('first launch creates 30-day local trial and active trial allows workflows'
   const state = await LicenseService.getLicenseState(new Date('2026-05-15T00:00:00.000Z'));
   assert.equal(state.status, 'trial_active');
   assert.equal(state.trialEndsAt, '2026-06-14T00:00:00.000Z');
+  assert.equal(state.trialJobLimit, 3);
+  assert.equal(state.trialJobsCreatedCount, 0);
+  assert.deepEqual(state.trialConsumedJobIds, []);
   assert.equal(LicenseService.canCreateJob(state), true);
   assert.equal(LicenseService.canGenerateReport(state), true);
+}));
+
+test('trial records three free jobs locally and blocks the fourth even offline', withSettingsStore({}, async () => {
+  const first = await LicenseService.recordTrialJobCreated('job-1');
+  assert.equal(first.trialJobsCreatedCount, 1);
+  assert.equal(LicenseService.canCreateJob(first), true);
+
+  const duplicate = await LicenseService.recordTrialJobCreated('job-1');
+  assert.equal(duplicate.trialJobsCreatedCount, 1);
+
+  const second = await LicenseService.recordTrialJobCreated('job-2');
+  assert.equal(LicenseService.canCreateJob(second), true);
+  const third = await LicenseService.recordTrialJobCreated('job-3');
+  assert.equal(third.trialJobsCreatedCount, 3);
+  assert.equal(third.status, 'trial_expired');
+  assert.equal(LicenseService.canCreateJob(third), false);
+  assert.match(LicenseService.getTrialStatusMessage(third), /3 free jobs are used/);
 }));
 
 test('expired trial blocks new reports without deleting data', withSettingsStore({
@@ -36,12 +56,33 @@ test('expired trial blocks new reports without deleting data', withSettingsStore
     status: 'trial_active',
     trialStartedAt: '2026-04-01T00:00:00.000Z',
     trialEndsAt: '2026-05-01T00:00:00.000Z',
+    trialJobLimit: 3,
+    trialJobsCreatedCount: 1,
+    trialConsumedJobIds: ['job-1'],
     deviceId: 'device-1',
   } satisfies SiteProofLicenseState,
 }, async () => {
   const state = await LicenseService.getLicenseState(new Date('2026-05-15T00:00:00.000Z'));
   assert.equal(state.status, 'trial_expired');
   assert.equal(LicenseService.canGenerateReport(state), false);
+  assert.match(LicenseService.getTrialStatusMessage(state, new Date('2026-05-15T00:00:00.000Z')), /30-day field trial has ended/);
+}));
+
+test('licensed state overrides trial day and free job limits', withSettingsStore({
+  license_state_v2: {
+    status: 'licensed',
+    licenseKey: 'ABC12345',
+    deviceId: 'device-1',
+    trialStartedAt: '2026-04-01T00:00:00.000Z',
+    trialEndsAt: '2026-05-01T00:00:00.000Z',
+    trialJobLimit: 3,
+    trialJobsCreatedCount: 3,
+    trialConsumedJobIds: ['job-1', 'job-2', 'job-3'],
+  } satisfies SiteProofLicenseState,
+}, async () => {
+  const state = await LicenseService.getLicenseState(new Date('2026-05-15T00:00:00.000Z'));
+  assert.equal(state.status, 'licensed');
+  assert.equal(LicenseService.canCreateJob(state), true);
 }));
 
 test('licensed state allows offline report generation and failed verification creates grace', withSettingsStore({
@@ -93,7 +134,14 @@ test('signature record can be saved locally and consent stays handoff-scoped', w
 }));
 
 test('cloud object keys are deterministic and no frontend Stripe secrets leak', () => {
-  assert.equal(CloudflareClient.objectKey({ localId: 'p1', jobId: 'j1', objectType: 'photo' }), 'j1/photo/p1');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'p1', jobId: 'j1', objectType: 'photo' }), 'owners/owner-1/jobs/j1/photo/p1');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'r1', jobId: 'j1', objectType: 'report', reportType: 'inspection_readiness' }), 'owners/owner-1/jobs/j1/reports/inspection_readiness/r1.pdf');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'v1', jobId: 'j1', objectType: 'video' }), 'owners/owner-1/jobs/j1/videos/v1.webm');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'd1', jobId: 'j1', objectType: 'document' }), 'owners/owner-1/jobs/j1/document/d1');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'm1', jobId: 'j1', objectType: 'metadata' }), 'owners/owner-1/jobs/j1/metadata/m1.json');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'voice1', jobId: 'j1', objectType: 'voice_note' }), 'owners/owner-1/jobs/j1/voice_notes/voice1.webm');
+  assert.equal(CloudflareClient.defaultVisibility({ localId: 'b1', jobId: 'j1', objectType: 'bid_report', reportType: 'internal_bid_report' }), 'internal_only');
+  assert.equal(CloudflareClient.defaultVisibility({ localId: 'b2', jobId: 'j1', objectType: 'bid_report', reportType: 'customer_bid_report' }), 'customer_visible');
   const source = [
     'src/services/licenseApiClient.ts',
     'src/services/cloudflareClient.ts',
@@ -103,40 +151,93 @@ test('cloud object keys are deterministic and no frontend Stripe secrets leak', 
   assert.equal(secretPattern.test(source), false);
 });
 
-test('worker checkout, activate, verify, and webhook routes expose safe JSON only', async () => {
+test('app worker no longer serves billing routes and cloud routes expose safe JSON only', async () => {
   const env = {
     AI: { run: async () => ({}) },
-    [`${'STRIPE'}_${'SECRET'}_KEY`]: 'server-secret',
-    STRIPE_WEBHOOK_SECRET: 'webhook-secret',
     SITEPROOF_APP_URL: 'https://siteproof.app',
   };
-  const checkout = await worker.fetch(new Request('https://api.test/api/checkout/create', {
-    method: 'POST',
-    body: JSON.stringify({ plan: 'siteproof_pro', email: 'owner@example.com', deviceId: 'device-1' }),
-  }), env);
-  const checkoutJson = await checkout.json() as Record<string, unknown>;
-  assert.equal(typeof checkoutJson.checkoutUrl, 'string');
-  assert.equal(`${'STRIPE'}_${'SECRET'}_KEY` in checkoutJson, false);
+  const movedRoutes = [
+    new Request('https://api.test/api/checkout/create', { method: 'POST', body: '{}' }),
+    new Request('https://api.test/api/checkout/status?session_id=cs_test'),
+    new Request('https://api.test/api/license/activate', { method: 'POST', body: JSON.stringify({ licenseKey: 'ABC12345', deviceId: 'device-1' }) }),
+    new Request('https://api.test/api/license/bootstrap', { method: 'POST', body: JSON.stringify({ licenseKey: 'ABC12345', deviceId: 'device-1' }) }),
+    new Request('https://api.test/api/license/verify', { method: 'POST', body: JSON.stringify({ licenseKey: 'ABC12345', deviceId: 'device-1' }) }),
+    new Request('https://api.test/api/stripe/webhook', { method: 'POST', body: '{}' }),
+  ];
+  for (const request of movedRoutes) {
+    const response = await worker.fetch(request, env);
+    const json = await response.json() as Record<string, unknown>;
+    assert.equal(response.status, 404);
+    assert.equal(json.error, 'Not found');
+    assert.equal('checkoutUrl' in json, false);
+    assert.equal(json.status, undefined);
+    assert.equal(json.valid, undefined);
+  }
 
-  const activate = await worker.fetch(new Request('https://api.test/api/license/activate', {
+  const uploadUrl = await worker.fetch(new Request('https://api.test/cloud/upload-url', {
     method: 'POST',
-    body: JSON.stringify({ licenseKey: 'ABC12345', deviceId: 'device-1' }),
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      objectId: 'photo-1',
+      objectType: 'photo',
+      visibility: 'private',
+      contentType: 'image/jpeg',
+      fileSize: 123,
+      sha256: 'abc123',
+    }),
   }), env);
-  const activateJson = await activate.json() as Record<string, unknown>;
-  assert.equal(activateJson.status, 'license_pending_verification');
+  const uploadJson = await uploadUrl.json() as Record<string, unknown>;
+  assert.equal(uploadUrl.status, 200);
+  assert.match(String(uploadJson.storageKey), /^owners\/owner-1\/jobs\/job-1\/photo\/photo-1$/);
 
-  const verify = await worker.fetch(new Request('https://api.test/api/license/verify', {
+  const badUpload = await worker.fetch(new Request('https://api.test/cloud/upload-url', {
     method: 'POST',
-    body: JSON.stringify({ licenseKey: 'ABC12345', deviceId: 'device-1' }),
+    body: JSON.stringify({ jobId: 'job-1', objectId: 'x', objectType: 'unknown_type', visibility: 'private', contentType: 'text/plain', fileSize: 1, sha256: 'abc' }),
   }), env);
-  const verifyJson = await verify.json() as Record<string, unknown>;
-  assert.equal(verifyJson.status, 'licensed');
-  assert.equal('licenseKey' in verifyJson, false);
+  assert.equal(badUpload.status, 400);
 
-  const webhook = await worker.fetch(new Request('https://api.test/api/stripe/webhook', {
+  const metadataUpload = await worker.fetch(new Request('https://api.test/api/cloud/upload-url', {
     method: 'POST',
-    headers: { 'stripe-signature': 'test-signature' },
-    body: '{}',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      proofObjectId: 'meta-1',
+      objectType: 'metadata',
+      visibility: 'private',
+      mimeType: 'application/json',
+      filename: 'metadata.json',
+      fileSize: 12,
+      checksum: 'abc123meta',
+    }),
   }), env);
-  assert.equal(webhook.status, 200);
+  const metadataJson = await metadataUpload.json() as Record<string, unknown>;
+  assert.equal(metadataUpload.status, 200);
+  assert.match(String(metadataJson.storageKey), /metadata\/meta-1\.json$/);
+
+  const bidUpload = await worker.fetch(new Request('https://api.test/cloud/upload-url', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      objectId: 'bid-1',
+      objectType: 'bid_report',
+      reportType: 'internal_bid_report',
+      visibility: 'internal_only',
+      contentType: 'application/pdf',
+      fileSize: 456,
+      sha256: 'def456',
+    }),
+  }), env);
+  const bidJson = await bidUpload.json() as Record<string, unknown>;
+  assert.match(String(bidJson.storageKey), /reports\/internal_bid_report\/bid-1\.pdf$/);
+
+  const share = await worker.fetch(new Request('https://api.test/cloud/share-links', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({ jobId: 'job-1' }),
+  }), env);
+  const shareJson = await share.json() as Record<string, unknown>;
+  assert.equal(share.status, 200);
+  assert.equal(Array.isArray(shareJson.objects), true);
 });

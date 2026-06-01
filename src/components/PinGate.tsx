@@ -3,12 +3,14 @@ import { ShieldCheck, Lock, Unlock, ArrowRight, AlertCircle } from 'lucide-react
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface PinGateProps {
   children: React.ReactNode;
 }
 
 export function PinGate({ children }: PinGateProps) {
+  const { t } = useSettings();
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
@@ -59,8 +61,8 @@ export function PinGate({ children }: PinGateProps) {
             <Lock size={40} />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">HQ Restricted</h2>
-            <p className="text-slate-500 text-sm font-medium mt-1">Please enter your 4-6 digit Admin PIN to access business analytics and scheduling.</p>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">{t('pinGate.restrictedTitle')}</h2>
+            <p className="text-slate-500 text-sm font-medium mt-1">{t('pinGate.restrictedHelp')}</p>
           </div>
         </div>
 
@@ -86,7 +88,7 @@ export function PinGate({ children }: PinGateProps) {
             disabled={pin.length < 4}
             className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-30 shadow-xl shadow-black/10"
           >
-            Authorize Access <Unlock size={20} />
+            {t('pinGate.authorizeAccess')} <Unlock size={20} />
           </button>
 
           {error && (
@@ -95,7 +97,7 @@ export function PinGate({ children }: PinGateProps) {
               animate={{ opacity: 1, y: 0 }}
               className="text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1"
             >
-              <AlertCircle size={14} /> Incorrect PIN
+              <AlertCircle size={14} /> {t('pinGate.incorrectPin')}
             </motion.div>
           )}
         </div>

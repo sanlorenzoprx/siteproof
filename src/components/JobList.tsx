@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Mic, Play, ShieldCheck, MapPin, Calendar, ChevronRight } from 'lucide-react';
+import { Plus, Search, Mic, Play, ShieldCheck, MapPin, Calendar, Briefcase } from 'lucide-react';
 import { SiteProofDataService } from '../services/siteProofDataService';
 import { JobWorkflowService } from '../services/jobWorkflowService';
-import { Job } from '../types';
+import { Job } from '../domain/models';
 import { format } from 'date-fns';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -45,7 +45,6 @@ export function JobList() {
     if (!quickInput.trim()) return;
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
-      alert(t('license.trialEndedMessage'));
       navigate('/license');
       return;
     }
@@ -54,14 +53,13 @@ export function JobList() {
     navigate(`/job/${newJob.id}`);
   };
 
-  const startJob = async () => {
+  const startJob = async (mode: 'bid' | 'approved' = 'approved') => {
     const license = await LicenseService.getLicenseState();
     if (!LicenseService.canCreateJob(license)) {
-      alert(t('license.trialEndedMessage'));
       navigate('/license');
       return;
     }
-    navigate('/create');
+    navigate(`/create?mode=${mode}`);
   };
 
   const filteredJobs = jobs.filter(j => 
@@ -73,16 +71,33 @@ export function JobList() {
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-5xl font-black text-slate-900 tracking-tighter italic uppercase">{t('jobs.fieldJobs')}</h1>
-          <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">{t('jobs.tagline')}</p>
+          <h1 className="text-5xl font-black text-slate-900 tracking-tighter italic uppercase">SiteProof</h1>
+          <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">{t('jobs.simpleTagline')}</p>
         </div>
-        <button
-          onClick={startJob}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-5 rounded-[30px] font-black uppercase italic tracking-widest text-sm shadow-2xl shadow-blue-500/30 active:scale-95 transition-all"
-        >
-          <Plus size={20} className="stroke-[3px]" /> {t('jobs.startJob')}
-        </button>
       </header>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button
+          onClick={() => void startJob('bid')}
+          className="min-h-28 bg-slate-900 hover:bg-black text-white px-6 py-6 rounded-[30px] font-black uppercase tracking-widest text-sm shadow-xl active:scale-95 transition-all flex items-center justify-between"
+        >
+          <span className="text-left">
+            <span className="block text-xl">{t('jobs.bidJob')}</span>
+            <span className="block mt-1 text-[10px] text-white/60">{t('jobs.bidJobHelp')}</span>
+          </span>
+          <Briefcase size={28} />
+        </button>
+        <button
+          onClick={() => void startJob('approved')}
+          className="min-h-28 bg-blue-600 hover:bg-blue-700 text-white px-6 py-6 rounded-[30px] font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-500/30 active:scale-95 transition-all flex items-center justify-between"
+        >
+          <span className="text-left">
+            <span className="block text-xl">{t('jobs.startApprovedJob')}</span>
+            <span className="block mt-1 text-[10px] text-blue-100">{t('jobs.startApprovedJobHelp')}</span>
+          </span>
+          <Plus size={28} />
+        </button>
+      </div>
 
       {/* One-Tap Quick Start */}
       <div className="flex gap-4">
@@ -91,14 +106,14 @@ export function JobList() {
           value={quickInput}
           onChange={(e) => setQuickInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleQuickLaunch()}
-          placeholder="{t('jobs.quickStart')}"
+          placeholder={t('jobs.quickStart')}
           className="flex-1 bg-white border border-slate-200 rounded-3xl px-8 py-5 text-xl font-medium focus:outline-none focus:ring-4 focus:ring-blue-100 placeholder:text-slate-300"
         />
         <button
           onClick={handleQuickLaunch}
           className="bg-slate-900 text-white px-10 rounded-3xl font-semibold flex items-center gap-3 hover:bg-black transition-all active:scale-95"
         >
-          <Mic size={24} /> Go
+          <Mic size={24} /> {t('jobs.go')}
         </button>
       </div>
 
@@ -126,7 +141,7 @@ export function JobList() {
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={24} />
           <input
             type="text"
-            placeholder="{t('jobs.search')}"
+            placeholder={t('jobs.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-16 pr-6 py-6 bg-white border border-slate-200 rounded-[35px] focus:outline-none focus:ring-4 focus:ring-blue-50/50 focus:border-blue-200 transition-all text-lg font-medium"
@@ -145,7 +160,7 @@ export function JobList() {
             {t('jobs.firstJobPrompt')}
           </p>
           <button
-            onClick={startJob}
+            onClick={() => void startJob('approved')}
             className="mt-10 bg-blue-600 text-white px-12 py-5 rounded-[30px] text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95"
           >
             + {t('jobs.startFirstJob')}
@@ -178,6 +193,7 @@ export function JobList() {
                 <p className="text-slate-500 font-medium truncate mb-2">{job.address}</p>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500 uppercase tracking-widest">{photos[job.id] || 0} {t('jobs.photos')}</span>
+                  {job.mode === 'bid' && <span className="text-[10px] font-black bg-amber-50 px-2 py-1 rounded text-amber-700 uppercase tracking-widest">{t('jobs.bid')}</span>}
                   {photos[job.id] >= 5 && <span className="text-[10px] font-black bg-blue-50 px-2 py-1 rounded text-blue-600 uppercase tracking-widest italic">{t('jobs.proofed')}</span>}
                 </div>
              </div>

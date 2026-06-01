@@ -1,4 +1,4 @@
-import { JobPhoto, VoiceNote } from '../types';
+import { JobPhoto, JobVideo, VoiceNote } from '../domain/models';
 import { ExportAssembly } from '../features/export/exportAssembler';
 import { Job, MediaAsset, ProofObject, TimelineEvent, nowIso } from '../db/schema';
 import { proofRepository, timelineRepository } from '../db/repositories';
@@ -138,6 +138,41 @@ export class ProofIntegrityService {
     note.integrityStatus = 'verified';
     note.integrityStampedAt = stamp.computedAt;
     note.custodyLog = [...(note.custodyLog ?? []), { at: stamp.computedAt, actor, action: 'hashed', note: 'Voice note proof hash generated locally.' }];
+    return stamp;
+  }
+
+  static async stampVideo(video: JobVideo, actor?: string | null): Promise<IntegrityStamp> {
+    const source = await blobOrDataHash(video.blob, video.localUrl, `${video.jobId}:${video.category}:${video.timestamp}`);
+    const canonical = stableStringify({
+      canonicalVersion: 'siteproof-proof-v1',
+      type: 'video',
+      jobId: video.jobId,
+      category: video.category,
+      requirementId: video.requirementId ?? null,
+      stageId: video.stageId ?? null,
+      timestamp: video.timestamp,
+      latitude: video.latitude ?? null,
+      longitude: video.longitude ?? null,
+      notes: video.notes ?? null,
+      durationMs: video.durationMs,
+      mimeType: video.mimeType,
+      fileSize: video.fileSize,
+      sourceHash: source.hash,
+    });
+    const stamp: IntegrityStamp = {
+      proofId: video.id,
+      hash: await sha256Hex(canonical),
+      algorithm: 'SHA-256',
+      canonicalVersion: 'siteproof-proof-v1',
+      computedAt: nowIso(),
+      sourceBytes: source.bytes,
+      previousHash: video.proofHash ?? null,
+    };
+    video.proofHash = stamp.hash;
+    video.proofHashAlgorithm = stamp.algorithm;
+    video.integrityStatus = 'verified';
+    video.integrityStampedAt = stamp.computedAt;
+    video.custodyLog = [...(video.custodyLog ?? []), { at: stamp.computedAt, actor, action: 'hashed', note: 'Video proof hash generated locally.' }];
     return stamp;
   }
 

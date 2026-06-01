@@ -1,4 +1,4 @@
-import { Job, JobPhoto, VoiceNote, License, BusinessProfile, UserProfile, SyncState } from '../types';
+import { Job, JobPhoto, JobVideo, VoiceNote, License, BusinessProfile, UserProfile, SyncState } from '../domain/models';
 import { RuntimeOrchestrator, RuntimeSnapshot } from './runtimeOrchestrator';
 import { AppSettingsService } from './appSettingsService';
 import { jobRepository, customerRepository, proofRepository, mediaRepository, voiceNoteRepository, workflowStageRepository } from '../db/repositories';
@@ -34,6 +34,7 @@ async function runtimeJobToUiJob(job: RuntimeJob): Promise<Job> {
   const customer = job.customer_id ? await customerRepository.getById(job.customer_id) : undefined;
   return {
     id: job.job_id,
+    mode: job.mode ?? 'approved',
     customerName: customer?.name || job.job_title || 'Field Job',
     address: runtimeAddressToString(job),
     jobType: job.job_type || job.trade_specialty || job.trade || 'Field Job',
@@ -46,6 +47,16 @@ async function runtimeJobToUiJob(job: RuntimeJob): Promise<Job> {
     status: runtimeStatusToLegacy(job.status),
     syncStatus: job.sync_state === 'synced' ? 'SYNCED' : job.sync_state === 'failed' ? 'ERROR' : 'PENDING',
     notes: job.scope_summary || '',
+    bidScopeSummary: job.scope_summary || '',
+    bidCustomerNotes: job.bid_customer_summary ?? undefined,
+    bidInternalNotes: job.bid_internal_notes ?? undefined,
+    bidMetrics: (Array.isArray(job.bid_metrics) ? job.bid_metrics : []) as Job['bidMetrics'],
+    bidAssumptions: job.bid_assumptions ?? undefined,
+    bidExclusions: job.bid_exclusions ?? undefined,
+    bidPaymentTerms: job.bid_payment_terms ?? undefined,
+    bidEstimateExpiresAt: job.bid_estimate_expires_at ?? undefined,
+    bidFinalEstimateText: job.bid_final_estimate_text ?? undefined,
+    bidEstimateApprovedForCustomer: job.bid_estimate_approved_for_customer ?? false,
     uiLanguageAtCreation: job.ui_language_at_creation,
     defaultCaptureLanguage: job.default_capture_language,
     defaultExportLanguage: job.default_export_language,
@@ -260,6 +271,12 @@ export class SiteProofDataService {
   static async savePhoto(photo: JobPhoto): Promise<void> {
     await RuntimeOrchestrator.savePhotoFromLegacy(photo).catch((error) => {
       console.warn('Runtime orchestration photo capture failed:', error);
+    });
+  }
+
+  static async saveVideo(video: JobVideo): Promise<void> {
+    await RuntimeOrchestrator.saveVideoFromLegacy(video).catch((error) => {
+      console.warn('Runtime orchestration video capture failed:', error);
     });
   }
 

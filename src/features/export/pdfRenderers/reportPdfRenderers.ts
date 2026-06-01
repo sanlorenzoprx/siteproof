@@ -325,6 +325,35 @@ function addSummary(layout: PdfLayout, context: ReportRenderContext) {
   ]);
 }
 
+function addBidSummary(layout: PdfLayout, context: ReportRenderContext) {
+  const bid = context.assembly.bid;
+  addSectionTitle(layout, tr(layout.language, 'reports.app.sections.bidSummary'));
+  if (!bid) {
+    addParagraph(layout, tr(layout.language, 'reports.app.missing.notRecorded'));
+    return;
+  }
+
+  const internal = context.definition.type === SiteProofReportType.INTERNAL_BID_REPORT;
+  addKeyValueBlock(layout, [
+    [tr(layout.language, 'reports.app.labels.scopeSummary'), bid.scopeSummary],
+    [tr(layout.language, 'reports.app.labels.customerSummary'), bid.customerSummary],
+    ...(internal ? [[tr(layout.language, 'reports.app.labels.internalNotes'), bid.internalNotes] as [string, string | number | undefined | null]] : []),
+    [tr(layout.language, 'reports.app.labels.finalEstimate'), bid.finalEstimateText ?? (bid.estimatedTotal ? `$${bid.estimatedTotal.toLocaleString()}` : undefined)],
+    [tr(layout.language, 'reports.app.labels.paymentTerms'), bid.paymentTerms],
+    [tr(layout.language, 'reports.app.labels.estimateExpiration'), bid.estimateExpiresAt],
+    [tr(layout.language, 'reports.app.labels.assumptions'), bid.assumptions.join('\n')],
+    [tr(layout.language, 'reports.app.labels.exclusions'), bid.exclusions.join('\n')],
+  ]);
+
+  const metrics = bid.metrics.length ? bid.metrics : [];
+  addKeyValueBlock(layout, metrics.length
+    ? metrics.map((metric) => [
+      `${metric.label}${internal && metric.visibility !== 'customer' ? ` (${metric.visibility})` : ''}`,
+      [metric.value, metric.unit].filter(Boolean).join(' '),
+    ])
+    : [[tr(layout.language, 'reports.app.labels.metrics'), tr(layout.language, 'reports.app.missing.notRecorded')]]);
+}
+
 function renderSections(layout: PdfLayout, context: ReportRenderContext, sections: ReportSection[]) {
   const { assembly, integrityManifest, signatureDataUrl } = context;
   const completedStages = assembly.stages.filter((stage) => stage.status === 'complete').length;
@@ -348,6 +377,7 @@ function renderSections(layout: PdfLayout, context: ReportRenderContext, section
       addSectionTitle(layout, tr(layout.language, 'reports.app.sections.paymentNote'));
       addParagraph(layout, tr(layout.language, 'reports.app.disclaimers.payment'));
     }
+    if (section === 'bid_summary') addBidSummary(layout, context);
     if (section === 'payment_readiness') {
       addKeyValueBlock(layout, [
         [tr(layout.language, 'reports.app.labels.completionProof'), assembly.selectedProofIds.length],
@@ -428,6 +458,10 @@ export function renderAppReportIntoDocument(doc: jsPDF, context: ReportRenderCon
       break;
     case SiteProofReportType.OFFICE_INTERNAL_RECORD:
       renderDailyJobProofSections(layout, context);
+      break;
+    case SiteProofReportType.INTERNAL_BID_REPORT:
+    case SiteProofReportType.CUSTOMER_BID_REPORT:
+      renderSections(layout, context, context.definition.sections);
       break;
     default:
       renderDailyJobProofSections(layout, context);

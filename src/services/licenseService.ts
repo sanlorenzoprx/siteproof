@@ -8,12 +8,17 @@ export type LicenseStatus =
   | 'license_pending_verification'
   | 'offline_grace'
   | 'unlicensed'
-  | 'revoked';
+  | 'revoked'
+  | 'expired'
+  | 'device_limit_exceeded';
 
 export interface SiteProofLicenseState {
   status: LicenseStatus;
   trialStartedAt?: string;
   trialEndsAt?: string;
+  trialJobLimit?: number;
+  trialJobsCreatedCount?: number;
+  trialConsumedJobIds?: string[];
   licenseKey?: string;
   licenseId?: string;
   activatedAt?: string;
@@ -21,11 +26,18 @@ export interface SiteProofLicenseState {
   lastVerificationAttemptAt?: string;
   offlineGraceEndsAt?: string;
   deviceId: string;
+  deviceLabel?: string;
   appVersion?: string;
   errorMessage?: string;
+  tier?: string;
   planId?: string;
   customerEmail?: string;
+  seatLimit?: number;
   cloudEntitled?: boolean;
+  cloudVaultEnabled?: boolean;
+  brandedReportsEnabled?: boolean;
+  currentPeriodEndsAt?: string;
+  verificationCredential?: string;
 }
 
 export type LicenseState = SiteProofLicenseState;
@@ -38,6 +50,7 @@ export interface LicenseVerificationResult {
 const LICENSE_STATE_KEY = 'license_state_v2';
 const DEVICE_ID_KEY = 'license_device_id_v1';
 const TRIAL_DAYS = 30;
+const TRIAL_JOB_LIMIT = 3;
 const OFFLINE_GRACE_DAYS = 14;
 
 function nowIso() {
@@ -61,10 +74,18 @@ async function getOrCreateDeviceId(): Promise<string> {
   return deviceId;
 }
 
+function getDeviceLabel(): string {
+  const platform = typeof navigator !== 'undefined' ? navigator.platform || 'web' : 'web';
+  return `SiteProof ${platform}`.slice(0, 80);
+}
+
 function normalizeStatus(state: SiteProofLicenseState, now = new Date()): SiteProofLicenseState {
-  if (state.status === 'revoked') return state;
+  if (['revoked', 'expired', 'device_limit_exceeded'].includes(state.status)) return state;
   if (state.status === 'trial_active' && state.trialEndsAt && parseTime(state.trialEndsAt) <= now.getTime()) {
-    return { ...state, status: 'trial_expired' };
+    return { ...state, status: 'trial_expired', errorMessage: 'Your 30-day field trial has ended. Upgrade to keep creating job proof packages.' };
+  }
+  if (state.status === 'trial_active' && (state.trialJobsCreatedCount ?? 0) >= (state.trialJobLimit ?? TRIAL_JOB_LIMIT)) {
+    return { ...state, status: 'trial_expired', errorMessage: 'Your 3 free jobs are used. Upgrade to keep creating job proof packages.' };
   }
   if (state.status === 'offline_grace' && state.offlineGraceEndsAt && parseTime(state.offlineGraceEndsAt) <= now.getTime()) {
     return { ...state, status: 'license_pending_verification', errorMessage: 'Offline grace expired. Please verify license.' };
@@ -72,14 +93,30 @@ function normalizeStatus(state: SiteProofLicenseState, now = new Date()): SitePr
   return state;
 }
 
+function statusMessage(status: LicenseStatus): string | undefined {
+  if (status === 'revoked') return 'License revoked. Contact support if this looks wrong.';
+  if (status === 'expired') return 'License expired. Renew SiteProof to continue paid features.';
+  if (status === 'device_limit_exceeded') return 'Device limit reached. Remove another device or contact support.';
+  if (status === 'license_pending_verification') return 'License saved. Verification will complete when internet is available.';
+  return undefined;
+}
+
 export class LicenseService {
+  static readonly TRIAL_JOB_LIMIT = TRIAL_JOB_LIMIT;
+
   static async createTrialState(now = new Date()): Promise<SiteProofLicenseState> {
     return {
       status: 'trial_active',
       trialStartedAt: now.toISOString(),
       trialEndsAt: addDays(now, TRIAL_DAYS),
+      trialJobLimit: TRIAL_JOB_LIMIT,
+      trialJobsCreatedCount: 0,
+      trialConsumedJobIds: [],
       deviceId: await getOrCreateDeviceId(),
+      deviceLabel: getDeviceLabel(),
       cloudEntitled: false,
+      cloudVaultEnabled: false,
+      brandedReportsEnabled: false,
     };
   }
 
@@ -94,9 +131,24 @@ export class LicenseService {
   static async getLicenseState(now = new Date()): Promise<SiteProofLicenseState> {
     const saved = await AppSettingsService.getValue<SiteProofLicenseState | null>(LICENSE_STATE_KEY, null);
     if (!saved) return this.createTrialIfNeeded(now);
-    const withDevice = { ...saved, deviceId: saved.deviceId || await getOrCreateDeviceId() };
+    const consumedJobIds = saved.trialConsumedJobIds ?? [];
+    const withDevice = {
+      ...saved,
+      trialJobLimit: saved.trialJobLimit ?? TRIAL_JOB_LIMIT,
+      trialJobsCreatedCount: saved.trialJobsCreatedCount ?? consumedJobIds.length,
+      trialConsumedJobIds: consumedJobIds,
+      deviceId: saved.deviceId || await getOrCreateDeviceId(),
+      deviceLabel: saved.deviceLabel || getDeviceLabel(),
+    };
     const normalized = normalizeStatus(withDevice, now);
-    if (normalized.status !== saved.status || normalized.deviceId !== saved.deviceId) await this.saveState(normalized);
+    if (
+      normalized.status !== saved.status ||
+      normalized.deviceId !== saved.deviceId ||
+      normalized.deviceLabel !== saved.deviceLabel ||
+      normalized.trialJobLimit !== saved.trialJobLimit ||
+      normalized.trialJobsCreatedCount !== saved.trialJobsCreatedCount ||
+      normalized.trialConsumedJobIds !== saved.trialConsumedJobIds
+    ) await this.saveState(normalized);
     return normalized;
   }
 
@@ -114,8 +166,28 @@ export class LicenseService {
     return Math.max(0, Math.ceil((parseTime(end) - now.getTime()) / (24 * 60 * 60 * 1000)));
   }
 
+  static getTrialJobsUsed(state: SiteProofLicenseState): number {
+    return state.trialJobsCreatedCount ?? state.trialConsumedJobIds?.length ?? 0;
+  }
+
+  static getTrialJobLimit(state: SiteProofLicenseState): number {
+    return state.trialJobLimit ?? TRIAL_JOB_LIMIT;
+  }
+
+  static getTrialStatusMessage(state: SiteProofLicenseState, now = new Date()): string {
+    if (state.status === 'trial_expired' && this.getTrialJobsUsed(state) >= this.getTrialJobLimit(state)) {
+      return 'Your 3 free jobs are used. Upgrade to keep creating job proof packages.';
+    }
+    if (state.status === 'trial_expired' || (state.trialEndsAt && parseTime(state.trialEndsAt) <= now.getTime())) {
+      return 'Your 30-day field trial has ended. Upgrade to keep creating job proof packages.';
+    }
+    return `${this.getTrialJobsUsed(state)} of ${this.getTrialJobLimit(state)} free jobs used. ${this.getDaysRemaining(state, now)} days left in field trial.`;
+  }
+
   static canCreateJob(state: SiteProofLicenseState): boolean {
-    return ['trial_active', 'licensed', 'license_pending_verification', 'offline_grace'].includes(state.status);
+    if (state.status === 'licensed' || state.status === 'license_pending_verification' || state.status === 'offline_grace') return true;
+    if (state.status !== 'trial_active') return false;
+    return this.getDaysRemaining(state) > 0 && this.getTrialJobsUsed(state) < this.getTrialJobLimit(state);
   }
 
   static canGenerateReport(state: SiteProofLicenseState): boolean {
@@ -123,15 +195,31 @@ export class LicenseService {
   }
 
   static canUseCloudFeatures(state: SiteProofLicenseState): boolean {
-    return state.status === 'licensed' && state.cloudEntitled === true;
+    return state.status === 'licensed' && (state.cloudVaultEnabled === true || state.cloudEntitled === true);
   }
 
-  static async markPendingVerification(licenseKey: string): Promise<SiteProofLicenseState> {
+  static async recordTrialJobCreated(jobId: string): Promise<SiteProofLicenseState> {
+    const current = await this.getLicenseState();
+    if (current.status !== 'trial_active') return current;
+    const consumed = current.trialConsumedJobIds ?? [];
+    if (consumed.includes(jobId)) return current;
+    const nextConsumed = [...consumed, jobId];
+    const next = normalizeStatus({
+      ...current,
+      trialJobLimit: current.trialJobLimit ?? TRIAL_JOB_LIMIT,
+      trialConsumedJobIds: nextConsumed,
+      trialJobsCreatedCount: nextConsumed.length,
+    });
+    await this.saveState(next);
+    return next;
+  }
+
+  static async markPendingVerification(licenseKey?: string): Promise<SiteProofLicenseState> {
     const current = await this.getLicenseState();
     const next: SiteProofLicenseState = {
       ...current,
       status: 'license_pending_verification',
-      licenseKey,
+      licenseKey: licenseKey ?? current.licenseKey,
       activatedAt: current.activatedAt ?? nowIso(),
       lastVerificationAttemptAt: nowIso(),
       errorMessage: 'License saved. Verification will complete when internet is available.',
@@ -147,12 +235,71 @@ export class LicenseService {
     return next;
   }
 
+  static mapActivationResponse(
+    current: SiteProofLicenseState,
+    result: Partial<SiteProofLicenseState> & {
+      valid?: boolean;
+      status?: LicenseStatus;
+      seatsIncluded?: number;
+      licenseKey?: string;
+      verificationCredential?: string;
+      cloudEntitled?: boolean;
+      cloudVaultEnabled?: boolean;
+      error?: string;
+    },
+    verifiedAt = nowIso(),
+  ): SiteProofLicenseState {
+    const status = result.status === 'licensed' || result.valid === true
+      ? 'licensed'
+      : result.status === 'revoked' || result.status === 'expired' || result.status === 'device_limit_exceeded'
+        ? result.status
+        : 'license_pending_verification';
+    return {
+      ...current,
+      ...result,
+      status,
+      licenseKey: result.licenseKey ?? current.licenseKey,
+      verificationCredential: result.verificationCredential ?? current.verificationCredential,
+      seatLimit: result.seatLimit ?? result.seatsIncluded ?? current.seatLimit,
+      cloudVaultEnabled: result.cloudVaultEnabled ?? result.cloudEntitled ?? current.cloudVaultEnabled,
+      cloudEntitled: result.cloudEntitled ?? result.cloudVaultEnabled ?? current.cloudEntitled,
+      lastVerificationAttemptAt: verifiedAt,
+      lastVerifiedAt: status === 'licensed' || status === 'revoked' || status === 'expired' || status === 'device_limit_exceeded' ? verifiedAt : current.lastVerifiedAt,
+      offlineGraceEndsAt: status === 'licensed' ? undefined : current.offlineGraceEndsAt,
+      errorMessage: status === 'licensed' ? undefined : result.error ?? statusMessage(status),
+    };
+  }
+
   static async activateLicense(licenseKey: string): Promise<SiteProofLicenseState> {
     const pending = await this.markPendingVerification(licenseKey);
     try {
-      await LicenseApiClient.activate(pending);
-      const verified = await this.verifyLicense();
-      return verified.state;
+      const activated = LicenseService.mapActivationResponse(pending, await LicenseApiClient.activate(pending));
+      await this.saveState(activated);
+      if (activated.status === 'licensed') {
+        const verified = await this.verifyLicense();
+        return verified.state;
+      }
+      return activated;
+    } catch (error) {
+      const next = { ...pending, errorMessage: error instanceof Error ? error.message : pending.errorMessage };
+      await this.saveState(next);
+      return next;
+    }
+  }
+
+  static async activateToken(activationToken: string): Promise<SiteProofLicenseState> {
+    const pending = await this.markPendingVerification();
+    try {
+      const activated = LicenseService.mapActivationResponse(
+        pending,
+        await LicenseApiClient.activateWithToken(activationToken, pending.deviceId, pending.deviceLabel),
+      );
+      await this.saveState(activated);
+      if (activated.status === 'licensed' && activated.licenseKey) {
+        const verified = await this.verifyLicense();
+        return verified.state;
+      }
+      return activated;
     } catch (error) {
       const next = { ...pending, errorMessage: error instanceof Error ? error.message : pending.errorMessage };
       await this.saveState(next);
@@ -173,12 +320,12 @@ export class LicenseService {
 
     try {
       const result = await verifier(current);
-      const revoked = result.status === 'revoked';
+      const terminal = result.status === 'revoked' || result.status === 'expired' || result.status === 'device_limit_exceeded';
       const valid = result.valid === true || result.status === 'licensed';
-      const next: SiteProofLicenseState = revoked
-        ? { ...current, ...result, status: 'revoked', lastVerificationAttemptAt: attemptedAt, lastVerifiedAt: attemptedAt }
+      const next: SiteProofLicenseState = terminal
+        ? LicenseService.mapActivationResponse(current, result, attemptedAt)
         : valid
-          ? { ...current, ...result, status: 'licensed', lastVerificationAttemptAt: attemptedAt, lastVerifiedAt: attemptedAt, offlineGraceEndsAt: undefined, errorMessage: undefined }
+          ? LicenseService.mapActivationResponse(current, result, attemptedAt)
           : { ...current, status: 'license_pending_verification', lastVerificationAttemptAt: attemptedAt, errorMessage: 'License verification did not complete.' };
       await this.saveState(next);
       return { ok: next.status === 'licensed', state: next };

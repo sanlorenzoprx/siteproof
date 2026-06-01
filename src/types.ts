@@ -1,8 +1,10 @@
 export type JobStatus = 'INCOMING' | 'ACTIVE' | 'WAITING' | 'INSPECTION' | 'COMPLETED' | 'ARCHIVED';
 export type SyncStatus = 'PENDING' | 'SYNCED' | 'ERROR';
+export type JobMode = 'bid' | 'approved';
 
 export interface Job {
   id: string;
+  mode?: JobMode;
   customerName: string;
   address: string;
   jobType: string;
@@ -22,6 +24,45 @@ export interface Job {
   uiLanguageAtCreation?: 'en' | 'es';
   defaultCaptureLanguage?: 'en' | 'es';
   defaultExportLanguage?: 'en' | 'es';
+  bidMetrics?: BidMetric[];
+  bidAssumptions?: string;
+  bidExclusions?: string;
+  bidInternalNotes?: string;
+  bidCustomerNotes?: string;
+  bidScopeSummary?: string;
+  bidPaymentTerms?: string;
+  bidEstimateExpiresAt?: string;
+  bidFinalEstimateText?: string;
+  bidEstimateApprovedForCustomer?: boolean;
+}
+
+export type BidVisibility = 'internal' | 'customer' | 'hidden';
+
+export interface BidMetric {
+  metricId: string;
+  label: string;
+  value?: string;
+  unit?: string;
+  type: 'text' | 'number' | 'yes-no' | 'select' | 'photo-required' | 'document-required';
+  visibility: BidVisibility;
+  required: boolean;
+  exportSection?: string;
+}
+
+export interface BidRecord {
+  bidId: string;
+  jobId: string;
+  privacy: 'internal_only' | 'customer_export_ready';
+  scopeSummary: string;
+  internalNotes: string;
+  customerSummary: string;
+  metrics: BidMetric[];
+  assumptions: string[];
+  exclusions: string[];
+  estimatedTotal?: number | null;
+  paymentTerms?: string | null;
+  estimateExpiresAt?: string | null;
+  finalEstimateText?: string | null;
 }
 
 export interface CustodyLogEntry {
@@ -62,6 +103,35 @@ export interface JobPhoto {
   custodyLog?: CustodyLogEntry[];
   language?: 'en' | 'es';
   cloudObjectKey?: string;
+}
+
+export interface JobVideo {
+  id: string;
+  jobId: string;
+  blob: Blob;
+  localUrl?: string;
+  thumbnailDataUrl?: string;
+  thumbnailBlob?: Blob;
+  durationMs: number;
+  mimeType: 'video/webm' | 'video/mp4' | string;
+  fileSize: number;
+  category: string;
+  requirementId?: string;
+  stageId?: string;
+  timestamp: number;
+  latitude?: number;
+  longitude?: number;
+  notes?: string;
+  syncStatus?: SyncStatus;
+  proofHash?: string;
+  proofHashAlgorithm?: 'SHA-256';
+  integrityStatus?: 'verified' | 'modified' | 'missing_hash' | 'unavailable';
+  integrityStampedAt?: string;
+  custodyLog?: CustodyLogEntry[];
+  language?: 'en' | 'es';
+  cloudObjectKey?: string;
+  thumbnailCloudObjectKey?: string;
+  cloudSyncState?: 'local_only' | 'queued' | 'syncing' | 'synced' | 'error';
 }
 
 export interface VoiceNote {

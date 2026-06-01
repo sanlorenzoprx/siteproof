@@ -3,6 +3,7 @@ import { Sparkles, Check, X, RefreshCw, Loader2 } from 'lucide-react';
 import { VoiceDictation } from './VoiceDictation';
 import { AIService } from '../services/aiService';
 import { cn } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface BusinessOverviewFieldProps {
   value: string;
@@ -12,6 +13,7 @@ interface BusinessOverviewFieldProps {
 }
 
 export function BusinessOverviewField({ value, companyName, onChange, isDark }: BusinessOverviewFieldProps) {
+  const { t } = useSettings();
   const [isGenerating, setIsGenerating] = useState(false);
   const [reviewBio, setReviewBio] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export function BusinessOverviewField({ value, companyName, onChange, isDark }: 
       const bio = await AIService.generateBusinessBio(transcript, companyName);
       setReviewBio(bio);
     } catch (err) {
-      setError("Failed to generate bio. Try again.");
+      setError(t('businessOverview.generateFailed'));
       console.error(err);
     } finally {
       setIsGenerating(false);
@@ -38,13 +40,13 @@ export function BusinessOverviewField({ value, companyName, onChange, isDark }: 
         "text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-1.5",
         isDark ? "text-slate-500" : "text-slate-500"
       )}>
-        Business Overview
+        {t('businessOverview.label')}
         {isGenerating && <Loader2 className="w-2.5 h-2.5 animate-spin text-blue-500" />}
       </label>
       
       <div className="relative group">
         <textarea 
-          placeholder="Our mission, services, and commitment..."
+          placeholder={t('businessOverview.placeholder')}
           value={currentBio}
           onChange={(e) => {
             if (reviewBio !== null) setReviewBio(e.target.value);
@@ -78,14 +80,14 @@ export function BusinessOverviewField({ value, companyName, onChange, isDark }: 
                   setReviewBio(null);
                 }}
                 className="p-1.5 rounded-lg bg-green-500 text-white shadow-lg hover:bg-green-600 transition-all scale-90"
-                title="Accept AI Bio"
+                title={t('businessOverview.accept')}
               >
                 <Check size={16} />
               </button>
               <button 
                 onClick={() => setReviewBio(null)}
                 className="p-1.5 rounded-lg bg-red-500 text-white shadow-lg hover:bg-red-600 transition-all scale-90"
-                title="Reject"
+                title={t('businessOverview.reject')}
               >
                 <X size={16} />
               </button>
@@ -101,7 +103,7 @@ export function BusinessOverviewField({ value, companyName, onChange, isDark }: 
           )}>
             <Sparkles size={12} className="text-blue-500" />
             <span className="text-[10px] font-medium italic">
-              Speak naturally about your services & awards, AI will summarize.
+              {t('businessOverview.hint')}
             </span>
           </div>
         )}
@@ -109,7 +111,7 @@ export function BusinessOverviewField({ value, companyName, onChange, isDark }: 
         {reviewBio !== null && (
           <div className="absolute -top-7 right-0 left-0 flex justify-center">
             <span className="bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider animate-bounce shadow-lg">
-              Review AI Suggestion
+              {t('businessOverview.reviewSuggestion')}
             </span>
           </div>
         )}

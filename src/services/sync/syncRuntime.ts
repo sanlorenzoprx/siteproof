@@ -3,6 +3,7 @@ import { SiteProofDataService } from '../siteProofDataService';
 import { syncRepository } from '../../db/repositories/syncRepository';
 import { StoreName, SyncOperation, SyncOperationStatus, nowIso } from '../../db/schema';
 import { withStore } from '../../db/indexedDb';
+import { recordSyncConflict, resolveLastWriteWins } from './conflictResolution';
 
 export interface SyncRuntimeSnapshot {
   isSyncing: boolean;
@@ -20,6 +21,11 @@ export interface SyncRuntimeSnapshot {
 }
 
 type Listener = (snapshot: SyncRuntimeSnapshot) => void;
+type ConflictResponseItem = {
+  entityType?: SyncOperation['entity_type'];
+  entityId?: string;
+  remoteEntity?: Record<string, unknown>;
+};
 
 const ENTITY_STORE: Partial<Record<SyncOperation['entity_type'], { store: StoreName; idField: string }>> = {
   company_profile: { store: 'company_profiles', idField: 'company_id' },
@@ -124,12 +130,25 @@ class SyncRuntimeImpl {
       const operations = ready.slice(0, 25);
       await Promise.all(operations.map((op) => syncRepository.markRunning(op.operation_id)));
       await this.refreshSnapshot({ isSyncing: true });
+      const settled = await Promise.allSettled(
+        operations.map(async (op) => {
+          const syncResponse = await CloudService.syncRuntimeOperations([op]);
+          const remoteConflict = this.findConflictForOperation(syncResponse, op);
+          if (remoteConflict?.remoteEntity) {
+            await this.resolveConflictForOperation(op, remoteConflict.remoteEntity);
+          } else {
+            await this.markEntitySynced(op);
+          }
+          await syncRepository.markCompleted(op.operation_id);
+        })
+      );
 
-      await CloudService.syncRuntimeOperations(operations);
-
-      for (const op of operations) {
-        await this.markEntitySynced(op);
-        await syncRepository.markCompleted(op.operation_id);
+      for (let i = 0; i < settled.length; i += 1) {
+        const result = settled[i];
+        if (result.status === 'rejected') {
+          const message = result.reason instanceof Error ? result.reason.message : 'Unknown sync error';
+          await syncRepository.markFailed(operations[i].operation_id, message);
+        }
       }
 
       const stats = await syncRepository.getStats();
@@ -198,6 +217,63 @@ class SyncRuntimeImpl {
         });
       };
       return request;
+    }).catch(() => undefined);
+  }
+
+  private findConflictForOperation(syncResponse: unknown, op: SyncOperation): ConflictResponseItem | null {
+    if (!syncResponse || typeof syncResponse !== 'object') return null;
+    const conflicts = (syncResponse as { conflicts?: unknown }).conflicts;
+    if (!Array.isArray(conflicts)) return null;
+
+    const match = conflicts.find((item) => {
+      if (!item || typeof item !== 'object') return false;
+      const candidate = item as ConflictResponseItem;
+      return candidate.entityType === op.entity_type && candidate.entityId === op.entity_id;
+    });
+    return (match as ConflictResponseItem) || null;
+  }
+
+  private async resolveConflictForOperation(op: SyncOperation, remoteEntity: Record<string, unknown>): Promise<void> {
+    const mapping = ENTITY_STORE[op.entity_type];
+    if (!mapping || op.operation_type === 'delete') return;
+
+    const localEntity = await withStore<Record<string, unknown> | undefined>(mapping.store, 'readonly', (store) => {
+      return store.get(op.entity_id);
+    }).catch(() => undefined);
+    if (!localEntity) {
+      await this.markEntitySynced(op);
+      return;
+    }
+
+    const result = resolveLastWriteWins(localEntity, remoteEntity);
+    await recordSyncConflict({
+      entityType: op.entity_type,
+      entityId: op.entity_id,
+      localUpdatedAt: typeof localEntity.updated_at === 'string' ? localEntity.updated_at : null,
+      remoteUpdatedAt: typeof remoteEntity.updated_at === 'string' ? remoteEntity.updated_at : null,
+      localVersion: typeof localEntity.local_version === 'number' ? localEntity.local_version : 0,
+      remoteVersion: typeof remoteEntity.local_version === 'number' ? remoteEntity.local_version : 0,
+      winner: result.winner,
+      reason: result.reason,
+    });
+
+    await withStore(mapping.store, 'readwrite', (store) => {
+      if (result.winner === 'remote' || result.winner === 'equal') {
+        store.put({
+          ...remoteEntity,
+          sync_state: 'synced',
+          last_synced_at: nowIso(),
+          updated_at: remoteEntity.updated_at ?? nowIso(),
+        });
+      } else {
+        store.put({
+          ...localEntity,
+          sync_state: 'synced',
+          last_synced_at: nowIso(),
+          updated_at: localEntity.updated_at ?? nowIso(),
+        });
+      }
+      return store.get(op.entity_id);
     }).catch(() => undefined);
   }
 
