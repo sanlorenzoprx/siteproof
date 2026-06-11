@@ -43,6 +43,27 @@ test('report share service builds email and SMS links only from cloud share URLs
   assert.match(sms.href, /siteproof\.report%2Fshare%2Freport-1/);
 });
 
+test('report share service can use customer contact defaults', () => {
+  const job = {
+    customerName: 'Rivera Home',
+    customerEmail: 'owner@example.com',
+    customerPhone: '(787) 555-1212',
+  };
+
+  assert.equal(ReportShareService.defaultRecipientForChannel(job, 'email'), 'owner@example.com');
+  assert.equal(ReportShareService.defaultRecipientForChannel(job, 'sms'), '787555-1212');
+
+  const email = ReportShareService.buildEmailTarget(packet, job);
+  assert.ok(email);
+  assert.equal(email.recipient, 'owner@example.com');
+  assert.match(email.href, /^mailto:owner%40example\.com/);
+
+  const sms = ReportShareService.buildSmsTarget(packet, job);
+  assert.ok(sms);
+  assert.equal(sms.recipient, '787555-1212');
+  assert.match(sms.href, /^sms:787555-1212/);
+});
+
 test('report share service does not create fake links for local-only reports', () => {
   const localOnly = { ...packet, cloud_file_uri: null };
   assert.equal(ReportShareService.canShareLink(localOnly), false);

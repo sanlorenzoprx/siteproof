@@ -59,6 +59,8 @@ export default function ExportSection(props: ExportSectionProps) {
     onSharePacket,
     t,
   } = props;
+  const customerPhoneRecipient = ReportShareService.defaultRecipientForChannel(job, 'sms');
+  const customerEmailRecipient = ReportShareService.defaultRecipientForChannel(job, 'email');
 
   return (
     <section className="space-y-6">
@@ -161,9 +163,31 @@ export default function ExportSection(props: ExportSectionProps) {
               <input
                 value={shareRecipient}
                 onChange={(event) => onChangeShareRecipient(event.target.value)}
-                placeholder={t('jobDetail.shareRecipientPlaceholder')}
+                placeholder={customerPhoneRecipient || customerEmailRecipient || t('jobDetail.shareRecipientPlaceholder')}
                 className="w-full min-h-12 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-blue-400"
               />
+              {(customerPhoneRecipient || customerEmailRecipient) && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {customerPhoneRecipient && (
+                    <button
+                      type="button"
+                      onClick={() => onChangeShareRecipient(customerPhoneRecipient)}
+                      className="rounded-xl bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white"
+                    >
+                      {t('jobDetail.useCustomerPhone')}
+                    </button>
+                  )}
+                  {customerEmailRecipient && (
+                    <button
+                      type="button"
+                      onClick={() => onChangeShareRecipient(customerEmailRecipient)}
+                      className="rounded-xl bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white"
+                    >
+                      {t('jobDetail.useCustomerEmail')}
+                    </button>
+                  )}
+                </div>
+              )}
               {shareError && (
                 <p
                   role="alert"

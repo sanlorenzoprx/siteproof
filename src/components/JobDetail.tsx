@@ -330,7 +330,7 @@ export function JobDetail() {
   }
 
   async function sharePacket(packet: ExportPacket, channel: 'email' | 'sms') {
-    const recipient = shareRecipient.trim();
+    const recipient = shareRecipient.trim() || ReportShareService.defaultRecipientForChannel(job!, channel);
     if (!recipient) {
       setShareError(channel === 'email' ? t('jobDetail.shareEmailRequired') : t('jobDetail.sharePhoneRequired'));
       return;

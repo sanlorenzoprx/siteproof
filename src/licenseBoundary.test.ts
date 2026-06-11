@@ -139,6 +139,7 @@ test('cloud object keys are deterministic and no frontend Stripe secrets leak', 
   assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'v1', jobId: 'j1', objectType: 'video' }), 'owners/owner-1/jobs/j1/videos/v1.webm');
   assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'd1', jobId: 'j1', objectType: 'document' }), 'owners/owner-1/jobs/j1/document/d1');
   assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'm1', jobId: 'j1', objectType: 'metadata' }), 'owners/owner-1/jobs/j1/metadata/m1.json');
+  assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 't1', jobId: 'j1', objectType: 'transcript' }), 'owners/owner-1/jobs/j1/transcripts/t1.json');
   assert.equal(CloudflareClient.objectKey({ ownerId: 'owner-1', localId: 'voice1', jobId: 'j1', objectType: 'voice_note' }), 'owners/owner-1/jobs/j1/voice_notes/voice1.webm');
   assert.equal(CloudflareClient.defaultVisibility({ localId: 'b1', jobId: 'j1', objectType: 'bid_report', reportType: 'internal_bid_report' }), 'internal_only');
   assert.equal(CloudflareClient.defaultVisibility({ localId: 'b2', jobId: 'j1', objectType: 'bid_report', reportType: 'customer_bid_report' }), 'customer_visible');
@@ -149,6 +150,236 @@ test('cloud object keys are deterministic and no frontend Stripe secrets leak', 
   ].map((file) => fs.readFileSync(file, 'utf8')).join('\n');
   const secretPattern = new RegExp([`sk_${'live'}_`, `sk_${'test'}_`, `${'STRIPE'}_${'SECRET'}`, `wh${'sec'}_`].join('|'));
   assert.equal(secretPattern.test(source), false);
+});
+
+function makeCloudStorageHarness() {
+  const rows = new Map<string, Record<string, unknown>>();
+  const mediaObjects = new Map<string, Uint8Array>();
+  const exportObjects = new Map<string, Uint8Array>();
+
+  function makeBucket(objects: Map<string, Uint8Array>) {
+    return {
+      async put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | Blob | null) {
+        let bytes: Uint8Array;
+        if (typeof value === 'string') bytes = new TextEncoder().encode(value);
+        else if (value instanceof Blob) bytes = new Uint8Array(await value.arrayBuffer());
+        else if (value instanceof ArrayBuffer) bytes = new Uint8Array(value);
+        else if (ArrayBuffer.isView(value)) bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+        else if (value) bytes = new Uint8Array(await new Response(value).arrayBuffer());
+        else bytes = new Uint8Array();
+        objects.set(key, bytes);
+      },
+      async get(key: string) {
+        const bytes = objects.get(key);
+        return bytes ? { body: new Blob([bytes]).stream(), size: bytes.byteLength, httpMetadata: { contentType: 'application/octet-stream' } } : null;
+      },
+      async head(key: string) {
+        const bytes = objects.get(key);
+        return bytes ? { size: bytes.byteLength } : null;
+      },
+    };
+  }
+
+  const db = {
+    prepare(sql: string) {
+      return {
+        bind(...values: unknown[]) {
+          return {
+            async run() {
+              if (sql.startsWith('INSERT OR REPLACE INTO cloud_storage_objects')) {
+                const [
+                  id,
+                  ownerId,
+                  jobId,
+                  objectType,
+                  reportType,
+                  visibility,
+                  storageKey,
+                  contentType,
+                  fileSize,
+                  sha256,
+                  syncStatus,
+                  createdAt,
+                  updatedAt,
+                ] = values;
+                rows.set(String(id), {
+                  id,
+                  owner_id: ownerId,
+                  job_id: jobId,
+                  object_type: objectType,
+                  report_type: reportType,
+                  visibility,
+                  storage_key: storageKey,
+                  content_type: contentType,
+                  file_size: fileSize,
+                  sha256,
+                  sync_status: syncStatus,
+                  share_link_id: null,
+                  created_at: createdAt,
+                  updated_at: updatedAt,
+                });
+              }
+              if (sql.startsWith('UPDATE cloud_storage_objects SET sync_status')) {
+                const [syncStatus, updatedAt, id] = values;
+                const row = rows.get(String(id));
+                if (row) {
+                  row.sync_status = syncStatus;
+                  row.updated_at = updatedAt;
+                }
+              }
+              if (sql.startsWith('UPDATE cloud_storage_objects SET share_link_id')) {
+                const [shareLinkId, ownerId, jobId, visibility] = values;
+                for (const row of rows.values()) {
+                  if (row.owner_id === ownerId && row.job_id === jobId && row.visibility === visibility) row.share_link_id = shareLinkId;
+                }
+              }
+              return {};
+            },
+            async first() {
+              if (sql.includes('WHERE id = ? AND storage_key = ?')) {
+                const [id, storageKey] = values;
+                const row = rows.get(String(id));
+                return row?.storage_key === storageKey ? row : null;
+              }
+              if (sql.includes('WHERE id = ? AND owner_id = ?')) {
+                const [id, ownerId] = values;
+                const row = rows.get(String(id));
+                return row?.owner_id === ownerId ? row : null;
+              }
+              return null;
+            },
+            async all() {
+              if (sql.includes('WHERE owner_id = ? AND job_id = ? AND visibility = ?')) {
+                const [ownerId, jobId, visibility] = values;
+                return { results: [...rows.values()].filter((row) => row.owner_id === ownerId && row.job_id === jobId && row.visibility === visibility) };
+              }
+              if (sql.includes('WHERE owner_id = ? AND job_id = ?')) {
+                const [ownerId, jobId] = values;
+                return { results: [...rows.values()].filter((row) => row.owner_id === ownerId && row.job_id === jobId) };
+              }
+              return { results: [] };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  return {
+    rows,
+    mediaObjects,
+    exportObjects,
+    env: {
+      AI: { run: async () => ({}) },
+      SITEPROOF_DB: db,
+      SITEPROOF_MEDIA: makeBucket(mediaObjects),
+      SITEPROOF_EXPORTS: makeBucket(exportObjects),
+    },
+  };
+}
+
+test('cloud upload stores bytes in R2 and commits D1 metadata', async () => {
+  const harness = makeCloudStorageHarness();
+  const videoBytes = new TextEncoder().encode('real video bytes');
+  const uploadUrl = await worker.fetch(new Request('https://api.test/api/cloud/upload-url', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      objectId: 'video-1',
+      objectType: 'video',
+      visibility: 'private',
+      contentType: 'video/webm',
+      fileSize: videoBytes.byteLength,
+      sha256: 'video-sha',
+    }),
+  }), harness.env);
+  const upload = await uploadUrl.json() as Record<string, unknown>;
+  assert.equal(uploadUrl.status, 200);
+  assert.match(String(upload.uploadUrl), /\/cloud\/upload-object\?/);
+
+  const put = await worker.fetch(new Request(String(upload.uploadUrl), {
+    method: 'PUT',
+    headers: { 'content-type': 'video/webm' },
+    body: videoBytes,
+  }), harness.env);
+  assert.equal(put.status, 200);
+  assert.equal(harness.mediaObjects.get(String(upload.storageKey))?.byteLength, videoBytes.byteLength);
+  assert.equal(harness.exportObjects.size, 0);
+
+  const commit = await worker.fetch(new Request('https://api.test/api/cloud/commit', {
+    method: 'POST',
+    body: JSON.stringify({
+      cloudObjectId: upload.cloudObjectId,
+      storageKey: upload.storageKey,
+      sha256: 'video-sha',
+      fileSize: videoBytes.byteLength,
+    }),
+  }), harness.env);
+  const committed = await commit.json() as { object?: Record<string, unknown> };
+  assert.equal(commit.status, 200);
+  assert.equal(committed.object?.syncStatus, 'synced');
+  assert.equal(committed.object?.objectType, 'video');
+
+  const download = await worker.fetch(new Request(`https://api.test/api/cloud/objects/${upload.cloudObjectId}/download`, {
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+  }), harness.env);
+  assert.equal(download.status, 200);
+  assert.equal(await download.text(), 'real video bytes');
+
+  const otherOwnerDownload = await worker.fetch(new Request(`https://api.test/api/cloud/objects/${upload.cloudObjectId}/download`, {
+    headers: { 'x-siteproof-owner-id': 'owner-2' },
+  }), harness.env);
+  assert.equal(otherOwnerDownload.status, 404);
+});
+
+test('cloud report uploads use exports bucket and customer share excludes private objects', async () => {
+  const harness = makeCloudStorageHarness();
+  const reportBytes = new TextEncoder().encode('pdf bytes');
+  const reportUpload = await worker.fetch(new Request('https://api.test/cloud/upload-url', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      objectId: 'customer-report',
+      objectType: 'bid_report',
+      reportType: 'customer_bid_report',
+      visibility: 'customer_visible',
+      contentType: 'application/pdf',
+      fileSize: reportBytes.byteLength,
+      sha256: 'report-sha',
+    }),
+  }), harness.env);
+  const report = await reportUpload.json() as Record<string, unknown>;
+  await worker.fetch(new Request(String(report.uploadUrl), { method: 'PUT', body: reportBytes }), harness.env);
+
+  const privateUpload = await worker.fetch(new Request('https://api.test/cloud/upload-url', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      objectId: 'internal-metadata',
+      objectType: 'metadata',
+      visibility: 'private',
+      contentType: 'application/json',
+      fileSize: 2,
+      sha256: 'metadata-sha',
+    }),
+  }), harness.env);
+  const privateObject = await privateUpload.json() as Record<string, unknown>;
+  await worker.fetch(new Request(String(privateObject.uploadUrl), { method: 'PUT', body: '{}' }), harness.env);
+
+  assert.equal(harness.exportObjects.get(String(report.storageKey))?.byteLength, reportBytes.byteLength);
+  assert.equal(harness.mediaObjects.get(String(privateObject.storageKey))?.byteLength, 2);
+
+  const share = await worker.fetch(new Request('https://api.test/cloud/share-links', {
+    method: 'POST',
+    headers: { 'x-siteproof-owner-id': 'owner-1' },
+    body: JSON.stringify({ jobId: 'job-1' }),
+  }), harness.env);
+  const shareJson = await share.json() as { objects?: Array<Record<string, unknown>> };
+  assert.equal(share.status, 200);
+  assert.deepEqual(shareJson.objects?.map((object) => object.objectType), ['bid_report']);
 });
 
 test('app worker no longer serves billing routes and cloud routes expose safe JSON only', async () => {

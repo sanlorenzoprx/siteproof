@@ -47,6 +47,7 @@ function numberField(value: Record<string, unknown>, key: string): number | unde
 const CLOUD_OBJECT_TYPES = new Set(['photo', 'document', 'video', 'report', 'metadata', 'voice_note', 'signature', 'transcript', 'bid_report', 'thumbnail', 'share_package']);
 const CLOUD_REPORT_TYPES = new Set(['customer_completion', 'daily_job_proof', 'inspection_readiness', 'change_order_evidence', 'photo_proof_timeline', 'payment_final_handoff', 'office_internal_job_record', 'all_reports', 'internal_bid_report', 'customer_bid_report']);
 const CLOUD_VISIBILITIES = new Set(['private', 'internal_only', 'customer_visible', 'hidden_do_not_export']);
+const EXPORT_OBJECT_TYPES = new Set(['report', 'bid_report', 'share_package']);
 
 function randomId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
@@ -65,8 +66,18 @@ function cloudObjectStorageKey(input: { ownerId: string; jobId: string; objectId
   if (input.objectType === 'video') return `owners/${input.ownerId}/jobs/${input.jobId}/videos/${objectId}.${input.contentType?.includes('mp4') ? 'mp4' : 'webm'}`;
   if (input.objectType === 'voice_note') return `owners/${input.ownerId}/jobs/${input.jobId}/voice_notes/${objectId}.${input.contentType?.includes('mp4') ? 'mp4' : 'webm'}`;
   if (input.objectType === 'metadata') return `owners/${input.ownerId}/jobs/${input.jobId}/metadata/${objectId}.json`;
+  if (input.objectType === 'transcript') return `owners/${input.ownerId}/jobs/${input.jobId}/transcripts/${objectId}.json`;
   if (input.objectType === 'thumbnail') return `owners/${input.ownerId}/jobs/${input.jobId}/thumbnails/${objectId}.jpg`;
   return `owners/${input.ownerId}/jobs/${input.jobId}/${input.objectType}/${objectId}`;
+}
+
+function bucketNameForObjectType(objectType: string): 'SITEPROOF_EXPORTS' | 'SITEPROOF_MEDIA' {
+  return EXPORT_OBJECT_TYPES.has(objectType) ? 'SITEPROOF_EXPORTS' : 'SITEPROOF_MEDIA';
+}
+
+function bucketForObject(env: WorkerEnv, objectType?: unknown) {
+  const bucketName = bucketNameForObjectType(typeof objectType === 'string' ? objectType : '');
+  return bucketName === 'SITEPROOF_EXPORTS' ? env.SITEPROOF_EXPORTS : env.SITEPROOF_MEDIA;
 }
 
 function cloudObjectFromBody(body: Record<string, unknown>, request: Request) {
@@ -96,6 +107,25 @@ function cloudObjectFromBody(body: Record<string, unknown>, request: Request) {
     fileSize,
     sha256,
     storageKey: cloudObjectStorageKey({ ownerId, jobId, objectId, objectType, reportType, contentType }),
+  };
+}
+
+function cloudObjectResponse(row: Record<string, unknown>, updatedAt?: string) {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    jobId: row.job_id,
+    objectType: row.object_type,
+    reportType: row.report_type ?? undefined,
+    visibility: row.visibility,
+    storageKey: row.storage_key,
+    contentType: row.content_type,
+    fileSize: row.file_size,
+    sha256: row.sha256,
+    syncStatus: row.sync_status,
+    shareLinkId: row.share_link_id ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: updatedAt ?? row.updated_at,
   };
 }
 
@@ -154,7 +184,7 @@ async function routeBoundary(pathname: string, request: Request, env: WorkerEnv)
       now,
     );
     return jsonResponse({
-      uploadUrl: `${new URL(request.url).origin}/cloud/mock-upload?storageKey=${encodeURIComponent(parsed.storageKey)}`,
+      uploadUrl: `${new URL(request.url).origin}/cloud/upload-object?cloudObjectId=${encodeURIComponent(parsed.id)}&storageKey=${encodeURIComponent(parsed.storageKey)}`,
       method: 'PUT',
       storageKey: parsed.storageKey,
       cloudObjectId: parsed.id,
@@ -169,26 +199,17 @@ async function routeBoundary(pathname: string, request: Request, env: WorkerEnv)
     const fileSize = numberField(body, 'fileSize');
     if (!cloudObjectId || !storageKey || !sha256 || fileSize === undefined) return jsonResponse({ error: 'cloudObjectId, storageKey, sha256, and fileSize are required' }, 400);
     const existing = await durableFirst<Record<string, unknown>>(env, 'SELECT * FROM cloud_storage_objects WHERE id = ? AND storage_key = ?', cloudObjectId, storageKey);
+    if (!existing) return jsonResponse({ error: 'Pending cloud object not found' }, 404);
     if (existing && (existing.sha256 !== sha256 || existing.file_size !== fileSize)) return jsonResponse({ error: 'Upload commit does not match pending object metadata' }, 409);
+    const bucket = bucketForObject(env, existing.object_type);
+    if (bucket?.head) {
+      const stored = await bucket.head(storageKey);
+      if (!stored) return jsonResponse({ error: 'Cloud object bytes are missing from R2' }, 409);
+      if (typeof stored.size === 'number' && stored.size !== fileSize) return jsonResponse({ error: 'Stored R2 object size does not match pending metadata' }, 409);
+    }
     const now = new Date().toISOString();
     await durableRun(env, 'UPDATE cloud_storage_objects SET sync_status = ?, updated_at = ? WHERE id = ? AND storage_key = ?', 'synced', now, cloudObjectId, storageKey);
-    const object = existing ? {
-      id: existing.id,
-      ownerId: existing.owner_id,
-      jobId: existing.job_id,
-      objectType: existing.object_type,
-      reportType: existing.report_type ?? undefined,
-      visibility: existing.visibility,
-      storageKey: existing.storage_key,
-      contentType: existing.content_type,
-      fileSize: existing.file_size,
-      sha256: existing.sha256,
-      syncStatus: 'synced',
-      shareLinkId: existing.share_link_id ?? undefined,
-      createdAt: existing.created_at,
-      updatedAt: now,
-    } : { id: cloudObjectId, storageKey, sha256, fileSize, syncStatus: 'synced' };
-    return jsonResponse({ ok: true, object });
+    return jsonResponse({ ok: true, object: cloudObjectResponse({ ...existing, sync_status: 'synced' }, now) });
   }
 
   if (request.method === 'GET' && (pathname.startsWith('/cloud/jobs/') || pathname.startsWith('/api/cloud/jobs/') || pathname.startsWith('/cloud/job/'))) {
@@ -216,6 +237,37 @@ async function routeBoundary(pathname: string, request: Request, env: WorkerEnv)
     })) });
   }
 
+  if (request.method === 'GET' && (pathname.startsWith('/cloud/objects/') || pathname.startsWith('/api/cloud/objects/'))) {
+    const parts = pathname.split('/').filter(Boolean);
+    const objectsIndex = parts.indexOf('objects');
+    const cloudObjectId = parts[objectsIndex + 1];
+    const action = parts[objectsIndex + 2];
+    if (!cloudObjectId || action !== 'download') return null;
+    const ownerId = ownerIdFromRequest(request);
+    const existing = await durableFirst<Record<string, unknown>>(
+      env,
+      'SELECT * FROM cloud_storage_objects WHERE id = ? AND owner_id = ?',
+      cloudObjectId,
+      ownerId,
+    );
+    if (!existing) return jsonResponse({ error: 'Cloud object not found' }, 404);
+    const bucket = bucketForObject(env, existing.object_type);
+    if (!bucket?.get) return jsonResponse({ error: 'Cloudflare R2 bucket binding is not configured for downloads' }, 503);
+    const stored = await bucket.get(String(existing.storage_key));
+    if (!stored?.body) return jsonResponse({ error: 'Cloud object bytes are missing from R2' }, 404);
+    return new Response(stored.body, {
+      status: 200,
+      headers: {
+        ...jsonHeaders,
+        'Content-Type': String(existing.content_type || stored.httpMetadata?.contentType || 'application/octet-stream'),
+        'Content-Length': String(stored.size ?? existing.file_size ?? ''),
+        'X-SiteProof-Cloud-Object-Id': String(existing.id),
+        'X-SiteProof-Object-Type': String(existing.object_type),
+        'X-SiteProof-Visibility': String(existing.visibility),
+      },
+    });
+  }
+
   if (request.method === 'POST' && (pathname === '/cloud/share-links' || pathname === '/api/cloud/share-links')) {
     const jobId = stringField(body, 'jobId');
     if (!jobId) return jsonResponse({ error: 'jobId is required' }, 400);
@@ -236,8 +288,33 @@ async function routeBoundary(pathname: string, request: Request, env: WorkerEnv)
     });
   }
 
-  if (request.method === 'PUT' && pathname === '/cloud/mock-upload') {
-    return new Response(null, { status: 200, headers: jsonHeaders });
+  if (request.method === 'PUT' && (pathname === '/cloud/upload-object' || pathname === '/api/cloud/upload-object')) {
+    const url = new URL(request.url);
+    const cloudObjectId = url.searchParams.get('cloudObjectId');
+    const storageKey = url.searchParams.get('storageKey');
+    if (!cloudObjectId || !storageKey) return jsonResponse({ error: 'cloudObjectId and storageKey are required' }, 400);
+    const existing = await durableFirst<Record<string, unknown>>(env, 'SELECT * FROM cloud_storage_objects WHERE id = ? AND storage_key = ?', cloudObjectId, storageKey);
+    if (!existing) return jsonResponse({ error: 'Pending cloud object not found' }, 404);
+    const bucket = bucketForObject(env, existing.object_type);
+    if (!bucket?.put) return jsonResponse({ error: 'Cloudflare R2 bucket binding is not configured for this object type' }, 503);
+    await bucket.put(storageKey, request.body, {
+      httpMetadata: { contentType: String(existing.content_type || request.headers.get('content-type') || 'application/octet-stream') },
+      customMetadata: {
+        cloudObjectId,
+        ownerId: String(existing.owner_id),
+        jobId: String(existing.job_id),
+        objectType: String(existing.object_type),
+        reportType: existing.report_type ? String(existing.report_type) : '',
+        visibility: String(existing.visibility),
+        sha256: String(existing.sha256),
+      },
+    });
+    return jsonResponse({
+      ok: true,
+      cloudObjectId,
+      storageKey,
+      bucket: bucketNameForObjectType(String(existing.object_type)),
+    });
   }
 
   return null;

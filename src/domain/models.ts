@@ -9,6 +9,9 @@ export interface Job {
   id: string;
   mode?: JobMode;
   customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerPreferredContactMethod?: 'phone' | 'email' | 'text' | 'none';
   address: string;
   jobType: string;
   templateId?: string;
@@ -168,6 +171,10 @@ export interface VoiceNote {
   integrityStatus?: 'verified' | 'modified' | 'missing_hash' | 'unavailable';
   integrityStampedAt?: string;
   custodyLog?: CustodyLogEntry[];
+  cloudObjectKey?: string;
+  transcriptCloudObjectKey?: string;
+  metadataCloudObjectKey?: string;
+  cloudSyncState?: 'local_only' | 'queued' | 'syncing' | 'synced' | 'error';
 }
 
 export interface SyncState {

@@ -12,8 +12,8 @@ binding = "AI"
 
 [[d1_databases]]
 binding = "SITEPROOF_DB"
-database_name = "siteproof-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "siteproof_proof_package_db"
+database_id = "9fc14697-4c1f-47e9-8a11-9fb66c07e06e"
 migrations_dir = "workers/siteproof-api/migrations"
 
 [[r2_buckets]]

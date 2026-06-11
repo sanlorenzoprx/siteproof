@@ -8,6 +8,9 @@ import { LicenseService } from './licenseService';
 export interface CreateFieldJobInput {
   mode?: Job['mode'];
   customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerPreferredContactMethod?: Job['customerPreferredContactMethod'];
   address: string;
   jobType?: string;
   templateId?: string;
@@ -54,6 +57,9 @@ export class JobWorkflowService {
       id: crypto.randomUUID(),
       mode: input.mode ?? 'approved',
       customerName: input.customerName.trim(),
+      customerPhone: input.customerPhone?.trim() || undefined,
+      customerEmail: input.customerEmail?.trim() || undefined,
+      customerPreferredContactMethod: input.customerPreferredContactMethod,
       address: input.address.trim(),
       jobType: input.jobType || template.display_name,
       templateId,

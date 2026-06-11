@@ -72,6 +72,24 @@ function parseAddress(address: string): Address {
   };
 }
 
+function optionalTrim(value?: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function inferCustomerPreferredContactMethod(legacyJob: LegacyJob): NonNullable<LegacyJob['customerPreferredContactMethod']> {
+  if (legacyJob.customerPreferredContactMethod) return legacyJob.customerPreferredContactMethod;
+  if (optionalTrim(legacyJob.customerPhone)) return 'text';
+  if (optionalTrim(legacyJob.customerEmail)) return 'email';
+  return 'none';
+}
+
+function hasCustomerContactInput(legacyJob: LegacyJob): boolean {
+  return legacyJob.customerPhone !== undefined
+    || legacyJob.customerEmail !== undefined
+    || legacyJob.customerPreferredContactMethod !== undefined;
+}
+
 function getBundledTemplate(templateId: string): WorkflowTemplate | null {
   if (normalizeTemplateId(templateId) === 'generator_install_v1') {
     return generatorInstallTemplate as WorkflowTemplate;
@@ -182,10 +200,25 @@ export class RuntimeOrchestrator {
       const customer = await customerRepository.createCustomer({
         company_id: DEFAULT_COMPANY_ID,
         name: legacyJob.customerName,
+        phone: optionalTrim(legacyJob.customerPhone),
+        email: optionalTrim(legacyJob.customerEmail),
         property_address: address,
+        preferred_contact_method: inferCustomerPreferredContactMethod(legacyJob),
         notes: null,
       });
       customerId = customer.customer_id;
+    } else if (customerId && hasCustomerContactInput(legacyJob)) {
+      const customer = await customerRepository.getById(customerId);
+      if (customer) {
+        await customerRepository.put({
+          ...customer,
+          name: legacyJob.customerName || customer.name,
+          phone: optionalTrim(legacyJob.customerPhone) ?? customer.phone ?? null,
+          email: optionalTrim(legacyJob.customerEmail) ?? customer.email ?? null,
+          property_address: customer.property_address ?? address,
+          preferred_contact_method: legacyJob.customerPreferredContactMethod ?? customer.preferred_contact_method ?? inferCustomerPreferredContactMethod(legacyJob),
+        });
+      }
     }
 
     const runtimeJob: RuntimeJob = {

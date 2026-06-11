@@ -114,6 +114,58 @@ test('activation link bootstrap saves pending license when offline', withSetting
   }
 }));
 
+test('license and token activation link applies purchase setup seed', withSettingsStore({}, async () => {
+  const originalBootstrap = LicenseApiClient.bootstrap;
+  LicenseApiClient.bootstrap = async (licenseKey, deviceId, activationToken) => {
+    assert.equal(licenseKey, 'SAFE-LICENSE-456');
+    assert.ok(deviceId);
+    assert.equal(activationToken, 'tok_seeded');
+    return {
+      valid: true,
+      license: {
+        licenseId: 'lic_seeded',
+        status: 'licensed',
+        planId: 'siteproof_launch_7_license',
+        customerEmail: 'seeded@example.com',
+        cloudEntitled: true,
+        seatsIncluded: 7,
+      },
+      settingsSeed: PurchaseIntakeBootstrapService.createSettingsSeedFromIntake({
+        companyName: 'Seeded Roofing',
+        ownerAdminName: 'Sam Seed',
+        email: 'seeded@example.com',
+        tradeType: 'Roofing',
+        reportLanguage: 'es',
+        cloudStoragePlan: 'included_1_year',
+        planId: 'siteproof_launch_7_license',
+      }),
+    };
+  };
+  try {
+    assert.deepEqual(PurchaseIntakeBootstrapService.parseActivationLink('?license=SAFE-LICENSE-456&token=tok_seeded'), {
+      licenseKey: 'SAFE-LICENSE-456',
+      activationToken: 'tok_seeded',
+    });
+    const result = await PurchaseIntakeBootstrapService.bootstrapFromActivationLink({
+      licenseKey: 'SAFE-LICENSE-456',
+      activationToken: 'tok_seeded',
+    });
+    const state = await LicenseService.getLicenseState();
+    const settings = await SettingsService.getSettings();
+
+    assert.equal(result.license.status, 'licensed');
+    assert.equal(result.appliedSettings, true);
+    assert.equal(state.licenseKey, 'SAFE-LICENSE-456');
+    assert.equal(settings.companyProfile.companyName, 'Seeded Roofing');
+    assert.equal(settings.companyProfile.businessEmail, 'seeded@example.com');
+    assert.equal(settings.reportDefaults.defaultReportLanguage, 'es');
+    assert.equal(settings.cloudLicense.cloudEnabled, true);
+    assert.doesNotMatch(JSON.stringify(state), /tok_seeded/);
+  } finally {
+    LicenseApiClient.bootstrap = originalBootstrap;
+  }
+}));
+
 test('activation token link activates without storing raw token', withSettingsStore({}, async () => {
   const originalActivateWithToken = LicenseApiClient.activateWithToken;
   const originalVerify = LicenseApiClient.verify;

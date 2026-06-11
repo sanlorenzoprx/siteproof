@@ -171,6 +171,9 @@ async function buildLegacyJob(runtimeJob: RuntimeJob): Promise<LegacyJob> {
   return {
     id: runtimeJob.job_id,
     customerName: customer?.name || runtimeJob.job_title || 'SiteProof Job',
+    customerPhone: customer?.phone ?? undefined,
+    customerEmail: customer?.email ?? undefined,
+    customerPreferredContactMethod: customer?.preferred_contact_method,
     address: addressToString(runtimeJob),
     jobType: runtimeJob.job_type,
     templateId: runtimeJob.template_id,

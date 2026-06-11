@@ -27,6 +27,8 @@
     "legacy:check": "node scripts/legacy-architecture-check.mjs",
     "build:check": "node scripts/build-check.mjs",
     "release:check": "npm run quality:check && npm run build:check",
+    "publish:check": "node scripts/publish-readiness-check.mjs",
+    "publish:check:strict": "node scripts/publish-readiness-check.mjs --strict",
     "ai:task-graph:test": "tsx --test src/ai-improvement/taskGraphReview.test.ts",
     "test": "tsx --test src/**/*.test.ts",
     "test:vitest": "vitest run --config vitest.config.ts"

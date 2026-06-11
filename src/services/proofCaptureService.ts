@@ -70,6 +70,46 @@ function isWifiConnection(): boolean {
   return type === 'wifi' || type === 'ethernet';
 }
 
+function proofMetadataPayload(
+  proofType: 'photo' | 'video' | 'voice_note',
+  proof: JobPhoto | JobVideo | VoiceNote,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    schemaVersion: 1,
+    proofType,
+    proofId: proof.id,
+    jobId: proof.jobId,
+    category: proof.category,
+    requirementId: proof.requirementId ?? null,
+    stageId: proof.stageId ?? null,
+    timestamp: proof.timestamp,
+    language: proof.language ?? null,
+    proofHash: proof.proofHash ?? null,
+    proofHashAlgorithm: proof.proofHashAlgorithm ?? null,
+    integrityStatus: proof.integrityStatus ?? null,
+    integrityStampedAt: proof.integrityStampedAt ?? null,
+    custodyLog: proof.custodyLog ?? [],
+    reportTags: {
+      customerSafe: false,
+      defaultVisibility: 'private',
+      reportVariations: ['office_internal_job_record', 'daily_job_proof', 'photo_proof_timeline'],
+    },
+    ...extra,
+  };
+}
+
+async function uploadProofMetadata(proofType: 'photo' | 'video' | 'voice_note', proof: JobPhoto | JobVideo | VoiceNote, extra: Record<string, unknown> = {}, online?: boolean) {
+  return CloudSyncService.upload({
+    localId: `${proof.id}_metadata`,
+    jobId: proof.jobId,
+    objectType: 'metadata',
+    visibility: 'private',
+    payload: proofMetadataPayload(proofType, proof, extra),
+    contentType: 'application/json',
+  }, online).catch(() => ({ state: 'error' as const, result: undefined }));
+}
+
 export class ProofCaptureService {
   static async savePhoto(input: SavePhotoInput): Promise<JobPhoto> {
     const settings = await SettingsService.getSettings();
@@ -106,6 +146,34 @@ export class ProofCaptureService {
       language: settings.captureLanguage,
     };
     await ProofIntegrityService.stampPhoto(photo);
+    const photoBlob = photo.compressedBlob ?? photo.blob ?? dataUrlToBlob(photo.dataUrl);
+    if (photoBlob) {
+      const photoSync = await CloudSyncService.upload({
+        localId: photo.id,
+        jobId: photo.jobId,
+        objectType: 'photo',
+        visibility: 'private',
+        blob: photoBlob,
+        contentType: photoBlob.type || 'image/jpeg',
+        fileSize: photoBlob.size,
+        sha256: photo.proofHash,
+      }).catch(() => ({ state: 'error' as const, result: undefined }));
+      photo.cloudObjectKey = photoSync.result?.cloudObjectKey;
+    }
+    await uploadProofMetadata('photo', photo, {
+      notes: photo.notes ?? null,
+      isIssue: photo.isIssue ?? false,
+      issueType: photo.issueType ?? null,
+      gps: { latitude: photo.latitude ?? null, longitude: photo.longitude ?? null },
+      media: {
+        width: photo.width ?? null,
+        height: photo.height ?? null,
+        originalSize: photo.originalSize ?? null,
+        compressedSize: photo.compressedSize ?? null,
+        thumbnailState: photo.thumbnailState ?? null,
+        cloudObjectKey: photo.cloudObjectKey ?? null,
+      },
+    });
     await SiteProofDataService.savePhoto(photo);
     return photo;
   }
@@ -184,6 +252,24 @@ export class ProofCaptureService {
       else if (thumbnailSync.state === 'error') video.cloudSyncState = 'error';
     }
 
+    const metadataSync = await uploadProofMetadata('video', video, {
+      notes: video.notes ?? null,
+      gps: { latitude: video.latitude ?? null, longitude: video.longitude ?? null },
+      media: {
+        durationMs: video.durationMs,
+        mimeType: video.mimeType,
+        fileSize: video.fileSize,
+        cloudObjectKey: video.cloudObjectKey ?? null,
+        thumbnailCloudObjectKey: video.thumbnailCloudObjectKey ?? null,
+      },
+      reportTags: {
+        customerSafe: settings.videoDefaults.includeVideoLinksInReports,
+        defaultVisibility: settings.videoDefaults.includeVideoLinksInReports ? 'customer_visible' : 'private',
+        reportVariations: ['office_internal_job_record', 'daily_job_proof', 'photo_proof_timeline'],
+      },
+    }, shouldAttemptVideoUpload);
+    if (videoSync.state === 'synced' && metadataSync.state === 'error') video.cloudSyncState = 'error';
+
     await SiteProofDataService.saveVideo(video);
     return video;
   }
@@ -222,6 +308,62 @@ export class ProofCaptureService {
       syncStatus: 'PENDING',
     };
     await ProofIntegrityService.stampVoiceNote(note);
+    if (note.audioBlob) {
+      const audioSync = await CloudSyncService.upload({
+        localId: note.id,
+        jobId: note.jobId,
+        objectType: 'voice_note',
+        visibility: 'private',
+        blob: note.audioBlob,
+        contentType: note.audioBlob.type || 'audio/webm',
+        fileSize: note.audioBlob.size,
+        sha256: note.proofHash,
+      }).catch(() => ({ state: 'error' as const, result: undefined }));
+      note.cloudObjectKey = audioSync.result?.cloudObjectKey;
+      note.cloudSyncState = audioSync.state;
+    }
+    const transcriptSync = await CloudSyncService.upload({
+      localId: `${note.id}_transcript`,
+      jobId: note.jobId,
+      objectType: 'transcript',
+      visibility: 'private',
+      payload: {
+        schemaVersion: 1,
+        voiceNoteId: note.id,
+        jobId: note.jobId,
+        transcript: note.transcribedText,
+        transcriptOriginal: note.transcriptOriginal ?? note.transcribedText,
+        summary: note.summary ?? null,
+        summaryOriginal: note.summaryOriginal ?? note.summary ?? null,
+        language: note.language ?? 'unknown',
+        aiConfidence: note.aiConfidence ?? null,
+        aiStatus: note.aiStatus ?? 'local',
+      },
+      contentType: 'application/json',
+    }).catch(() => ({ state: 'error' as const, result: undefined }));
+    note.transcriptCloudObjectKey = transcriptSync.result?.cloudObjectKey;
+    if (!note.cloudSyncState || transcriptSync.state === 'error') note.cloudSyncState = transcriptSync.state;
+
+    const metadataSync = await uploadProofMetadata('voice_note', note, {
+      transcriptCloudObjectKey: note.transcriptCloudObjectKey ?? null,
+      audioCloudObjectKey: note.cloudObjectKey ?? null,
+      tags: {
+        extractedTasks: note.extractedTasks ?? [],
+        materialMentions: note.materialMentions ?? [],
+        issueMentions: note.issueMentions ?? [],
+        customerRequests: note.customerRequests ?? [],
+        changeOrderCandidates: note.changeOrderCandidates ?? [],
+        isIssue: note.isIssue ?? false,
+        isChangeOrder: note.isChangeOrder ?? false,
+      },
+      reportTags: {
+        customerSafe: false,
+        defaultVisibility: 'private',
+        reportVariations: ['office_internal_job_record', 'daily_job_proof', 'change_order_evidence'],
+      },
+    });
+    note.metadataCloudObjectKey = metadataSync.result?.cloudObjectKey;
+    if (metadataSync.state === 'error') note.cloudSyncState = 'error';
     await SiteProofDataService.saveVoiceNote(note);
     return note;
   }

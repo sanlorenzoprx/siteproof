@@ -18,6 +18,8 @@ export function CreateJob() {
   const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [form, setForm] = useState({
     customerName: '',
+    customerPhone: '',
+    customerEmail: '',
     address: '',
     jobType: 'Generator Install',
     technicianName: '',
@@ -42,6 +44,8 @@ export function CreateJob() {
     setLoading(true);
     const newJob = await JobWorkflowService.createJob({
       customerName: form.customerName,
+      customerPhone: form.customerPhone,
+      customerEmail: form.customerEmail,
       mode: jobMode,
       address: form.address,
       jobType: form.jobType,
@@ -120,6 +124,29 @@ export function CreateJob() {
               <VoiceDictation 
                 onResult={(text) => setForm({...form, customerName: text})}
                 className="absolute right-3 top-1/2 -translate-y-1/2"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.customerPhone')}</label>
+              <input
+                type="tel"
+                value={form.customerPhone}
+                onChange={e => setForm({...form, customerPhone: e.target.value})}
+                placeholder={t('jobs.customerPhonePlaceholder')}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('jobs.customerEmail')}</label>
+              <input
+                type="email"
+                value={form.customerEmail}
+                onChange={e => setForm({...form, customerEmail: e.target.value})}
+                placeholder={t('jobs.customerEmailPlaceholder')}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
               />
             </div>
           </div>

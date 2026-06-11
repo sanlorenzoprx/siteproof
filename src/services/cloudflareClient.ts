@@ -109,6 +109,7 @@ export class CloudflareClient {
     if (request.objectType === 'video') return `owners/${ownerId}/jobs/${request.jobId}/videos/${request.localId}.webm`;
     if (request.objectType === 'voice_note') return `owners/${ownerId}/jobs/${request.jobId}/voice_notes/${request.localId}.webm`;
     if (request.objectType === 'metadata') return `owners/${ownerId}/jobs/${request.jobId}/metadata/${request.localId}.json`;
+    if (request.objectType === 'transcript') return `owners/${ownerId}/jobs/${request.jobId}/transcripts/${request.localId}.json`;
     if (request.objectType === 'thumbnail') return `owners/${ownerId}/jobs/${request.jobId}/thumbnails/${request.localId}.jpg`;
     return `owners/${ownerId}/jobs/${request.jobId}/${request.objectType}/${request.localId}`;
   }

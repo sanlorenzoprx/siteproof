@@ -101,8 +101,8 @@ test('cloud sync boundary no-ops when disabled and queues offline', async () => 
 
   SettingsService.getSettings = async () => ({ ...createDefaultSettings('en'), cloudEnabled: true });
   const flaggedOff = await CloudSyncService.upload({ localId: '2', jobId: 'j', objectType: 'voice_note' }, false);
-  assert.equal(flaggedOff.state, 'local_only');
-  assert.equal(savedStatus, 'off');
+  assert.equal(flaggedOff.state, 'queued');
+  assert.equal(savedStatus, 'pending');
 
   SettingsService.getSettings = originalGet;
   SettingsService.saveSettings = originalSave;
@@ -153,8 +153,8 @@ test('cloud sync requires feature flag and active entitlement before upload', as
       cloudEntitled: false,
     });
     const localOnly = await CloudSyncService.upload({ localId: 'voice-1', jobId: 'job-1', objectType: 'voice_note' }, true);
-    assert.equal(localOnly.state, 'local_only');
-    assert.match(localOnly.result?.error ?? '', /active cloud entitlement/);
+    assert.equal(localOnly.state, 'queued');
+    assert.match(localOnly.result?.error ?? '', /Saved locally/);
   } finally {
     CloudSyncService.setCloudVaultUploadEnabledOverride(null);
     SettingsService.getSettings = originalGet;

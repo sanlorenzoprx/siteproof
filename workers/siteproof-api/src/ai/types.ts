@@ -23,6 +23,24 @@ export interface WorkersAiBinding {
   run(model: string, options: WorkersAiRunOptions): Promise<unknown>;
 }
 
+export interface R2BucketBinding {
+  put(
+    key: string,
+    value: ReadableStream | ArrayBuffer | ArrayBufferView | string | Blob | null,
+    options?: {
+      httpMetadata?: { contentType?: string };
+      customMetadata?: Record<string, string>;
+    },
+  ): Promise<unknown>;
+  get?(key: string): Promise<{
+    body: ReadableStream | null;
+    size?: number;
+    httpMetadata?: { contentType?: string };
+    customMetadata?: Record<string, string>;
+  } | null>;
+  head?(key: string): Promise<{ size?: number; customMetadata?: Record<string, string> } | null>;
+}
+
 export interface WorkerEnv {
   AI: WorkersAiBinding;
   ALLOWED_ORIGINS?: string; // comma-separated allowed CORS origins
@@ -33,8 +51,8 @@ export interface WorkerEnv {
   STRIPE_WEBHOOK_SECRET?: string;
   SITEPROOF_DB?: unknown;
   DB?: unknown;
-  SITEPROOF_MEDIA?: unknown;
-  SITEPROOF_EXPORTS?: unknown;
+  SITEPROOF_MEDIA?: R2BucketBinding;
+  SITEPROOF_EXPORTS?: R2BucketBinding;
   AI_TEXT_MODEL?: string;
   AI_TRANSCRIBE_MODEL?: string;
 }

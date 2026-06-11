@@ -108,32 +108,36 @@ export class PurchaseIntakeBootstrapService {
   static async bootstrapFromActivationLink(params: ActivationLinkParams): Promise<PurchaseBootstrapResult> {
     const pending = await LicenseService.markPendingVerification(params.licenseKey);
     try {
+      if (params.licenseKey) {
+        try {
+          const response = await LicenseApiClient.bootstrap(params.licenseKey, pending.deviceId, params.activationToken);
+          const license = await LicenseService.activateLocally(params.licenseKey, {
+            status: response.license.status,
+            licenseId: response.license.licenseId,
+            tier: response.license.tier,
+            planId: response.license.planId,
+            customerEmail: response.license.customerEmail,
+            cloudEntitled: response.license.cloudEntitled,
+            cloudVaultEnabled: response.license.cloudVaultEnabled ?? response.license.cloudEntitled,
+            brandedReportsEnabled: response.license.brandedReportsEnabled,
+            seatLimit: response.license.seatLimit ?? response.license.seatsIncluded,
+            trialJobLimit: response.license.trialJobLimit,
+            currentPeriodEndsAt: response.license.currentPeriodEndsAt,
+            verificationCredential: response.license.verificationCredential,
+            errorMessage: undefined,
+            lastVerifiedAt: new Date().toISOString(),
+          });
+          const settingsResult = await this.applyBootstrapSettings(response);
+          return { license, ...settingsResult };
+        } catch (bootstrapError) {
+          if (!params.activationToken) throw bootstrapError;
+        }
+      }
       if (params.activationToken) {
         const license = await LicenseService.activateToken(params.activationToken);
         return { license, appliedSettings: false, pendingSettings: false };
       }
-      if (!params.licenseKey) {
-        return { license: pending, appliedSettings: false, pendingSettings: false };
-      }
-      const response = await LicenseApiClient.bootstrap(params.licenseKey, pending.deviceId);
-      const license = await LicenseService.activateLocally(params.licenseKey, {
-        status: response.license.status,
-        licenseId: response.license.licenseId,
-        tier: response.license.tier,
-        planId: response.license.planId,
-        customerEmail: response.license.customerEmail,
-        cloudEntitled: response.license.cloudEntitled,
-        cloudVaultEnabled: response.license.cloudVaultEnabled ?? response.license.cloudEntitled,
-        brandedReportsEnabled: response.license.brandedReportsEnabled,
-        seatLimit: response.license.seatLimit ?? response.license.seatsIncluded,
-        trialJobLimit: response.license.trialJobLimit,
-        currentPeriodEndsAt: response.license.currentPeriodEndsAt,
-        verificationCredential: response.license.verificationCredential,
-        errorMessage: undefined,
-        lastVerifiedAt: new Date().toISOString(),
-      });
-      const settingsResult = await this.applyBootstrapSettings(response);
-      return { license, ...settingsResult };
+      return { license: pending, appliedSettings: false, pendingSettings: false };
     } catch (error) {
       return { license: { ...pending, errorMessage: error instanceof Error ? error.message : pending.errorMessage }, appliedSettings: false, pendingSettings: false };
     }
