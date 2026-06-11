@@ -68,7 +68,7 @@
     "tsx": "4.21.0",
     "typescript": "5.8.2",
     "vite": "6.4.3",
-    "vitest": "3.2.4"
+    "vitest": "4.1.8"
   },
   "description": "SiteProof offline-first proof-of-work operating system for field contractors"
 }
